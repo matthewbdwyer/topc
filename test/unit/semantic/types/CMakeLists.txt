@@ -12,12 +12,14 @@ target_sources(
     ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipAbsentFieldTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipRefTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipVarTest.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipTypeTermTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/constraints/TypeConstraintCollectTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/constraints/PolyTypeConstraintCollectTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/constraints/TypeConstraintTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/constraints/AbsentFieldCheckerTest.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/solvers/UnifierTest.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/solvers/UnionFindTest.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/solver/TermUnifierTest.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/solver/UnifierTest.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/solver/UnionFindTest.cpp)
 target_include_directories(
   typeinference_unit_tests
   PRIVATE ${CMAKE_SOURCE_DIR}/src/error

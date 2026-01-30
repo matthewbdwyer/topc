@@ -1,32 +1,52 @@
 #pragma once
 
+#include "TermInterface.h"
+#include <iostream>
 #include <memory>
-#include <ostream>
+#include <sstream>
+#include <vector>
 
-// Forward declare the visitor to resolve circular dependency
 class TipTypeVisitor;
 
-/*! \class TipType
- * \brief Abstract base class of all types
+/*!
+ * \class TipType
  *
- * Defines equality comparisons, output operator, and accept for visitor.
- * Type variables and operators, like mu, directly subtype TipType.
- * All other types, e.g., ints, functions, etc., are subtypes of TipCons,
- * since this allows type unification to just handle TipCons.  Consequently,
- * it means that if you want to extend the types supported you will need to
- * subtype TipCons.
+ * \brief Abstract base class for all TIP types.
  */
-class TipType {
+class TipType : public Term {
 public:
-  virtual bool operator==(const TipType &other) const = 0;
-  virtual bool operator!=(const TipType &other) const = 0;
   virtual ~TipType() = default;
-  friend std::ostream &operator<<(std::ostream &os, const TipType &obj) {
-    return obj.print(os);
-  }
 
+  //! Print the type to an output stream
+  virtual std::ostream &print(std::ostream &out) const = 0;
+
+  //! Accept a visitor
   virtual void accept(TipTypeVisitor *visitor) = 0;
 
-protected:
-  virtual std::ostream &print(std::ostream &out) const = 0;
+  //! Compare two types for equality
+  virtual bool operator==(const TipType &other) const = 0;
+
+  bool operator!=(const TipType &other) const { return !(*this == other); }
+
+  // ========== Term interface implementation ==========
+
+  bool isVariable() const override { return false; }
+
+  std::string toString() const override {
+    std::ostringstream oss;
+    print(oss);
+    return oss.str();
+  }
+
+  bool equals(const Term &other) const override {
+    if (auto *otherTip = dynamic_cast<const TipType *>(&other)) {
+      return *this == *otherTip;
+    }
+    return false;
+  }
 };
+
+//! Stream insertion operator for TipType
+inline std::ostream &operator<<(std::ostream &out, const TipType &t) {
+  return t.print(out);
+}

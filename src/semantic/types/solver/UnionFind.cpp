@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <set>
 #include <string>
+#include <cassert>
 
 namespace { // Anonymous namespace for local helpers
 bool verbose = false;

@@ -1,5 +1,6 @@
 #include "TipVar.h"
 #include "TipInt.h"
+#include "ASTNumberExpr.h"
 
 #include <catch2/catch_test_macros.hpp>
 

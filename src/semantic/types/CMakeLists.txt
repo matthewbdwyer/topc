@@ -13,8 +13,6 @@ target_sources(
     ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipInt.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipInt.h
     ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipMu.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipMu.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipMu.h
     ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipMu.h
     ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipRecord.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipRecord.h
@@ -45,6 +43,9 @@ target_sources(
     ${CMAKE_CURRENT_SOURCE_DIR}/constraints/PolyTypeConstraintVisitor.h
     ${CMAKE_CURRENT_SOURCE_DIR}/constraints/AbsentFieldChecker.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/constraints/AbsentFieldChecker.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/solver/TermInterface.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/solver/TermUnifier.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/solver/TermUnifier.h
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/UnificationError.h
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/Unifier.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/Unifier.h
@@ -66,7 +67,16 @@ target_include_directories(
           ${CMAKE_SOURCE_DIR}/src/frontend/ast/treetypes
           ${CMAKE_SOURCE_DIR}/src/semantic/symboltable
           ${CMAKE_SOURCE_DIR}/src/semantic/cfa
+          ${CMAKE_CURRENT_SOURCE_DIR}
           ${CMAKE_CURRENT_SOURCE_DIR}/concrete
           ${CMAKE_CURRENT_SOURCE_DIR}/constraints
           ${CMAKE_CURRENT_SOURCE_DIR}/solver)
+
+# Ensure the types directory itself is in the include path
+target_include_directories(types PUBLIC 
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}/concrete
+  ${CMAKE_CURRENT_SOURCE_DIR}/solver
+)
+
 target_link_libraries(types PRIVATE coverage_config loguru)

@@ -1,50 +1,42 @@
 #pragma once
 
-#include "TipCons.h"
 #include "TipVar.h"
+#include <iostream>
 #include <string>
 
-/*! \class TipAlpha
- *  \brief Class for free type variables
+class TipTypeVisitor;
+
+/*!
+ * \class TipAlpha
+ *
+ * \brief A type variable used in type schemes (not a unification variable).
  */
 class TipAlpha : public TipVar {
 public:
   TipAlpha() = delete;
-
-  /*! \brief Constructor for all non-record nodes
-   *
-   * \param node The expression or decl node
-   */
   TipAlpha(ASTNode *node);
-
-  /*! \brief Constructor for record or access exprs
-   *
-   * \param node The record or access expr
-   * \param name The field name
-   */
   TipAlpha(ASTNode *node, std::string const name);
-
-  /*! \brief Constructor for creating context specific alphas
-   *
-   * \param node The ASTNode for the original alpha
-   * \param node The ASTNode for its usage context
-   * \param name The field name or empty
-   */
   TipAlpha(ASTNode *node, ASTNode *context, std::string const name);
 
   ASTNode *getContext() const;
   std::string const &getName() const;
 
   bool operator==(const TipType &other) const override;
-  bool operator!=(const TipType &other) const override;
+  bool operator!=(const TipType &other) const;
 
   void accept(TipTypeVisitor *visitor) override;
 
-protected:
-  // Node for distinguishing free type variables based on usage context
-  ASTNode *context;
+  // ========== Term interface ==========
+  bool isVariable() const override { return false; }
+  std::string getFunctor() const override;
+  std::size_t arity() const override { return 0; }
+  std::vector<std::shared_ptr<Term>> getSubterms() const override { return {}; }
+  std::shared_ptr<Term> withSubterms(std::vector<std::shared_ptr<Term>> newSubterms) const override;
 
+protected:
   std::ostream &print(std::ostream &out) const override;
 
-  std::string const name;
+private:
+  ASTNode *context;
+  std::string name;
 };

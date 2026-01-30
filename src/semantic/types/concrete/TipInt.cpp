@@ -28,3 +28,10 @@ void TipInt::accept(TipTypeVisitor *visitor) {
   visitor->visit(this);
   visitor->endVisit(this);
 }
+
+std::shared_ptr<Term> TipInt::withSubterms(std::vector<std::shared_ptr<Term>> newSubterms) const {
+  if (!newSubterms.empty()) {
+    throw std::invalid_argument("TipInt has no subterms");
+  }
+  return std::make_shared<TipInt>();
+}

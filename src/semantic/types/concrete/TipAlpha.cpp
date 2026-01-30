@@ -1,5 +1,6 @@
 #include "TipAlpha.h"
 #include "TipTypeVisitor.h"
+#include "ASTNode.h"
 #include "loguru.hpp"
 #include <sstream>
 
@@ -46,3 +47,14 @@ ASTNode *TipAlpha::getContext() const { return context; }
 std::string const &TipAlpha::getName() const { return name; }
 
 void TipAlpha::accept(TipTypeVisitor *visitor) { visitor->endVisit(this); }
+
+std::string TipAlpha::getFunctor() const {
+  return "α" + name;
+}
+
+std::shared_ptr<Term> TipAlpha::withSubterms(std::vector<std::shared_ptr<Term>> newSubterms) const {
+  if (!newSubterms.empty()) {
+    throw std::invalid_argument("TipAlpha has no subterms");
+  }
+  return std::make_shared<TipAlpha>(node, context, name);
+}

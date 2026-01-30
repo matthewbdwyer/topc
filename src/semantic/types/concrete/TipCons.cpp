@@ -1,7 +1,7 @@
 #include "TipCons.h"
 #include "TipTypeVisitor.h"
 
-int TipCons::arity() const { return arguments.size(); }
+std::size_t TipCons::arity() const { return arguments.size(); }
 
 namespace {
 /*! \brief Determine that subtypes of two objects are the same
