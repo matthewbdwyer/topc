@@ -140,25 +140,13 @@ To minimize risk and enable incremental testing, we develop the new abstraction 
 - [x] All TipType Term interface tests passing (50+ tests)
 
 **Phase 4: Cutover** ← NEXT
-- [ ] All existing type inference tests pass with new implementation
-- [ ] Remove old `Unifier.h/.cpp` (or keep both)
-- [ ] Rename `TermUnifier` → `Unifier` (or keep as `TermUnifier`)
-- [ ] Update all includes and references
-- [ ] Run full system test suite
-
-### 4.3 File Mapping
-
-```
-src/semantic/types/solver/          # New directory
-├── Term.h                          # Abstract interface
-├── TermUnifier.h                   # Generic unifier (parallel to Unifier.h)
-├── TermUnifier.cpp                 # Implementation
-└── TermUnificationError.h          # Error class (if separate)
-
-test/unit/semantic/types/solver/    # New test directory
-├── MockTerm.h                      # Mock implementations
-└── TermUnifierTest.cpp             # Unit tests
-```
+- [ ] Simplify `Unifier::unify()` to use Term interface (`isVariable()`, `matchesFunctor()`) instead of `dynamic_cast`
+- [ ] Keep `Unifier::close()` unchanged - requires TIP-specific `TipAlpha`/`TipMu` construction
+- [ ] Keep `UnionFind` unchanged - correct and serves `Unifier` well
+- [ ] Keep TIP-specific helpers (`TypeVars`, `Copier`, `Substituter`, `FreshAlphaCopier`) unchanged
+- [ ] Document the boundary between `TermUnifier` (generic) and `Unifier` (TIP-specific) in headers
+- [ ] Run full test suite to verify no regressions
+- [ ] Update design doc to reflect final architecture
 
 ---
 
@@ -166,7 +154,7 @@ test/unit/semantic/types/solver/    # New test directory
 
 ### Current State (as of latest review)
 
-**Build Status:** ✅ Compiles successfully
+**Build Status:** ✅ Compiles successfully  
 **Test Status:** ✅ All tests passing
 - 17 TermUnifier tests passing
 - 50+ TipType Term interface tests passing
@@ -478,4 +466,146 @@ target_sources(types PRIVATE
 
 Tests for the generic unifier are in `test/unit/semantic/types/solver/` and should be configured in the test CMakeLists.txt (not in the source tree).
 
-<!-- ...rest of existing appendix content... -->
+---
+
+## Appendix E: Solver Component Analysis
+
+### E.1 Component Dependency Matrx
+
+| Component | Depends on TipType | Can use Term Interface | Migration Strategy |
+|-----------|-------------------|----------------------|-------------------|
+| `TermUnifier.h/.cpp` | No ✅ | Yes ✅ | Already generic |
+| `TermInterface.h` | No ✅ | N/A | Abstract interface |
+| `Unifier.h/.cpp` | Yes | Partially | Wrap or adapt |
+| `UnionFind.h/.cpp` | Yes | Potentially | Could generalize |
+| `TypeVars.h/.cpp` | Yes | No | TIP-specific (visits TipType) |
+| `Copier.h/.cpp` | Yes | No | TIP-specific (visits TipType) |
+| `FreshAlphaCopier.h/.cpp` | Yes | No | Creates TipAlpha |
+| `Substituter.h/.cpp` | Yes | Partially | Could generalize core |
+
+### E.2 Current Unifier.cpp Dependencies
+
+The existing `Unifier` class has these TIP-specific dependencies:
+
+1. **Type creation during `close()`:**
+   - Creates `TipMu` for recursive types
+   - Creates `TipAlpha` for type scheme variables
+   
+2. **Type-specific matching:**
+   - Uses `TipCons::doMatch()` for structural matching
+   - Special handling for `TipRecord` field unification
+   
+3. **Variable identification:**
+   - Uses `dynamic_cast<TipVar*>` to identify unification variables
+   - Now can use `term->isVariable()` instead
+
+4. **Union-Find structure:**
+   - `UnionFind` class operates on `shared_ptr<TipType>`
+   - Could be generalized to `shared_ptr<Term>`
+
+### E.3 Recommended Architecture
+
+**Keep both unifiers with clear separation of concerns:**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    TypeInference                             │
+│  (orchestrates constraint collection and solving)            │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                      Unifier (TIP-specific)                  │
+│  - Uses TermUnifier for core unification                     │
+│  - Handles TipMu creation via CycleHandler                   │
+│  - Handles TipRecord field matching                          │
+│  - Wraps TipType-specific error messages                     │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                 TermUnifier (Generic)                        │
+│  - Works with any Term implementation                        │
+│  - Core unification algorithm                                │
+│  - Occurs check                                              │
+│  - Substitution management                                   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### E.4 Migration Steps for Phase 4
+
+1. **Refactor `Unifier` to use `TermUnifier` internally:**
+   ```cpp
+   class Unifier {
+   private:
+     TermUnifier termUnifier;  // Delegate core unification
+     // ... TIP-specific state ...
+   public:
+     void unify(shared_ptr<TipType> t1, shared_ptr<TipType> t2) {
+       // Delegate to termUnifier, handling TipType-specific cases
+       termUnifier.addConstraint(t1, t2);
+     }
+     void solve() {
+       termUnifier.solve();
+     }
+     void close() {
+       // Use CycleHandler to create TipMu
+       termUnifier.close([](const string& var, shared_ptr<Term> cyclic) {
+         // Create TipMu wrapper
+         return createTipMu(var, cyclic);
+       });
+     }
+   };
+   ```
+
+2. **Generalize `UnionFind` (optional):**
+   - Template on `Term` type or use `shared_ptr<Term>`
+   - Keep TipType version for backward compatibility
+
+3. **Keep TIP-specific helpers unchanged:**
+   - `TypeVars`, `Copier`, `FreshAlphaCopier` stay TipType-dependent
+   - They implement TIP-specific type traversal/transformation
+
+4. **Update tests to verify integration:**
+   - Existing `UnifierTest.cpp` tests must pass
+   - Add integration tests showing `Unifier` uses `TermUnifier`
+
+### E.5 Detailed Unifier vs TermUnifier Comparison
+
+#### Core Unification: Equivalent ✅
+
+| Feature | Unifier | TermUnifier |
+|---------|---------|-------------|
+| Variable binding | `unionFind->quick_union()` | `substitution[varName] = term` |
+| Occurs check | ❌ (not implemented) | ✅ `occursIn()` |
+| Structural matching | `TipCons::doMatch()` | `term->matchesFunctor()` |
+| Recursive unification | Direct recursion | Constraint worklist |
+
+#### Closure: NOT Equivalent ⚠️
+
+| Feature | Unifier.close() | TermUnifier.close() |
+|---------|-----------------|---------------------|
+| Follow variable chains | ✅ via `unionFind->find()` | ✅ via `substitution` lookup |
+| Detect cycles | ✅ via `visited` set | ✅ via `resolving` set |
+| Create TipMu | ✅ `make_shared<TipMu>()` | ❌ Callback only |
+| Create TipAlpha | ✅ `make_shared<TipAlpha>()` | ❌ Not supported |
+| Substitute in terms | ✅ `Substituter::substitute()` | ❌ Not supported |
+| Collect free vars | ✅ `TypeVars::collect()` | ❌ Not supported |
+
+#### Conclusion
+
+`TermUnifier` successfully abstracts the **unification algorithm** but NOT the **type closure** logic. The TIP-specific closure requires:
+
+1. Creating `TipAlpha` for generalized type variables
+2. Creating `TipMu` for recursive types
+3. Substituting variables within compound types
+4. Collecting free variables for cycle detection
+
+**Recommended Phase 4 Approach:**
+
+1. Keep `Unifier` for TIP's `close()` implementation
+2. Optionally refactor `Unifier::unify()` to delegate to `TermUnifier::unify()`
+3. Keep TIP-specific helpers (`TypeVars`, `Copier`, `Substituter`) unchanged
+4. `TermUnifier` remains available for:
+   - Unit testing unification logic
+   - Future non-TIP term unification use cases
