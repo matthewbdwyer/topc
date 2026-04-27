@@ -24,7 +24,7 @@ public:
    * \param fileName the name of the source file holding the program
    * \return the LLVM module holding the generated program
    */
-  static std::shared_ptr<llvm::Module>
+  [[nodiscard]] static std::shared_ptr<llvm::Module>
   generate(ASTProgram *program, SemanticAnalysis *analysisResults,
            std::string fileName);
 

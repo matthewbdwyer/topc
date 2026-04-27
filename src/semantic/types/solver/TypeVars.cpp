@@ -1,6 +1,6 @@
 #include "TypeVars.h"
 
-std::set<std::shared_ptr<TipVar>> TypeVars::collect(TipType *t) {
+TipVarSet TypeVars::collect(TipType *t) {
   TypeVars visitor;
   t->accept(&visitor);
   return visitor.getVars();

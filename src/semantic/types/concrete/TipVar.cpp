@@ -24,6 +24,27 @@ bool TipVar::operator!=(const TipType &other) const {
   return !(*this == other);
 }
 
+bool TipVar::operator<(const TipVar &other) const {
+  // Distinguish TipVar from TipAlpha so that TipVarValueCmp never treats
+  // a plain TipVar and a TipAlpha as the same element in a set.
+  bool thisIsAlpha  = (dynamic_cast<const TipAlpha *>(this)  != nullptr);
+  bool otherIsAlpha = (dynamic_cast<const TipAlpha *>(&other) != nullptr);
+  if (thisIsAlpha != otherIsAlpha)
+    return otherIsAlpha; // TipVar < TipAlpha (arbitrary but consistent)
+  // Both same kind: primary key is node address
+  if (node != other.node)
+    return node < other.node;
+  // Both TipVar with same node: equal
+  if (!thisIsAlpha)
+    return false;
+  // Both TipAlpha with same node: secondary key is name then context
+  auto thisA  = static_cast<const TipAlpha *>(this);
+  auto otherA = static_cast<const TipAlpha *>(&other);
+  if (thisA->getName() != otherA->getName())
+    return thisA->getName() < otherA->getName();
+  return thisA->getContext() < otherA->getContext();
+}
+
 std::ostream &TipVar::print(std::ostream &out) const {
   out << "\u27E6" << *node << "@" << node->getLine() << ":" << node->getColumn()
       << "\u27E7";

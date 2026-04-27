@@ -37,7 +37,7 @@ public:
    * \param polyInf Indicate whether polymorphic type inference should be
    * performed. \return The unique pointer to the semantic analysis structure.
    */
-  static std::shared_ptr<SemanticAnalysis> analyze(ASTProgram *ast,
+  [[nodiscard]] static std::shared_ptr<SemanticAnalysis> analyze(ASTProgram *ast,
                                                    bool polyInf);
 
   /*! \fn getSymbolTable

@@ -10,7 +10,8 @@ target_sources(
           ${CMAKE_CURRENT_SOURCE_DIR}/PreOrderIteratorTest.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/SyntaxTreeTest.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTNodeTests.cpp
-          ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTProgramTest.cpp)
+          ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTProgramTest.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTBinaryExprTest.cpp)
 target_include_directories(
   frontend_unit_tests
   PRIVATE ${CMAKE_SOURCE_DIR}/src/error

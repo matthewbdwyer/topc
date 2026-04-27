@@ -66,7 +66,7 @@ public:
 
 private:
   std::shared_ptr<TipType> close(std::shared_ptr<TipType> type,
-                                 std::set<std::shared_ptr<TipVar>> visited);
+                                 TipVarSet visited);
   void throwUnifyException(std::shared_ptr<TipType> TipType1,
                            std::shared_ptr<TipType> TipType2);
 

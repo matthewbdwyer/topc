@@ -3,6 +3,7 @@
 #include "TipType.h"
 #include <iostream>
 #include <memory>
+#include <set>
 #include <string>
 
 class ASTNode;
@@ -22,6 +23,7 @@ public:
   std::ostream &print(std::ostream &out) const override;
   bool operator==(const TipType &other) const override;
   bool operator!=(const TipType &other) const;
+  bool operator<(const TipVar &other) const;
 
   void accept(TipTypeVisitor *visitor) override;
 
@@ -35,3 +37,17 @@ public:
 protected:
   ASTNode *node;
 };
+
+/*! \brief Value comparator for sets of shared_ptr<TipVar>.
+ *
+ * Compares by dereferenced node pointer rather than the TipVar wrapper address,
+ * giving value (not pointer-identity) set semantics.
+ */
+struct TipVarValueCmp {
+  bool operator()(const std::shared_ptr<TipVar> &a,
+                  const std::shared_ptr<TipVar> &b) const {
+    return *a < *b;
+  }
+};
+
+using TipVarSet = std::set<std::shared_ptr<TipVar>, TipVarValueCmp>;

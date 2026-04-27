@@ -58,7 +58,11 @@ target_sources(
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/FreshAlphaCopier.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/FreshAlphaCopier.h
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/Substituter.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/solver/Substituter.h)
+    ${CMAKE_CURRENT_SOURCE_DIR}/solver/Substituter.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/solver/TipVarRegistry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/solver/TipVarRegistry.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/solver/TipTermClosure.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/solver/TipTermClosure.h)
 target_include_directories(
   types
   PRIVATE ${CMAKE_SOURCE_DIR}/src

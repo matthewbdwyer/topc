@@ -15,20 +15,7 @@
 
 namespace { // Anonymous namespace for local helper functions
 
-bool contains(std::set<std::shared_ptr<TipVar>> s, std::shared_ptr<TipVar> t) {
-  // LOG_S(3) << "Contains looking for " << *t;
-  for (auto e : s) {
-    if (*e.get() == *t.get()) {
-      // LOG_S(3) << "Contains found " << *e;
-      return true;
-    }
-    // LOG_S(3) << "Contains checking " << *e;
-  }
-  // LOG_S(3) << "Contains not found";
-  return false;
-}
-
-std::string print(std::set<std::shared_ptr<TipVar>> varSet) {
+std::string print(TipVarSet varSet) {
   std::stringstream s;
   s << "{ ";
   for (auto v : varSet) {
@@ -137,18 +124,17 @@ void Unifier::unify(std::shared_ptr<TipType> t1, std::shared_ptr<TipType> t2) {
   } else if (isProperType(rep1) && isVar(rep2)) {
     unionFind->quick_union(rep2, rep1);
   } else if (isCons(rep1) && isCons(rep2)) {
-    auto f1 = std::dynamic_pointer_cast<TipCons>(rep1);
-    auto f2 = std::dynamic_pointer_cast<TipCons>(rep2);
-    if (!f1->doMatch(f2.get())) {
+    if (!rep1->matchesFunctor(*rep2)) {
       LOG_S(3) << "Unifying failed with union-find " << *unionFind;
       throwUnifyException(t1, t2);
     } // LCOV_EXCL_LINE
 
     unionFind->quick_union(rep1, rep2);
-    for (int i = 0; i < f1->getArguments().size(); i++) {
-      auto a1 = f1->getArguments().at(i);
-      auto a2 = f2->getArguments().at(i);
-      unify(a1, a2);
+    auto subs1 = rep1->getSubterms();
+    auto subs2 = rep2->getSubterms();
+    for (std::size_t i = 0; i < subs1.size(); i++) {
+      unify(std::static_pointer_cast<TipType>(subs1.at(i)),
+            std::static_pointer_cast<TipType>(subs2.at(i)));
     }
   } else {
     LOG_S(3) << "Unifying failed with union-find " << *unionFind;
@@ -169,8 +155,7 @@ void Unifier::unify(std::shared_ptr<TipType> t1, std::shared_ptr<TipType> t2) {
  * \sa TypeVars
  */
 std::shared_ptr<TipType>
-Unifier::close(std::shared_ptr<TipType> type,
-               std::set<std::shared_ptr<TipVar>> visited) {
+Unifier::close(std::shared_ptr<TipType> type, TipVarSet visited) {
 
   if (isVar(type)) {
     auto v = std::dynamic_pointer_cast<TipVar>(type);
@@ -180,7 +165,7 @@ Unifier::close(std::shared_ptr<TipType> type,
     LOG_S(3) << "Close starting var " << *v << " with union-find "
              << *unionFind;
 
-    if (!contains(visited, v) && (unionFind->find(v) != v)) {
+    if (!visited.count(v) && (unionFind->find(v) != v)) {
       // No cyclic reference to v and it does not map to itself
       visited.insert(v);
 
@@ -200,7 +185,7 @@ Unifier::close(std::shared_ptr<TipType> type,
 
       auto freeV = TypeVars::collect(closedV.get());
 
-      if ((*closedV.get() != *newV.get()) && contains(freeV, newV)) {
+      if ((*closedV.get() != *newV.get()) && freeV.count(newV)) {
         // Cyclic reference requires a mu type constructor
         auto substClosedV =
             Substituter::substitute(closedV.get(), v.get(), newV);
@@ -292,7 +277,7 @@ Unifier::close(std::shared_ptr<TipType> type,
  * is essential for the staged nature of polymorphic type inference.
  */
 std::shared_ptr<TipType> Unifier::inferred(std::shared_ptr<TipType> v) {
-  std::set<std::shared_ptr<TipVar>> visited;
+  TipVarSet visited;
   auto closedV = close(v, visited);
   return closedV;
 }

@@ -12,8 +12,8 @@
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Intrinsics.h"
+#include "llvm/Config/llvm-config.h"
 #include "llvm/IR/LLVMContext.h"
-#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Verifier.h"
@@ -172,8 +172,14 @@ ASTProgram::codegen(SemanticAnalysis *semanticAnalysis,
   llvm::Triple targetTriple(llvm::sys::getProcessTriple());
   TheModule->setTargetTriple(targetTriple.str());
 
-  nop = llvm::Intrinsic::getDeclaration(TheModule.get(),
-                                        llvm::Intrinsic::donothing);
+  nop =
+#if LLVM_VERSION_MAJOR >= 18
+      llvm::Intrinsic::getOrInsertDeclaration(TheModule.get(),
+                                              llvm::Intrinsic::donothing);
+#else
+      llvm::Intrinsic::getDeclaration(TheModule.get(),
+                                      llvm::Intrinsic::donothing);
+#endif
 
   labelNum = 0;
 
@@ -230,8 +236,7 @@ ASTProgram::codegen(SemanticAnalysis *semanticAnalysis,
 
     castProgramFunctions.reserve(programFunctions.size());
     for (auto const &pf : programFunctions) {
-      castProgramFunctions.push_back(
-          llvm::ConstantExpr::getPointerCast(pf, FunctionOpaquePtrType));
+      castProgramFunctions.push_back(pf);
     }
     /*
      * Create initializer for function table and set the initial value.

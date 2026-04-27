@@ -40,15 +40,14 @@ endif()
 
 # ANTLR4 CPP target rules ###########
 
-# Point CMake to the Corretto install location to avoid setting the system path.
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  set(JAVA_HOME "/usr/lib/jvm/java-11-amazon-corretto")
-elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-  set(JAVA_HOME
-      "/Library/Java/JavaVirtualMachines/amazon-corretto-11.jdk/Contents/Home")
-else()
-  message(FATAL_ERROR "${CMAKE_SYSTEM_NAME} is not supported")
+# Locate Java via find_program so any JDK 11+ install works.
+find_program(JAVA_EXECUTABLE NAMES java)
+if(NOT JAVA_EXECUTABLE)
+  message(FATAL_ERROR
+    "Java not found. Install a JDK 11+ or set JAVA_HOME manually.")
 endif()
+get_filename_component(JAVA_BIN_DIR "${JAVA_EXECUTABLE}" DIRECTORY)
+get_filename_component(JAVA_HOME "${JAVA_BIN_DIR}/.." ABSOLUTE)
 
 set(ANTLR4_WITH_STATIC_CRT OFF)
 set(ANTLR_TAG 4.13.1)
