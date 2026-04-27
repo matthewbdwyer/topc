@@ -44,13 +44,11 @@ target_sources(
     ${CMAKE_CURRENT_SOURCE_DIR}/constraints/AbsentFieldChecker.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/constraints/AbsentFieldChecker.h
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/TermInterface.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/solver/TermUnionFind.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/solver/TermUnionFind.h
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/TermUnifier.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/TermUnifier.h
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/UnificationError.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/solver/Unifier.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/solver/Unifier.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/solver/UnionFind.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/solver/UnionFind.h
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/TypeVars.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/TypeVars.h
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/Copier.cpp
@@ -62,7 +60,9 @@ target_sources(
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/TipVarRegistry.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/TipVarRegistry.h
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/TipTermClosure.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/solver/TipTermClosure.h)
+    ${CMAKE_CURRENT_SOURCE_DIR}/solver/TipTermClosure.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/solver/TipTermBridge.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/solver/TipTermBridge.h)
 target_include_directories(
   types
   PRIVATE ${CMAKE_SOURCE_DIR}/src

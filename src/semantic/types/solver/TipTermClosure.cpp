@@ -37,61 +37,36 @@ bool isMu(const std::shared_ptr<TipType> &type) {
 // TipTermClosure
 // ---------------------------------------------------------------------------
 
-TipTermClosure::TipTermClosure(const TermUnifier::Substitution &sub,
-                               const TipVarRegistry &reg)
-    : substitution(sub), registry(reg) {}
-
-bool TipTermClosure::isBound(const std::string &key) const {
-  return substitution.count(key) > 0;
-}
-
-/**
- * Follow the substitution chain starting from key.
- *
- * This mirrors TermUnifier::find(): follow variable→variable links until
- * either a non-variable term is reached or the key is absent from the
- * substitution (unbound).  We cast each hop to TipType (safe because every
- * term in the substitution was originally a TipType).
- */
-std::shared_ptr<TipType> TipTermClosure::find(const std::string &key) const {
-  auto it = substitution.find(key);
-  if (it == substitution.end()) {
-    return nullptr; // caller checks isBound before calling find
-  }
-  auto term = std::static_pointer_cast<TipType>(it->second);
-  if (isVar(term)) {
-    auto v = std::dynamic_pointer_cast<TipVar>(term);
-    auto next = substitution.find(v->getFunctor());
-    if (next != substitution.end() && next->second != it->second) {
-      return find(v->getFunctor());
-    }
-  }
-  return term;
-}
+TipTermClosure::TipTermClosure(const TermUnifier &u) : unifier(u) {}
 
 /**
  * Close a type expression by replacing all bound variables with their
  * inferred types, wrapping cyclic bindings in TipMu.
  *
- * The algorithm is identical to Unifier::close() with the following
- * substitutions:
- *   unionFind->find(v) != v      →  isBound(key)
- *   close(unionFind->find(v),…)  →  close(find(key),…)  [one-hop; recursion
- *                                                         handles chains]
- *   unionFind->add(newTypes)     →  (omitted; no union-find to update)
+ * Algorithm mirrors Unifier::close():
+ *   unionFind->find(v) != v  →  !rep->equals(*v)  (value-based bound check)
+ *   close(unionFind->find(v),…)  →  close(rep, …)  where rep = find(v)
+ *   unionFind->add(newTypes)  →  (omitted; TermUnifier's union-find persists)
  */
 std::shared_ptr<TipType> TipTermClosure::close(std::shared_ptr<TipType> type,
                                                TipVarSet visited) {
   if (isVar(type)) {
     auto v = std::dynamic_pointer_cast<TipVar>(type);
-    auto key = v->getFunctor();
 
-    if (!visited.count(v) && isBound(key)) {
-      // Bound variable — follow one hop then recurse
+    // Ask the union-find for the canonical representative of v.
+    // const_cast is needed because find() is non-const (smart_insert may add).
+    auto vTerm = std::static_pointer_cast<Term>(v);
+    auto repTerm =
+        const_cast<TermUnifier &>(unifier).find(vTerm);
+    auto rep = std::static_pointer_cast<TipType>(repTerm);
+
+    // v is "bound" iff its representative is value-different from v.
+    bool bound = !rep->equals(*v);
+
+    if (!visited.count(v) && bound) {
       visited.insert(v);
 
-      auto bound = find(key);
-      auto closedV = close(bound, visited);
+      auto closedV = close(rep, visited);
 
       // Reuse existing alpha; otherwise create a fresh one for this node
       auto newV =

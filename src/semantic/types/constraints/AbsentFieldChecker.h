@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ASTVisitor.h"
-#include "Unifier.h"
+#include "TipTermBridge.h"
 
 /*! \class AbsentFieldChecker
  *  \brief Visits AST and checks that all field accesses are to defined fields
@@ -16,10 +16,10 @@
  * \sa SemanticError
  */
 class AbsentFieldChecker : public ASTVisitor {
-  Unifier *unifier;
+  TipTermBridge *unifier;
 
 public:
-  AbsentFieldChecker(Unifier *u) : unifier(u) {}
+  AbsentFieldChecker(TipTermBridge *u) : unifier(u) {}
 
   /*! \fn check
    *  \brief Generate and check absent field constraints and report any errors.
@@ -28,7 +28,7 @@ public:
    * \param p The Program AST
    * \param u The unifier storing the computed type judgements
    */
-  static void check(ASTProgram *p, Unifier *u);
+  static void check(ASTProgram *p, TipTermBridge *u);
 
   void endVisit(ASTAccessExpr *element) override;
 };

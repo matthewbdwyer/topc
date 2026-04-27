@@ -1,5 +1,6 @@
 #include "ASTBinaryExpr.h"
 #include "ASTNumberExpr.h"
+#include "InternalError.h"
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -60,4 +61,21 @@ TEST_CASE("ASTBinaryExpr: getOp string comparison works across instances",
   ASTBinaryExpr a("+", lhs(), rhs());
   ASTBinaryExpr b("+", lhs(), rhs());
   REQUIRE(a.getOp() == b.getOp());
+}
+
+TEST_CASE("ASTBinaryExpr: getOpKind returns correct BinaryOp enum value",
+          "[ASTBinaryExpr]") {
+  using Op = ASTBinaryExpr::BinaryOp;
+  REQUIRE(ASTBinaryExpr("+",  lhs(), rhs()).getOpKind() == Op::Add);
+  REQUIRE(ASTBinaryExpr("-",  lhs(), rhs()).getOpKind() == Op::Sub);
+  REQUIRE(ASTBinaryExpr("*",  lhs(), rhs()).getOpKind() == Op::Mul);
+  REQUIRE(ASTBinaryExpr("/",  lhs(), rhs()).getOpKind() == Op::Div);
+  REQUIRE(ASTBinaryExpr(">",  lhs(), rhs()).getOpKind() == Op::Gt);
+  REQUIRE(ASTBinaryExpr("==", lhs(), rhs()).getOpKind() == Op::Eq);
+  REQUIRE(ASTBinaryExpr("!=", lhs(), rhs()).getOpKind() == Op::Neq);
+}
+
+TEST_CASE("ASTBinaryExpr: unknown operator throws InternalError at construction",
+          "[ASTBinaryExpr]") {
+  REQUIRE_THROWS_AS(ASTBinaryExpr("<", lhs(), rhs()), InternalError);
 }

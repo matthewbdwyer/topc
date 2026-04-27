@@ -1,5 +1,4 @@
 #include "TipTermClosure.h"
-#include "TipVarRegistry.h"
 #include "TipVar.h"
 #include "TipAlpha.h"
 #include "TipInt.h"
@@ -11,22 +10,15 @@
 #include <catch2/catch_test_macros.hpp>
 #include <memory>
 
-// ---------------------------------------------------------------------------
-// Helper: build a TermUnifier::Substitution manually (avoids occurs-check
-// for the cyclic-binding test and keeps tests independent of solve()).
-// ---------------------------------------------------------------------------
-
-using Subst = TermUnifier::Substitution;
-
 TEST_CASE("TipTermClosure: unbound variable becomes TipAlpha", "[TipTermClosure]") {
   ASTNumberExpr nodeX(1);
   auto vx = std::make_shared<TipVar>(&nodeX);
 
-  Subst sub;   // empty — vx is unbound
-  TipVarRegistry reg;
-  reg.register_(vx);
+  // Empty unifier — vx is unbound
+  TermUnifier unifier;
+  unifier.solve();
 
-  TipTermClosure closure(sub, reg);
+  TipTermClosure closure(unifier);
   auto result = closure.close(vx);
 
   // Unbound variable must produce a TipAlpha with the same node
@@ -40,13 +32,11 @@ TEST_CASE("TipTermClosure: variable bound to TipInt becomes TipInt", "[TipTermCl
   auto vx = std::make_shared<TipVar>(&nodeX);
   auto tipInt = std::make_shared<TipInt>();
 
-  Subst sub;
-  sub[vx->getFunctor()] = tipInt;
+  TermUnifier unifier;
+  unifier.addConstraint(vx, tipInt);
+  unifier.solve();
 
-  TipVarRegistry reg;
-  reg.register_(vx);
-
-  TipTermClosure closure(sub, reg);
+  TipTermClosure closure(unifier);
   auto result = closure.close(vx);
 
   REQUIRE(std::dynamic_pointer_cast<TipInt>(result) != nullptr);
@@ -59,25 +49,22 @@ TEST_CASE("TipTermClosure: two-hop chain x→y→TipInt resolves to TipInt", "[T
   auto vy = std::make_shared<TipVar>(&nodeY);
   auto tipInt = std::make_shared<TipInt>();
 
-  Subst sub;
-  sub[vx->getFunctor()] = vy;   // x → y
-  sub[vy->getFunctor()] = tipInt; // y → int
+  TermUnifier unifier;
+  unifier.addConstraint(vx, vy);    // x → y
+  unifier.addConstraint(vy, tipInt); // y → int
+  unifier.solve();
 
-  TipVarRegistry reg;
-  reg.register_(vx);
-  reg.register_(vy);
-
-  TipTermClosure closure(sub, reg);
+  TipTermClosure closure(unifier);
   auto result = closure.close(vx);
 
   REQUIRE(std::dynamic_pointer_cast<TipInt>(result) != nullptr);
 }
 
 TEST_CASE("TipTermClosure: TipInt passthrough (no variables)", "[TipTermClosure]") {
-  Subst sub;
-  TipVarRegistry reg;
+  TermUnifier unifier;
+  unifier.solve();
 
-  TipTermClosure closure(sub, reg);
+  TipTermClosure closure(unifier);
   auto tipInt = std::make_shared<TipInt>();
   auto result = closure.close(tipInt);
 
@@ -89,14 +76,12 @@ TEST_CASE("TipTermClosure: cyclic binding x = TipRef(x) produces TipMu", "[TipTe
   auto vx = std::make_shared<TipVar>(&nodeX);
   auto refX = std::make_shared<TipRef>(vx);
 
-  // Manually insert the cyclic binding — bypasses TermUnifier's occurs check
-  Subst sub;
-  sub[vx->getFunctor()] = refX;
+  // No occurs check — cyclic constraint is accepted and produces TipMu via close()
+  TermUnifier unifier;
+  unifier.addConstraint(vx, refX);
+  unifier.solve();
 
-  TipVarRegistry reg;
-  reg.register_(vx);
-
-  TipTermClosure closure(sub, reg);
+  TipTermClosure closure(unifier);
   auto result = closure.close(vx);
 
   // Result must be a TipMu wrapping a TipRef
@@ -108,17 +93,14 @@ TEST_CASE("TipTermClosure: cyclic binding x = TipRef(x) produces TipMu", "[TipTe
 TEST_CASE("TipTermClosure: TipRef with free variable", "[TipTermClosure]") {
   ASTNumberExpr nodeX(1);
   auto vx = std::make_shared<TipVar>(&nodeX);
-  auto vxBound = std::make_shared<TipInt>();
-
+  auto tipInt = std::make_shared<TipInt>();
   auto refX = std::make_shared<TipRef>(vx);
 
-  Subst sub;
-  sub[vx->getFunctor()] = vxBound;  // x bound to int
+  TermUnifier unifier;
+  unifier.addConstraint(vx, tipInt); // x bound to int
+  unifier.solve();
 
-  TipVarRegistry reg;
-  reg.register_(vx);
-
-  TipTermClosure closure(sub, reg);
+  TipTermClosure closure(unifier);
   auto result = closure.close(refX);
 
   // close(TipRef(x)) where x→int  →  TipRef(TipInt)
@@ -132,11 +114,10 @@ TEST_CASE("TipTermClosure: TipRef with unbound variable becomes TipRef(TipAlpha)
   auto vx = std::make_shared<TipVar>(&nodeX);
   auto refX = std::make_shared<TipRef>(vx);
 
-  Subst sub;  // empty — x is unbound
-  TipVarRegistry reg;
-  reg.register_(vx);
+  TermUnifier unifier; // empty — x is unbound
+  unifier.solve();
 
-  TipTermClosure closure(sub, reg);
+  TipTermClosure closure(unifier);
   auto result = closure.close(refX);
 
   auto ref = std::dynamic_pointer_cast<TipRef>(result);
@@ -149,11 +130,10 @@ TEST_CASE("TipTermClosure: TipMu passthrough (already formed)", "[TipTermClosure
   auto vx = std::make_shared<TipVar>(&nodeX);
   auto mu = std::make_shared<TipMu>(vx, std::make_shared<TipRef>(vx));
 
-  Subst sub;  // no bindings
-  TipVarRegistry reg;
-  reg.register_(vx);
+  TermUnifier unifier; // no bindings
+  unifier.solve();
 
-  TipTermClosure closure(sub, reg);
+  TipTermClosure closure(unifier);
   auto result = closure.close(mu);
 
   // close(mu(x, Ref(x))) with empty substitution:
@@ -162,3 +142,4 @@ TEST_CASE("TipTermClosure: TipMu passthrough (already formed)", "[TipTermClosure
   REQUIRE(resultMu != nullptr);
   REQUIRE(std::dynamic_pointer_cast<TipRef>(resultMu->getT()) != nullptr);
 }
+

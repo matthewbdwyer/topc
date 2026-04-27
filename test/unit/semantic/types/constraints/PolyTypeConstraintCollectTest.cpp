@@ -2,6 +2,7 @@
 #include "CallGraph.h"
 #include "PolyTypeConstraintCollectVisitor.h"
 #include "SymbolTable.h"
+#include "TipTermBridge.h"
 #include "TypeConstraintCollectVisitor.h"
 
 #include <catch2/catch_test_macros.hpp>
@@ -14,7 +15,7 @@ static void testidentmain(std::stringstream &program,
                           std::set<std::string> &expected) {
   auto ast = ASTHelper::build_ast(program);
   auto symbols = SymbolTable::build(ast.get());
-  auto unifier = std::make_shared<Unifier>();
+  auto unifier = std::make_shared<TipTermBridge>();
   auto cg = CallGraph::build(ast.get(), symbols.get());
 
   // First generate the monomorphic constraints for ident, since we need them in

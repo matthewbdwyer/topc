@@ -4,7 +4,7 @@
 #include "ASTProgram.h"
 #include "CallGraph.h"
 #include "SymbolTable.h"
-#include "Unifier.h"
+#include "TipTermBridge.h"
 #include <memory>
 
 /*! \class TypeInference
@@ -17,12 +17,12 @@
 class TypeInference {
   SymbolTable *symbols;
 
-  // This unifier stores either the monomorphic or polymorphic type inference
+  // This bridge stores either the monomorphic or polymorphic type inference
   // results
-  std::shared_ptr<Unifier> unifier;
+  std::shared_ptr<TipTermBridge> unifier;
 
 public:
-  TypeInference(SymbolTable *s, std::shared_ptr<Unifier> u)
+  TypeInference(SymbolTable *s, std::shared_ptr<TipTermBridge> u)
       : symbols(s), unifier(u) {}
 
   /*! \fn run

@@ -21,7 +21,6 @@ inline std::shared_ptr<Term> con2(const std::string &name, std::shared_ptr<Term>
 TEST_CASE("TermUnifier: empty constraints", "[TermUnifier]") {
   TermUnifier u;
   REQUIRE_NOTHROW(u.solve());
-  REQUIRE(u.getSubstitution().empty());
 }
 
 TEST_CASE("TermUnifier: variable binds to constant", "[TermUnifier]") {
@@ -97,19 +96,9 @@ TEST_CASE("TermUnifier: different functor fails", "[TermUnifier]") {
   REQUIRE_THROWS_AS(u.solve(), TermUnificationError);
 }
 
-TEST_CASE("TermUnifier: occurs check - direct", "[TermUnifier]") {
-  auto x = var("X");
-  TermUnifier u;
-  u.addConstraint(x, con1("f", x));
-  REQUIRE_THROWS_AS(u.solve(), TermUnificationError);
-}
-
-TEST_CASE("TermUnifier: occurs check - indirect", "[TermUnifier]") {
-  auto x = var("X");
-  TermUnifier u;
-  u.addConstraint(x, con1("f", con1("g", x)));
-  REQUIRE_THROWS_AS(u.solve(), TermUnificationError);
-}
+// Note: no occurs check — cyclic constraints are permitted and handled in
+// TipTermClosure::close() via TipMu.  The two former occurs-check tests
+// (direct and indirect) have been removed in Phase 4.5.
 
 TEST_CASE("TermUnifier: transitivity", "[TermUnifier]") {
   auto x = var("X");
@@ -125,15 +114,36 @@ TEST_CASE("TermUnifier: transitivity", "[TermUnifier]") {
   REQUIRE(u.apply(z)->getFunctor() == "a");
 }
 
-TEST_CASE("TermUnifier: isBound and lookup", "[TermUnifier]") {
+TEST_CASE("TermUnifier: find — bound variable resolves to proper type", "[TermUnifier]") {
   auto x = var("X");
+  auto a = con("a");
+  TermUnifier u;
+  u.addConstraint(x, a);
+  u.solve();
+  // x is bound — find(x) returns the proper-type representative
+  REQUIRE_FALSE(u.find(x)->isVariable());
+  REQUIRE(u.find(x)->getFunctor() == "a");
+}
+
+TEST_CASE("TermUnifier: find — unbound variable returns itself", "[TermUnifier]") {
+  auto x = var("X");
+  auto y = var("Y");
   TermUnifier u;
   u.addConstraint(x, con("a"));
   u.solve();
-  REQUIRE(u.isBound("X"));
-  REQUIRE_FALSE(u.isBound("Y"));
-  REQUIRE(u.lookup("X") != nullptr);
-  REQUIRE(u.lookup("Y") == nullptr);
+  // y was never constrained — find(y) returns a value-equal variable
+  REQUIRE(u.find(y)->isVariable());
+  REQUIRE(u.find(y)->getFunctor() == "Y");
+}
+
+TEST_CASE("TermUnifier: find — resolves transitive chain", "[TermUnifier]") {
+  auto x = var("X");
+  auto y = var("Y");
+  TermUnifier u;
+  u.addConstraint(x, y);
+  u.addConstraint(y, con("a"));
+  u.solve();
+  REQUIRE(u.find(x)->getFunctor() == "a");
 }
 
 TEST_CASE("TermUnifier: apply preserves unbound variables", "[TermUnifier]") {
@@ -147,17 +157,6 @@ TEST_CASE("TermUnifier: apply preserves unbound variables", "[TermUnifier]") {
   REQUIRE(subs[0]->getFunctor() == "a");
   REQUIRE(subs[1]->isVariable());
   REQUIRE(subs[1]->getFunctor() == "Y");
-}
-
-TEST_CASE("TermUnifier: close resolves transitive bindings", "[TermUnifier]") {
-  auto x = var("X");
-  auto y = var("Y");
-  TermUnifier u;
-  u.addConstraint(x, y);
-  u.addConstraint(y, con("a"));
-  u.solve();
-  u.close();
-  REQUIRE(u.lookup("X")->getFunctor() == "a");
 }
 
 TEST_CASE("TermUnifier: error contains terms", "[TermUnifier]") {

@@ -1,8 +1,7 @@
 #pragma once
 
 #include "TermInterface.h"
-#include <functional>
-#include <map>
+#include "TermUnionFind.h"
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -28,30 +27,41 @@ public:
 
 /**
  * @class TermUnifier
- * @brief Generic first-order term unification solver.
+ * @brief Generic first-order term unification solver backed by union-find.
+ *
+ * Uses a TermUnionFind structure for symmetric equivalence-class merging,
+ * mirroring the Unifier class's use of UnionFind at the TipType level.
+ *
+ * No occurs check is performed: cyclic constraints are allowed and produce
+ * recursive types during the closure phase (TipTermClosure).
  */
 class TermUnifier {
 public:
   using Constraint = std::pair<std::shared_ptr<Term>, std::shared_ptr<Term>>;
-  using Substitution = std::map<std::string, std::shared_ptr<Term>>;
-  using CycleHandler = std::function<std::shared_ptr<Term>(
-      const std::string &varName, std::shared_ptr<Term> cyclicTerm)>;
 
   TermUnifier() = default;
 
   void addConstraint(std::shared_ptr<Term> t1, std::shared_ptr<Term> t2);
   void solve();
-  std::shared_ptr<Term> apply(std::shared_ptr<Term> term) const;
-  const Substitution &getSubstitution() const { return substitution; }
-  bool isBound(const std::string &varName) const;
-  std::shared_ptr<Term> lookup(const std::string &varName) const;
-  void close(CycleHandler cycleHandler = nullptr);
+
+  /**
+   * @brief Return the canonical representative of term's equivalence class.
+   *
+   * After solve(), find(v) returns the proper type that v was unified with,
+   * or a term value-equal to v if v is unconstrained.
+   */
+  std::shared_ptr<Term> find(std::shared_ptr<Term> term);
+
+  /**
+   * @brief Fully resolve a term by substituting all known variable bindings
+   *        into its subterms (acyclic bindings only).
+   */
+  std::shared_ptr<Term> apply(std::shared_ptr<Term> term);
 
 private:
   std::vector<Constraint> constraints;
-  Substitution substitution;
+  TermUnionFind unionFind;
 
   void unify(std::shared_ptr<Term> t1, std::shared_ptr<Term> t2);
-  bool occursIn(const std::string &varName, const Term *term) const;
-  std::shared_ptr<Term> find(std::shared_ptr<Term> term) const;
 };
+

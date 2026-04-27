@@ -12,6 +12,17 @@ a.out
 # build directory
 build
 
+# CMake in-source build artifacts
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CPackConfig.cmake
+CPackSourceConfig.cmake
+CTestTestfile.cmake
+Makefile
+_deps/
+include/
+
 # LLVM
 *.bc
 *.ll

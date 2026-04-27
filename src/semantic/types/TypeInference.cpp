@@ -1,9 +1,9 @@
 #include "TypeInference.h"
 #include "AbsentFieldChecker.h"
 #include "PolyTypeConstraintCollectVisitor.h"
+#include "TipTermBridge.h"
 #include "TypeConstraint.h"
 #include "TypeConstraintCollectVisitor.h"
-#include "Unifier.h"
 #include "loguru.hpp"
 #include <memory>
 
@@ -122,7 +122,7 @@ std::shared_ptr<TypeInference> runPoly(ASTProgram *ast, SymbolTable *symbols,
    * is solved after each stage, which corresponds to processing the
    * constraints of a non-recursive function.
    */
-  auto unifier = std::make_shared<Unifier>();
+  auto unifier = std::make_shared<TipTermBridge>();
 
   /* Generate and solve constraints for the non-recursive functions
    * in topological order for the call graph.
@@ -174,7 +174,7 @@ std::shared_ptr<TypeInference> runMono(ASTProgram *ast, SymbolTable *symbols) {
 
   LOG_S(1) << "Solving type constraints";
 
-  auto unifier = std::make_shared<Unifier>(visitor.getCollectedConstraints());
+  auto unifier = std::make_shared<TipTermBridge>(visitor.getCollectedConstraints());
   unifier->solve();
 
   AbsentFieldChecker::check(ast, unifier.get());

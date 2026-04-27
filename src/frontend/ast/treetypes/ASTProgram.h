@@ -16,7 +16,7 @@ public:
   std::vector<std::shared_ptr<ASTNode>> getChildren() override;
   ASTProgram(std::vector<std::shared_ptr<ASTFunction>> FUNCTIONS);
   void setName(std::string n) { name = n; }
-  std::string getName() const { return name; }
+  const std::string &getName() const { return name; }
   std::vector<ASTFunction *> getFunctions() const;
   ASTFunction *findFunctionByName(std::string);
   void accept(ASTVisitor *visitor) override;

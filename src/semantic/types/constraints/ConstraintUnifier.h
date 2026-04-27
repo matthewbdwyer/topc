@@ -1,8 +1,8 @@
 #pragma once
 
 #include "ConstraintHandler.h"
+#include "TipTermBridge.h"
 #include "TypeConstraint.h"
-#include "Unifier.h"
 
 /*!
  * \class ConstraintUnifier
@@ -15,5 +15,5 @@ public:
               std::shared_ptr<TipType> t2) override;
 
 private:
-  Unifier unifier;
+  TipTermBridge unifier;
 };

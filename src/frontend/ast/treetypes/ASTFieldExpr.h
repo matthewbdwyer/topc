@@ -12,7 +12,7 @@ public:
   std::vector<std::shared_ptr<ASTNode>> getChildren() override;
   ASTFieldExpr(const std::string &FIELD, std::shared_ptr<ASTExpr> INIT)
       : FIELD(FIELD), INIT(INIT) {}
-  std::string getField() const { return FIELD; }
+  const std::string &getField() const { return FIELD; }
   ASTExpr *getInitializer() const { return INIT.get(); }
   void accept(ASTVisitor *visitor) override;
   llvm::Value *codegen() override;

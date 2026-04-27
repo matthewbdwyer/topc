@@ -24,7 +24,8 @@ public:
       std::map<std::string, std::pair<ASTDeclNode *, bool>> fMap,
       std::map<ASTDeclNode *, std::map<std::string, ASTDeclNode *>> lMap,
       std::vector<std::string> fSet)
-      : functionNames(fMap), localNames(lMap), fieldNames(fSet) {}
+      : functionNames(std::move(fMap)), localNames(std::move(lMap)),
+        fieldNames(std::move(fSet)) {}
 
   /*! \brief Return the declaration node for a given function name.
    * \param s The Function name

@@ -1001,6 +1001,113 @@ TIPCLANG=/opt/homebrew/opt/llvm@17/bin/clang ./bin/runtests.sh
 
 ---
 
+## Phase 4.5 — TermUnifier → Union-Find Implementation
+
+**Prerequisite:** Phase 4 complete.  
+**Goal:** Replace `TermUnifier`'s flat substitution map with a proper union-find
+data structure, so students see the same pedagogical union-find algorithm at
+the generic (`Term`) level as at the TIP-specific (`TipType`) level in `Unifier`.
+
+### Motivation
+
+The original `TermUnifier` implemented Robinson-style unification with a flat
+`map<string, shared_ptr<Term>>` and an **occurs check** that rejects cyclic
+types.  This is inconsistent with `Unifier`, which:
+
+- Uses a union-find structure for symmetric equivalence-class merging
+- Has **no occurs check** — cyclic constraints produce `TipMu` types during
+  the `close()` phase
+
+For TIP, which supports recursive pointer types (the `deref` test infers
+`μα.&α`), the occurs check is wrong.  Replacing the flat map with union-find
+also eliminates the semantic gap between the two unifiers.
+
+### New class: `TermUnionFind`
+
+Mirrors `UnionFind` exactly but operates over `shared_ptr<Term>` using
+`Term::equals()` for value comparison.  Public API:
+
+```cpp
+class TermUnionFind {
+public:
+    void add(std::shared_ptr<Term> term);
+    std::shared_ptr<Term> find(std::shared_ptr<Term> term);  // path-compressing
+    void quick_union(std::shared_ptr<Term> t1, std::shared_ptr<Term> t2);
+    bool connected(std::shared_ptr<Term> t1, std::shared_ptr<Term> t2);
+};
+```
+
+Like `UnionFind`, edges are stored in a `std::map<shared_ptr<Term>,
+shared_ptr<Term>>` (pointer-ordered storage) with value-equality lookups via
+linear scan.  `smart_insert()` is idempotent by value: if a term value-equal
+to `t` already exists, the existing stored pointer is returned.
+
+### Updated `TermUnifier`
+
+**Removed:**
+- `using Substitution = std::map<std::string, shared_ptr<Term>>;`
+- `getSubstitution()`
+- `isBound(const std::string&)`
+- `lookup(const std::string&)`
+- `close(CycleHandler)`  ← transitivity is now free via `find()`
+- Occurs check in `unify()`
+
+**Added:**
+- `std::shared_ptr<Term> find(std::shared_ptr<Term>)` — public, delegates to
+  `TermUnionFind::find()`
+
+**Updated:**
+- `unify()` rewritten to mirror `Unifier::unify()`:
+  var+var → `quick_union`; var+proper → `quick_union` (proper wins as root);
+  proper+proper → functor/arity check then `quick_union` + recurse; else throw
+- `apply()` uses `find()` instead of map lookup
+
+### Updated `TipTermClosure`
+
+Constructor changes from:
+```cpp
+TipTermClosure(const TermUnifier::Substitution &sub, const TipVarRegistry &reg)
+```
+to:
+```cpp
+TipTermClosure(const TermUnifier &unifier)
+```
+
+`close()` replaces the `substitution.count(key)` / `find(key)` pattern with:
+```cpp
+auto rep = static_pointer_cast<TipType>(unifier_.find(vTerm));
+bool bound = !rep->equals(*v);   // value equality — correct for fresh TipVar too
+```
+
+`TipVarRegistry` is no longer used by `TipTermClosure`.  Its class and tests
+remain; it will be removed in Phase 7 cleanup.
+
+### Test changes
+
+**New:** `test/unit/semantic/types/solver/TermUnionFindTest.cpp`
+- Mirrors `UnionFindTest.cpp` using `MockVar`/`MockCons` instead of `TipVar`
+- Scenarios: find after quick_union; connected; transitive chain; proper type wins
+
+**Updated:** `test/unit/semantic/types/solver/TermUnifierTest.cpp`
+- `isBound("X")` / `lookup("X")` → `u.find(x)->isVariable()` / `u.find(x)->getFunctor()`
+- `close()` test → uses `find()` directly (no close() needed)
+- Occurs-check tests removed (cycles allowed; handled in TipTermClosure)
+
+**Updated:** `test/unit/semantic/types/solver/TipTermClosureTest.cpp`
+- All tests build a `TermUnifier`, add constraints, call `solve()`, then
+  pass the unifier to `TipTermClosure` — no more manual `Substitution` maps
+- Cyclic test: `addConstraint(vx, refX)` + `solve()` (no throws)
+
+**Phase 4.5 complete when:** all `TermUnionFindTest`, `TermUnifierTest`,
+`TipTermClosureTest` pass; `TipVarRegistryTest` still passes (class unchanged);
+and:
+```bash
+TIPCLANG=/opt/homebrew/opt/llvm@17/bin/clang ./bin/runtests.sh
+```
+102 system tests pass.
+
+---
+
 ## Phase 5 — TipTermBridge Facade
 
 **Prerequisite:** Phase 4 complete.  

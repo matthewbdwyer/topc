@@ -2,7 +2,7 @@
 #include "TypeHelper.h"
 #include "SymbolTable.h"
 #include "TypeConstraintCollectVisitor.h"
-#include "Unifier.h"
+#include "TipTermBridge.h"
 #include "TipFunction.h"
 #include "TipRef.h"
 
@@ -18,7 +18,7 @@
  * and return the unifier storing the inferred types for the variables in the program.
  * This code expects that no type errors are present and throws an exception otherwise.
  */
-static std::pair<Unifier, std::shared_ptr<SymbolTable>> collectAndSolve(std::stringstream &program) {
+static std::pair<TipTermBridge, std::shared_ptr<SymbolTable>> collectAndSolve(std::stringstream &program) {
     auto ast = ASTHelper::build_ast(program);
     auto symbols = SymbolTable::build(ast.get());
 
@@ -27,7 +27,7 @@ static std::pair<Unifier, std::shared_ptr<SymbolTable>> collectAndSolve(std::str
 
     auto collected = visitor.getCollectedConstraints();
 
-    Unifier unifier(collected);
+    TipTermBridge unifier(collected);
     REQUIRE_NOTHROW(unifier.solve());
 
     return std::make_pair(unifier, symbols);
@@ -298,12 +298,12 @@ TEST_CASE("TypeConstraintVisitor: polymorphic type inference",
 
     // return type is an alpha
     auto returnType = funType->getReturnType();
-    REQUIRE(Unifier::isAlpha(returnType));
+    REQUIRE(TipTermBridge::isAlpha(returnType));
 
     // argument type is pointer to an alpha
     auto refType = std::dynamic_pointer_cast<TipRef>(funType->getParamTypes()[0]);
     REQUIRE(refType != nullptr);
-    REQUIRE(Unifier::isAlpha(refType->getReferencedType()));
+    REQUIRE(TipTermBridge::isAlpha(refType->getReferencedType()));
 
     // Now we want the argument p to have the same type as the parameter type
     auto pType = std::make_shared<TipVar>(pDecl);

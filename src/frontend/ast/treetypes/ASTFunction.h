@@ -25,7 +25,7 @@ public:
   }
   ~ASTFunction() = default;
   ASTDeclNode *getDecl() const { return DECL.get(); };
-  std::string getName() const { return DECL->getName(); };
+  const std::string &getName() const { return DECL->getName(); };
   bool isPoly() const { return ISPOLY; };
   std::vector<ASTDeclNode *> getFormals() const;
   std::vector<ASTDeclStmt *> getDeclarations() const;

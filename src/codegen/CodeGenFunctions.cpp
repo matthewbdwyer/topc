@@ -437,29 +437,34 @@ llvm::Value *ASTBinaryExpr::codegen() {
     throw InternalError("null binary operand");
   }
 
-  if (getOp() == "+") {
+  switch (getOpKind()) {
+  case ASTBinaryExpr::BinaryOp::Add:
     return irBuilder.CreateAdd(L, R, "addtmp");
-  } else if (getOp() == "-") {
+  case ASTBinaryExpr::BinaryOp::Sub:
     return irBuilder.CreateSub(L, R, "subtmp");
-  } else if (getOp() == "*") {
+  case ASTBinaryExpr::BinaryOp::Mul:
     return irBuilder.CreateMul(L, R, "multmp");
-  } else if (getOp() == "/") {
+  case ASTBinaryExpr::BinaryOp::Div:
     return irBuilder.CreateSDiv(L, R, "divtmp");
-  } else if (getOp() == ">") {
+  case ASTBinaryExpr::BinaryOp::Gt: {
     auto *cmp = irBuilder.CreateICmpSGT(L, R, "_gttmp");
     return irBuilder.CreateIntCast(
         cmp, llvm::IntegerType::getInt64Ty(llvmContext), false, "gttmp");
-  } else if (getOp() == "==") {
+  }
+  case ASTBinaryExpr::BinaryOp::Eq: {
     auto *cmp = irBuilder.CreateICmpEQ(L, R, "_eqtmp");
     return irBuilder.CreateIntCast(
         cmp, llvm::IntegerType::getInt64Ty(llvmContext), false, "eqtmp");
-  } else if (getOp() == "!=") {
+  }
+  case ASTBinaryExpr::BinaryOp::Neq: {
     auto *cmp = irBuilder.CreateICmpNE(L, R, "_neqtmp");
     return irBuilder.CreateIntCast(
         cmp, llvm::IntegerType::getInt64Ty(llvmContext), false, "neqtmp");
-  } else {
-    throw InternalError("Invalid binary operator: " + OP);
   }
+  }
+  // LCOV_EXCL_START
+  throw InternalError("Invalid binary operator: " + OP);
+  // LCOV_EXCL_STOP
 }
 
 /*

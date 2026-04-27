@@ -21,11 +21,11 @@ target_sources(
     ${CMAKE_CURRENT_SOURCE_DIR}/constraints/PolyTypeConstraintCollectTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/constraints/TypeConstraintTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/constraints/AbsentFieldCheckerTest.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/solver/TermUnionFindTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/TermUnifierTest.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/solver/UnifierTest.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/solver/UnionFindTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/TipVarRegistryTest.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/solver/TipTermClosureTest.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/solver/TipTermClosureTest.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/solver/TipTermBridgeTest.cpp)
 target_include_directories(
   typeinference_unit_tests
   PRIVATE ${CMAKE_SOURCE_DIR}/src/error

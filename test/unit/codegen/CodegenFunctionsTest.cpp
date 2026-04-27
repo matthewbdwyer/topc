@@ -55,9 +55,10 @@ TEST_CASE("CodegenFunction: ASTBinaryExpr throws InternalError on RHS codegen "
 
 TEST_CASE("CodegenFunction: ASTBinaryExpr throws InternalError on bad OP",
           "[CodegenFunctions]") {
-  ASTBinaryExpr binaryExpr("ADDITION", std::make_shared<ASTInputExpr>(),
-                           std::make_shared<ASTInputExpr>());
-  REQUIRE_THROWS_AS(binaryExpr.codegen(), InternalError);
+  REQUIRE_THROWS_AS(
+      ASTBinaryExpr("ADDITION", std::make_shared<ASTInputExpr>(),
+                    std::make_shared<ASTInputExpr>()),
+      InternalError);
 }
 
 TEST_CASE("CodegenFunction: ASTOutputStmt throws InternalError on ARG codegen "
