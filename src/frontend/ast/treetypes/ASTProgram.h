@@ -1,9 +1,11 @@
 #pragma once
 
 #include "ASTFunction.h"
+#include <memory>
 #include <ostream>
 
 class SemanticAnalysis;
+namespace llvm { class Module; }
 
 /*! \brief Class for a program which is a name and a list of functions.
  *
@@ -21,9 +23,6 @@ public:
   ASTFunction *findFunctionByName(std::string);
   void accept(ASTVisitor *visitor) override;
   std::shared_ptr<llvm::Module> codegen(SemanticAnalysis *st, const std::string& name);
-
-private:
-  llvm::Value *codegen() override;
 
 public:
   friend std::ostream &operator<<(std::ostream &os, const ASTProgram &obj) {

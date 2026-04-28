@@ -1,4 +1,5 @@
 #include "ASTHelper.h"
+#include "CodeGenContext.h"
 #include "CodeGenerator.h"
 #include "SemanticAnalysis.h"
 
@@ -90,24 +91,16 @@ TEST_CASE("CodegenIsolation: same program compiled twice produces equivalent mod
 }
 
 // ---------------------------------------------------------------------------
-// [!mayfail] — Struct isolation concept test.
+// Phase 8: struct isolation test.
 //
-// This test documents the DESIRED behaviour once Phase 8 introduces
-// CodeGenContext: two distinct context instances must be completely independent.
-// It fails today because the CodeGenContext type does not yet exist.
-// Remove [!mayfail] and uncomment the body when Phase 8 is complete.
+// Two distinct CodeGenContext instances must be completely independent.
 // ---------------------------------------------------------------------------
 TEST_CASE("CodegenIsolation: [concept] two CodeGenContext instances are independent",
-          "[CodegenIsolation][!mayfail]") {
-  // TODO(Phase 8): uncomment once CodeGenContext exists.
-  //
-  //   CodeGenContext ctxA, ctxB;
-  //   ctxA.labelNum = 7;
-  //   REQUIRE(ctxB.labelNum == 0);
-  //
-  //   ctxA.lValueGen = true;
-  //   REQUIRE(!ctxB.lValueGen);
-  //
-  // Until then, fail explicitly to document the gap.
-  FAIL("CodeGenContext does not exist yet — implement Phase 8");
+          "[CodegenIsolation]") {
+  CodeGenContext ctxA, ctxB;
+  ctxA.labelNum = 7;
+  REQUIRE(ctxB.labelNum == 0);
+
+  ctxA.lValueGen = true;
+  REQUIRE(!ctxB.lValueGen);
 }

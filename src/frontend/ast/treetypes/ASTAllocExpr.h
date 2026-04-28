@@ -12,7 +12,6 @@ public:
   ASTAllocExpr(std::shared_ptr<ASTExpr> INIT) : INIT(INIT) {}
   ASTExpr *getInitializer() const { return INIT.get(); }
   void accept(ASTVisitor *visitor) override;
-  llvm::Value *codegen() override;
 
 protected:
   std::ostream &print(std::ostream &out) const override;

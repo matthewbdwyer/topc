@@ -1,5 +1,6 @@
 #include "CubicSolver.h"
 #include "loguru.hpp"
+#include <cassert>
 #include <map>
 #include <queue>
 

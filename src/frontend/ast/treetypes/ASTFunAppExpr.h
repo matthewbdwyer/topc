@@ -15,7 +15,6 @@ public:
   ASTExpr *getFunction() const { return FUN.get(); }
   std::vector<ASTExpr *> getActuals() const;
   void accept(ASTVisitor *visitor) override;
-  llvm::Value *codegen() override;
 
 protected:
   std::ostream &print(std::ostream &out) const override;

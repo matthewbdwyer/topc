@@ -1,3 +1,4 @@
+#include <cassert>
 #include "TypeInference.h"
 #include "AbsentFieldChecker.h"
 #include "PolyTypeConstraintCollectVisitor.h"

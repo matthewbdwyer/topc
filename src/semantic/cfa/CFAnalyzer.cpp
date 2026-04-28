@@ -1,5 +1,6 @@
 #include "CFAnalyzer.h"
 #include "loguru.hpp"
+#include <cassert>
 
 CFAnalyzer CFAnalyzer::analyze(ASTProgram *p, SymbolTable *st) {
   CFAnalyzer cfa(p, st);

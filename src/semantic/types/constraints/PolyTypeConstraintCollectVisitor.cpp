@@ -1,3 +1,4 @@
+#include <cassert>
 #include "PolyTypeConstraintCollectVisitor.h"
 #include "ConstraintCollector.h"
 

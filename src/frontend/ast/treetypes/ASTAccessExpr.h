@@ -15,7 +15,6 @@ public:
   const std::string &getField() const { return FIELD; }
   ASTExpr *getRecord() const { return RECORD.get(); }
   void accept(ASTVisitor *visitor) override;
-  llvm::Value *codegen() override;
 
 protected:
   std::ostream &print(std::ostream &out) const override;

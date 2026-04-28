@@ -13,7 +13,6 @@ public:
   ASTDeclStmt(std::vector<std::shared_ptr<ASTDeclNode>> VARS);
   std::vector<ASTDeclNode *> getVars() const;
   void accept(ASTVisitor *visitor) override;
-  llvm::Value *codegen() override;
 
 protected:
   std::ostream &print(std::ostream &out) const override;

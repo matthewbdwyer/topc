@@ -12,7 +12,6 @@ public:
   ASTDeRefExpr(std::shared_ptr<ASTExpr> PTR) : PTR(PTR) {}
   ASTExpr *getPtr() const { return PTR.get(); }
   void accept(ASTVisitor *visitor) override;
-  llvm::Value *codegen() override;
 
 protected:
   std::ostream &print(std::ostream &out) const override;

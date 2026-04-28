@@ -1,8 +1,5 @@
 #pragma once
 
-#include "llvm/IR/Function.h"
-#include "llvm/IR/Module.h"
-#include "llvm/IR/Value.h"
 #include <memory>
 #include <ostream>
 #include <string>
@@ -50,18 +47,6 @@ public:
    * \param visitor The subtype of ASTVisitor that carries out per-ASTNode work.
    */
   virtual void accept(ASTVisitor *visitor) = 0;
-
-  /*! \fn codegen
-   *  \brief Perform code generation and return an LLVM value the code.
-   *
-   * This virtual function is overridden by each ASTNode subtype in order
-   * to generate the executable code.  This function does not use the visitor
-   * due to the fact that a high-degree of control on the ordering of the
-   * nodes is required.
-   *
-   * \return LLVM value holding an representation of the generated code.
-   */
-  virtual llvm::Value *codegen() = 0;
 
   /*! \fn getChildren
    *  \brief Return all of the children for the node.
