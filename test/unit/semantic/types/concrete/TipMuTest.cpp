@@ -9,7 +9,7 @@
 #include <memory>
 #include <sstream>
 
-TEST_CASE("TipMu: test TipMus are compared by their underlying t and v"
+TEST_CASE("TipMu: test TipMus are compared by their underlying t and v",
           "[TipMu]") {
   auto term = std::make_shared<TipInt>();
   ASTNumberExpr n(42);
@@ -20,7 +20,7 @@ TEST_CASE("TipMu: test TipMus are compared by their underlying t and v"
   REQUIRE(mu == mu2);
 }
 
-TEST_CASE("TipMu: test not equals"
+TEST_CASE("TipMu: test not equals",
           "[TipMu]") {
   auto term = std::make_shared<TipInt>();
   ASTNumberExpr n(41);
@@ -33,7 +33,7 @@ TEST_CASE("TipMu: test not equals"
   REQUIRE(mu != mu2);
 }
 
-TEST_CASE("TipMu: test comparison with a different type"
+TEST_CASE("TipMu: test comparison with a different type",
           "[TipMu]") {
   auto term = std::make_shared<TipInt>();
   ASTNumberExpr n(41);

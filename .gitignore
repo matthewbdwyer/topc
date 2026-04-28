@@ -23,9 +23,17 @@ Makefile
 _deps/
 include/
 
+# Catch2 catch_discover_tests generated scripts (belong in build tree)
+**/*_include-*.cmake
+
 # LLVM
 *.bc
 *.ll
+
+# System test build artifacts (compiled binaries and transient output)
+test/system/selftests/ptr4
+test/system/selftests/ptr4.dot
+test/system/**/*.output
 
 # CLion
 .idea/

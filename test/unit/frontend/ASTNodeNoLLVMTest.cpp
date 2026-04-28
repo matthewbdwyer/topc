@@ -1,10 +1,6 @@
 /*! \file ASTNodeNoLLVMTest.cpp
- *  \brief Phase 9 acceptance-gate tests: AST types must be usable without
- *         including any LLVM header.
- *
- * These tests are tagged  until the decoupling in Phase 9 is
- * complete.  Once LLVM includes are removed from ASTNode.h and all AST
- * subtype headers the  tags must be deleted.
+ *  \brief Verify that AST node types can be constructed and traversed
+ *         without including any LLVM header (Phase 9 complete).
  */
 
 #include "ASTHelper.h"

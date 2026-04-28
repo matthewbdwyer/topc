@@ -7,7 +7,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-TEST_CASE("TipCons: Test doMatch considers arity"
+TEST_CASE("TipCons: Test doMatch considers arity",
           "[TipCons]") {
   auto tipInt = std::make_shared<TipInt>();
 
@@ -24,7 +24,7 @@ TEST_CASE("TipCons: Test doMatch considers arity"
   REQUIRE_FALSE(tipFunction2->doMatch(tipFunction1.get()));
 }
 
-TEST_CASE("TipCons: Test doMatch considers constructor type"
+TEST_CASE("TipCons: Test doMatch considers constructor type",
           "[TipCons]") {
   std::vector<std::shared_ptr<TipType>> params{};
 
@@ -50,7 +50,7 @@ TEST_CASE("TipCons: Test doMatch considers constructor type"
   REQUIRE_FALSE(tipFunction->doMatch(tipRecord.get()));
 }
 
-TEST_CASE("TipCons: Test doMatch only works on TipCons"
+TEST_CASE("TipCons: Test doMatch only works on TipCons",
           "[TipCons]") {
   auto tipInt = std::make_shared<TipInt>();
   auto tipRef = std::make_shared<TipRef>(tipInt);

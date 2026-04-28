@@ -1,5 +1,5 @@
-#include "ExceptionContainsWhat.h"
 #include "FrontEnd.h"
+#include <catch2/matchers/catch_matchers_string.hpp>
 #include "ParseError.h"
 #include "ParserHelper.h"
 
@@ -302,8 +302,8 @@ TEST_CASE("TIP Lexer: Lexing exceptions are thrown", "[TIP Lexer]") {
       }
     )";
 
-  REQUIRE_THROWS_MATCHES(FrontEnd::parse(stream), ParseError,
-                         ContainsWhat("token recognition error"));
+  REQUIRE_THROWS_WITH(FrontEnd::parse(stream),
+                         Catch::Matchers::ContainsSubstring("token recognition error"));
 }
 
 TEST_CASE("TIP Parser: Parsing exceptions are thrown", "[TIP Parser]") {
@@ -314,6 +314,6 @@ TEST_CASE("TIP Parser: Parsing exceptions are thrown", "[TIP Parser]") {
       }
     )";
 
-  REQUIRE_THROWS_MATCHES(FrontEnd::parse(stream), ParseError,
-                         ContainsWhat("missing ';'"));
+  REQUIRE_THROWS_WITH(FrontEnd::parse(stream),
+                         Catch::Matchers::ContainsSubstring("missing ';'"));
 }

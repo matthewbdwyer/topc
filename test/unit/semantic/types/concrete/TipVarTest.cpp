@@ -6,7 +6,7 @@
 
 #include <vector>
 
-TEST_CASE("TipVar: check equality with the same underlying node are equal"
+TEST_CASE("TipVar: check equality with the same underlying node are equal",
           "[TipVar]") {
   ASTNumberExpr n(42);
   TipVar var(&n);
@@ -14,7 +14,7 @@ TEST_CASE("TipVar: check equality with the same underlying node are equal"
   REQUIRE(var == var2);
 }
 
-TEST_CASE("TipVar: check equality with different underlying nodes"
+TEST_CASE("TipVar: check equality with different underlying nodes",
           "[TipVar]") {
   ASTNumberExpr n(99);
   ASTNumberExpr n1(99);
@@ -23,7 +23,7 @@ TEST_CASE("TipVar: check equality with different underlying nodes"
   REQUIRE_FALSE(var == var2);
 }
 
-TEST_CASE("TipVar: test TipVar is a TipType"
+TEST_CASE("TipVar: test TipVar is a TipType",
           "[TipVar]") {
   ASTNumberExpr n(42);
   TipVar var(&n);

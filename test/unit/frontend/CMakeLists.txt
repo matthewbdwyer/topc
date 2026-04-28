@@ -13,16 +13,6 @@ target_sources(
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTProgramTest.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTBinaryExprTest.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/ASTNodeNoLLVMTest.cpp)
-target_include_directories(
-  frontend_unit_tests
-  PRIVATE ${CMAKE_SOURCE_DIR}/src/error
-          ${CMAKE_SOURCE_DIR}/src/frontend/
-          ${CMAKE_SOURCE_DIR}/src/frontend/ast
-          ${CMAKE_SOURCE_DIR}/src/frontend/ast/treetypes
-          ${CMAKE_SOURCE_DIR}/src/frontend/prettyprint
-          ${CMAKE_SOURCE_DIR}/src/frontend/iterators
-          ${CMAKE_SOURCE_DIR}/test/unit/helpers
-          ${CMAKE_SOURCE_DIR}/test/unit/matchers)
 target_link_libraries(
   frontend_unit_tests
   PRIVATE antlr4_static
@@ -31,8 +21,9 @@ target_link_libraries(
           iterators
           error
           frontend
-          semantic
-          codegen
           test_helpers
+          tipc_test_includes
           coverage_config
           Catch2::Catch2WithMain)
+include(Catch)
+catch_discover_tests(frontend_unit_tests)

@@ -1,6 +1,6 @@
 #include "AbsentFieldChecker.h"
 #include "ASTHelper.h"
-#include "ExceptionContainsWhat.h"
+#include <catch2/matchers/catch_matchers_string.hpp>
 #include "SemanticError.h"
 #include "SymbolTable.h"
 #include "TipTermBridge.h"
@@ -24,8 +24,8 @@ static void runtest(std::stringstream &program, bool expectPass) {
   if (expectPass) {
     REQUIRE_NOTHROW(AbsentFieldChecker::check(ast.get(), unifier.get()));
   } else {
-    REQUIRE_THROWS_MATCHES(AbsentFieldChecker::check(ast.get(), unifier.get()),
-                           SemanticError, ContainsWhat("absent field"));
+    REQUIRE_THROWS_WITH(AbsentFieldChecker::check(ast.get(), unifier.get()),
+                           Catch::Matchers::ContainsSubstring("absent field"));
   }
 }
 

@@ -16,8 +16,7 @@ TEST_CASE("CodegenFunction: ASTDeclNode throws InternalError on codegen",
   REQUIRE_THROWS_AS(visitor.dispatch(&node), InternalError);
 }
 
-TEST_CASE("CodegenFunction: ASTAssignsStmt throws InternalError on LHS codegen "
-          "nullptr",
+TEST_CASE("CodegenFunction: ASTAssignsStmt throws InternalError on LHS codegen nullptr",
           "[CodegenFunctions]") {
   ASTAssignStmt assignStmt(std::make_shared<nullcodegen::MockASTExpr>(),
                            std::make_shared<ASTInputExpr>());
@@ -27,8 +26,7 @@ TEST_CASE("CodegenFunction: ASTAssignsStmt throws InternalError on LHS codegen "
   REQUIRE_THROWS_AS(visitor.dispatch(&assignStmt), InternalError);
 }
 
-TEST_CASE("CodegenFunction: ASTAssignsStmt throws InternalError on RHS codegen "
-          "nullptr",
+TEST_CASE("CodegenFunction: ASTAssignsStmt throws InternalError on RHS codegen nullptr",
           "[CodegenFunctions]") {
   ASTAssignStmt assignStmt(std::make_shared<ASTInputExpr>(),
                            std::make_shared<nullcodegen::MockASTExpr>());
@@ -51,8 +49,7 @@ TEST_CASE(
   REQUIRE_THROWS_AS(visitor.dispatch(&ifStmt), InternalError);
 }
 
-TEST_CASE("CodegenFunction: ASTBinaryExpr throws InternalError on LHS codegen "
-          "nullptr",
+TEST_CASE("CodegenFunction: ASTBinaryExpr throws InternalError on LHS codegen nullptr",
           "[CodegenFunctions]") {
   ASTBinaryExpr binaryExpr("+", std::make_shared<nullcodegen::MockASTExpr>(),
                            std::make_shared<ASTInputExpr>());
@@ -62,8 +59,7 @@ TEST_CASE("CodegenFunction: ASTBinaryExpr throws InternalError on LHS codegen "
   REQUIRE_THROWS_AS(visitor.dispatch(&binaryExpr), InternalError);
 }
 
-TEST_CASE("CodegenFunction: ASTBinaryExpr throws InternalError on RHS codegen "
-          "nullptr",
+TEST_CASE("CodegenFunction: ASTBinaryExpr throws InternalError on RHS codegen nullptr",
           "[CodegenFunctions]") {
   ASTBinaryExpr binaryExpr("+", std::make_shared<ASTInputExpr>(),
                            std::make_shared<nullcodegen::MockASTExpr>());
@@ -81,8 +77,7 @@ TEST_CASE("CodegenFunction: ASTBinaryExpr throws InternalError on bad OP",
       InternalError);
 }
 
-TEST_CASE("CodegenFunction: ASTOutputStmt throws InternalError on ARG codegen "
-          "nullptr",
+TEST_CASE("CodegenFunction: ASTOutputStmt throws InternalError on ARG codegen nullptr",
           "[CodegenFunctions]") {
   ASTOutputStmt outputStmt(std::make_shared<nullcodegen::MockASTExpr>());
   CodeGenContext ctx;
@@ -111,8 +106,7 @@ TEST_CASE(
   REQUIRE_THROWS_AS(visitor.dispatch(&variableExpr), InternalError);
 }
 
-TEST_CASE("CodegenFunction: ASTAllocExpr throws InternalError on INIT codegen "
-          "nullptr",
+TEST_CASE("CodegenFunction: ASTAllocExpr throws InternalError on INIT codegen nullptr",
           "[CodegenFunctions]") {
   ASTAllocExpr allocExpr(std::make_shared<nullcodegen::MockASTExpr>());
   CodeGenContext ctx;
@@ -152,8 +146,7 @@ TEST_CASE(
   REQUIRE_THROWS_AS(visitor.dispatch(&accessExpr), InternalError);
 }
 
-TEST_CASE("CodegenFunction: ASTFunAppExpr throws InternalError on FUN codegen "
-          "nullptr",
+TEST_CASE("CodegenFunction: ASTFunAppExpr throws InternalError on FUN codegen nullptr",
           "[CodegenFunctions]") {
   std::vector<std::shared_ptr<ASTExpr>> actuals;
   ASTFunAppExpr funAppExpr(std::make_shared<nullcodegen::MockASTExpr>(),

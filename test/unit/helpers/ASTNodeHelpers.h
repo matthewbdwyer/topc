@@ -20,7 +20,7 @@ public:
 
 namespace simplenodes {
 
-ASTFunction mockFunction(std::string fname) {
+inline ASTFunction mockFunction(std::string fname) {
   std::vector<std::shared_ptr<ASTDeclNode>> formals;
   std::vector<std::shared_ptr<ASTDeclStmt>> decls;
   std::vector<std::shared_ptr<ASTStmt>> body;

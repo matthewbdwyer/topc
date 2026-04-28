@@ -7,7 +7,7 @@
 
 #include <set>
 
-TEST_CASE("CallGraph: getter for num of vertices and edges"
+TEST_CASE("CallGraph: getter for num of vertices and edges",
           "[CallGraph]") {
   std::stringstream program;
   program << R"(
@@ -33,7 +33,7 @@ TEST_CASE("CallGraph: getter for num of vertices and edges"
   REQUIRE(callGraph.get()->existEdge("bar", "foo"));
 }
 
-TEST_CASE("CallGraph: simple call graph with cycle(recursion)"
+TEST_CASE("CallGraph: simple call graph with cycle(recursion)",
           "[CallGraph]") {
   std::stringstream program;
   program << R"(
@@ -71,7 +71,7 @@ TEST_CASE("CallGraph: simple call graph with cycle(recursion)"
   REQUIRE(callGraph.get()->existEdge("foo", "foo"));
 }
 
-TEST_CASE("CallGraph: test complex call graph (overapproximations)"
+TEST_CASE("CallGraph: test complex call graph (overapproximations)",
           "[CallGraph]") {
   std::stringstream program;
   program << R"(
@@ -124,7 +124,7 @@ TEST_CASE("CallGraph: test complex call graph (overapproximations)"
   REQUIRE_FALSE(callGraph.get()->existEdge("f", "f"));
 }
 
-TEST_CASE("CallGraph: test getCallee by function name"
+TEST_CASE("CallGraph: test getCallee by function name",
           "[CallGraph]") {
   std::stringstream program;
   program << R"(
@@ -171,7 +171,7 @@ TEST_CASE("CallGraph: test getCallee by function name"
   REQUIRE(callGraph.get()->getCallees("f").size() == 0);
 }
 
-TEST_CASE("CallGraph: test getCallee by ASTFunction*"
+TEST_CASE("CallGraph: test getCallee by ASTFunction*",
           "[CallGraph]") {
   std::stringstream program;
   program << R"(
@@ -222,7 +222,7 @@ TEST_CASE("CallGraph: test getCallee by ASTFunction*"
   REQUIRE(callees.find(callee) != callees.end());
 }
 
-TEST_CASE("CallGraph: test getCallers"
+TEST_CASE("CallGraph: test getCallers",
           "[CallGraph]") {
   std::stringstream program;
   program << R"(
@@ -249,7 +249,7 @@ TEST_CASE("CallGraph: test getCallers"
   REQUIRE(callers.find("bar") != callers.end());
 }
 
-TEST_CASE("CallGraph: test getCallers by ASTFunction*"
+TEST_CASE("CallGraph: test getCallers by ASTFunction*",
           "[CallGraph]") {
   std::stringstream program;
   program << R"(
@@ -279,7 +279,7 @@ TEST_CASE("CallGraph: test getCallers by ASTFunction*"
   REQUIRE(callers.find(caller) != callers.end());
 }
 
-TEST_CASE("CallGraph: test getEdges"
+TEST_CASE("CallGraph: test getEdges",
           "[CallGraph]") {
   std::stringstream program;
   program << R"(
@@ -318,7 +318,7 @@ TEST_CASE("CallGraph: test getEdges"
           edges.end());
 }
 
-TEST_CASE("CallGraph: test SemanticAnalysis"
+TEST_CASE("CallGraph: test SemanticAnalysis",
           "[CallGraph]") {
   std::stringstream program;
   program << R"(
@@ -339,7 +339,7 @@ TEST_CASE("CallGraph: test SemanticAnalysis"
   REQUIRE(callGraph->getVertices().size() == 3); // size should be 2
 }
 
-TEST_CASE("CallGraph: test print method"
+TEST_CASE("CallGraph: test print method",
           "[CallGraph]") {
   std::stringstream program;
   program << R"(

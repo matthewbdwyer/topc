@@ -6,13 +6,13 @@
 #include <sstream>
 #include <string>
 
-TEST_CASE("TipInt: test TipInt is a TipCons"
+TEST_CASE("TipInt: test TipInt is a TipCons",
           "[tip_int]") {
   TipInt t;
   REQUIRE_FALSE(nullptr == dynamic_cast<TipCons *>(&t));
 }
 
-TEST_CASE("TipInt: test TipInt is a TipType"
+TEST_CASE("TipInt: test TipInt is a TipType",
           "[tip_int]") {
   TipInt t;
   REQUIRE_FALSE(nullptr == dynamic_cast<TipType *>(&t));

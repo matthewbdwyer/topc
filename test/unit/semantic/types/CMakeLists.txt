@@ -26,18 +26,6 @@ target_sources(
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/TipVarRegistryTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/TipTermClosureTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/TipTermBridgeTest.cpp)
-target_include_directories(
-  typeinference_unit_tests
-  PRIVATE ${CMAKE_SOURCE_DIR}/src/error
-          ${CMAKE_SOURCE_DIR}/src/frontend/ast
-          ${CMAKE_SOURCE_DIR}/src/frontend/ast/treetypes
-          ${CMAKE_SOURCE_DIR}/src/semantic/symboltable
-          ${CMAKE_SOURCE_DIR}/src/semantic/cfa
-          ${CMAKE_SOURCE_DIR}/src/semantic/types/concrete
-          ${CMAKE_SOURCE_DIR}/src/semantic/types/constraints
-          ${CMAKE_SOURCE_DIR}/src/semantic/types/solver
-          ${CMAKE_SOURCE_DIR}/test/unit/helpers
-          ${CMAKE_SOURCE_DIR}/test/unit/matchers)
 target_link_libraries(
   typeinference_unit_tests
   PRIVATE antlr4_static
@@ -51,5 +39,8 @@ target_link_libraries(
           optimizer
           error
           test_helpers
+          tipc_test_includes
           coverage_config
           Catch2::Catch2WithMain)
+include(Catch)
+catch_discover_tests(typeinference_unit_tests)

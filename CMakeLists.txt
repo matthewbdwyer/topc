@@ -113,6 +113,7 @@ FetchContent_Declare(
   GIT_TAG v3.3.2)
 
 FetchContent_MakeAvailable(Catch2)
+list(APPEND CMAKE_MODULE_PATH "${catch2_SOURCE_DIR}/extras")
 
 option(BUILD_TESTING "Build the testing tree." ON)
 # Only build tests if we are the top-level project Allows this to be used by

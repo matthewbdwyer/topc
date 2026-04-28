@@ -1,6 +1,6 @@
 #include "SymbolTable.h"
 #include "ASTHelper.h"
-#include "ExceptionContainsWhat.h"
+#include <catch2/matchers/catch_matchers_string.hpp>
 #include "SemanticError.h"
 
 #include <catch2/catch_test_macros.hpp>
@@ -126,8 +126,8 @@ TEST_CASE("Symbol Table: local undeclared", "[SymbolTable]") {
 
   auto ast = ASTHelper::build_ast(stream);
 
-  REQUIRE_THROWS_MATCHES(SymbolTable::build(ast.get()), SemanticError,
-                         ContainsWhat("z undeclared"));
+  REQUIRE_THROWS_WITH(SymbolTable::build(ast.get()),
+                         Catch::Matchers::ContainsSubstring("z undeclared"));
 }
 
 TEST_CASE("Symbol Table: locals param clash ", "[SymbolTable]") {
@@ -136,8 +136,8 @@ TEST_CASE("Symbol Table: locals param clash ", "[SymbolTable]") {
 
   auto ast = ASTHelper::build_ast(stream);
 
-  REQUIRE_THROWS_MATCHES(SymbolTable::build(ast.get()), SemanticError,
-                         ContainsWhat("b redeclared"));
+  REQUIRE_THROWS_WITH(SymbolTable::build(ast.get()),
+                         Catch::Matchers::ContainsSubstring("b redeclared"));
 }
 
 TEST_CASE("Symbol Table: locals clash ", "[SymbolTable]") {
@@ -146,8 +146,8 @@ TEST_CASE("Symbol Table: locals clash ", "[SymbolTable]") {
 
   auto ast = ASTHelper::build_ast(stream);
 
-  REQUIRE_THROWS_MATCHES(SymbolTable::build(ast.get()), SemanticError,
-                         ContainsWhat("x redeclared"));
+  REQUIRE_THROWS_WITH(SymbolTable::build(ast.get()),
+                         Catch::Matchers::ContainsSubstring("x redeclared"));
 }
 
 TEST_CASE("Symbol Table: params clash ", "[SymbolTable]") {
@@ -156,8 +156,8 @@ TEST_CASE("Symbol Table: params clash ", "[SymbolTable]") {
 
   auto ast = ASTHelper::build_ast(stream);
 
-  REQUIRE_THROWS_MATCHES(SymbolTable::build(ast.get()), SemanticError,
-                         ContainsWhat("a redeclared"));
+  REQUIRE_THROWS_WITH(SymbolTable::build(ast.get()),
+                         Catch::Matchers::ContainsSubstring("a redeclared"));
 }
 
 TEST_CASE("Symbol Table: functions clash ", "[SymbolTable]") {
@@ -166,8 +166,8 @@ TEST_CASE("Symbol Table: functions clash ", "[SymbolTable]") {
 
   auto ast = ASTHelper::build_ast(stream);
 
-  REQUIRE_THROWS_MATCHES(SymbolTable::build(ast.get()), SemanticError,
-                         ContainsWhat("foo already declared"));
+  REQUIRE_THROWS_WITH(SymbolTable::build(ast.get()),
+                         Catch::Matchers::ContainsSubstring("foo already declared"));
 }
 
 TEST_CASE("Symbol Table: Unknown Function", "[SymbolTable]") {
