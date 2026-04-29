@@ -1,6 +1,5 @@
 #pragma once
 
-#include "TermInterface.h"
 #include <iostream>
 #include <memory>
 #include <sstream>
@@ -13,7 +12,7 @@ class TipTypeVisitor;
  *
  * \brief Abstract base class for all TIP types.
  */
-class TipType : public Term {
+class TipType {
 public:
   virtual ~TipType() = default;
 
@@ -28,21 +27,28 @@ public:
 
   bool operator!=(const TipType &other) const { return !(*this == other); }
 
-  // ========== Term interface implementation ==========
+  // ========== TipType structural interface ==========
 
-  bool isVariable() const override { return false; }
+  /*! Returns the direct child types (arguments) of this type.
+   *  Default is empty; TipCons overrides to return arguments.
+   *  \throws InternalError for TipMu (must not enter the solver). */
+  virtual std::vector<std::shared_ptr<TipType>> getChildTypes() const { return {}; }
 
-  std::string toString() const override {
+  /*! Reconstruct this type with a new set of child types.
+   *  \throws InternalError for TipMu (must not enter the solver). */
+  virtual std::shared_ptr<TipType> withChildTypes(
+      std::vector<std::shared_ptr<TipType>> children) const = 0;
+
+  // ========== Solver-facing type predicates / functors ==========
+
+  virtual bool isVariable() const { return false; }
+  virtual std::string getFunctor() const = 0;
+  virtual std::size_t arity() const { return 0; }
+
+  std::string toString() const {
     std::ostringstream oss;
     print(oss);
     return oss.str();
-  }
-
-  bool equals(const Term &other) const override {
-    if (auto *otherTip = dynamic_cast<const TipType *>(&other)) {
-      return *this == *otherTip;
-    }
-    return false;
   }
 };
 

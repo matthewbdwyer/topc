@@ -37,17 +37,10 @@ void TipRef::accept(TipTypeVisitor *visitor) {
   visitor->endVisit(this);
 }
 
-std::vector<std::shared_ptr<Term>> TipRef::getSubterms() const {
-  return {arguments.front()};
-}
-
-std::shared_ptr<Term> TipRef::withSubterms(std::vector<std::shared_ptr<Term>> newSubterms) const {
-  if (newSubterms.size() != 1) {
-    throw std::invalid_argument("TipRef requires exactly 1 subterm");
+std::shared_ptr<TipType> TipRef::withChildTypes(
+    std::vector<std::shared_ptr<TipType>> children) const {
+  if (children.size() != 1) {
+    throw std::invalid_argument("TipRef requires exactly 1 child type");
   }
-  auto newType = std::dynamic_pointer_cast<TipType>(newSubterms[0]);
-  if (!newType) {
-    throw std::invalid_argument("TipRef subterm must be a TipType");
-  }
-  return std::make_shared<TipRef>(newType);
+  return std::make_shared<TipRef>(children[0]);
 }

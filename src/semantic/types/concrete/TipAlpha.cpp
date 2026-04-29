@@ -52,9 +52,10 @@ std::string TipAlpha::getFunctor() const {
   return "α" + name;
 }
 
-std::shared_ptr<Term> TipAlpha::withSubterms(std::vector<std::shared_ptr<Term>> newSubterms) const {
-  if (!newSubterms.empty()) {
-    throw std::invalid_argument("TipAlpha has no subterms");
+std::shared_ptr<TipType> TipAlpha::withChildTypes(
+    std::vector<std::shared_ptr<TipType>> children) const {
+  if (!children.empty()) {
+    throw std::invalid_argument("TipAlpha has no child types");
   }
   return std::make_shared<TipAlpha>(node, context, name);
 }

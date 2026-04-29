@@ -43,11 +43,6 @@ target_sources(
     ${CMAKE_CURRENT_SOURCE_DIR}/constraints/PolyTypeConstraintVisitor.h
     ${CMAKE_CURRENT_SOURCE_DIR}/constraints/AbsentFieldChecker.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/constraints/AbsentFieldChecker.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/solver/TermInterface.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/solver/TermUnionFind.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/solver/TermUnionFind.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/solver/TermUnifier.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/solver/TermUnifier.h
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/UnificationError.h
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/TypeVars.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/TypeVars.h
@@ -57,12 +52,12 @@ target_sources(
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/FreshAlphaCopier.h
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/Substituter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/Substituter.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/solver/TipVarRegistry.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/solver/TipVarRegistry.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/solver/TipTermClosure.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/solver/TipTermClosure.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/solver/TipTermBridge.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/solver/TipTermBridge.h)
+    ${CMAKE_CURRENT_SOURCE_DIR}/solver/TipTermAdapter.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/solver/TipTermAdapter.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/TipTypeClosure.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/TipTypeClosure.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/solver/Unifier.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/solver/Unifier.h)
 target_include_directories(
   types
   PRIVATE ${CMAKE_SOURCE_DIR}/src
@@ -71,6 +66,8 @@ target_include_directories(
           ${CMAKE_SOURCE_DIR}/src/frontend/ast/treetypes
           ${CMAKE_SOURCE_DIR}/src/semantic/symboltable
           ${CMAKE_SOURCE_DIR}/src/semantic/cfa
+          ${CMAKE_SOURCE_DIR}/src/semantic/solver/term
+          ${CMAKE_SOURCE_DIR}/src/semantic/solver/cubic
           ${CMAKE_CURRENT_SOURCE_DIR}
           ${CMAKE_CURRENT_SOURCE_DIR}/concrete
           ${CMAKE_CURRENT_SOURCE_DIR}/constraints
@@ -81,6 +78,9 @@ target_include_directories(types PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/concrete
   ${CMAKE_CURRENT_SOURCE_DIR}/solver
+  ${CMAKE_SOURCE_DIR}/src/semantic/solver/term
 )
 
-target_link_libraries(types PRIVATE coverage_config loguru)
+target_link_libraries(types
+  PRIVATE coverage_config loguru
+  PUBLIC term_solver)

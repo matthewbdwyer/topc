@@ -20,7 +20,7 @@ class PolyTypeConstraintCollectVisitor : public PolyTypeConstraintVisitor {
 public:
   explicit PolyTypeConstraintCollectVisitor(SymbolTable *pTable,
                                             CallGraph *callGraph,
-                                            std::shared_ptr<TipTermBridge> u);
+                                            std::shared_ptr<Unifier> u);
   std::vector<TypeConstraint> &getCollectedConstraints();
 
 private:

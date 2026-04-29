@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CallGraph.h"
-#include "TipTermBridge.h"
+#include "Unifier.h"
 #include "TypeConstraintVisitor.h"
 
 /*! \class PolyTypeConstraintVisitor
@@ -14,12 +14,12 @@
 class PolyTypeConstraintVisitor : public TypeConstraintVisitor {
 public:
   explicit PolyTypeConstraintVisitor(
-      SymbolTable *pTable, CallGraph *callGraph, std::shared_ptr<TipTermBridge> u,
+      SymbolTable *pTable, CallGraph *callGraph, std::shared_ptr<Unifier> u,
       std::unique_ptr<ConstraintHandler> handler);
 
   virtual void endVisit(ASTFunAppExpr *element) override;
 
 private:
   CallGraph *callGraph;
-  std::shared_ptr<TipTermBridge> unifier;
+  std::shared_ptr<Unifier> unifier;
 };

@@ -29,9 +29,10 @@ void TipAbsentField::accept(TipTypeVisitor *visitor) {
   visitor->endVisit(this);
 }
 
-std::shared_ptr<Term> TipAbsentField::withSubterms(std::vector<std::shared_ptr<Term>> newSubterms) const {
-  if (!newSubterms.empty()) {
-    throw std::invalid_argument("TipAbsentField has no subterms");
+std::shared_ptr<TipType> TipAbsentField::withChildTypes(
+    std::vector<std::shared_ptr<TipType>> children) const {
+  if (!children.empty()) {
+    throw std::invalid_argument("TipAbsentField has no child types");
   }
   return std::make_shared<TipAbsentField>();
 }

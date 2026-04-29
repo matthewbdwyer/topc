@@ -1,6 +1,7 @@
 # Build the different semantic analysis passes
 add_subdirectory(weeding)
 add_subdirectory(symboltable)
+add_subdirectory(solver)
 add_subdirectory(types)
 add_subdirectory(cfa)
 
@@ -18,6 +19,7 @@ target_include_directories(
           ${CMAKE_CURRENT_SOURCE_DIR}/types/concrete
           ${CMAKE_CURRENT_SOURCE_DIR}/types/constraints
           ${CMAKE_CURRENT_SOURCE_DIR}/types/solver
+          ${CMAKE_SOURCE_DIR}/src/semantic/solver/term
           ${CMAKE_CURRENT_SOURCE_DIR}/weeding
           ${CMAKE_SOURCE_DIR}/src/frontend/ast
           ${CMAKE_SOURCE_DIR}/src/frontend/ast/treetypes)

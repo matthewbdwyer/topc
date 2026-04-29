@@ -5,7 +5,7 @@
 #include "loguru.hpp"
 
 PolyTypeConstraintVisitor::PolyTypeConstraintVisitor(
-    SymbolTable *st, CallGraph *cg, std::shared_ptr<TipTermBridge> u,
+    SymbolTable *st, CallGraph *cg, std::shared_ptr<Unifier> u,
     std::unique_ptr<ConstraintHandler> handler)
     : TypeConstraintVisitor(st, std::move(handler)), callGraph(cg),
       unifier(u){};

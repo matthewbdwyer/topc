@@ -1,4 +1,4 @@
-#include "TipTermClosure.h"
+#include "TipTypeClosure.h"
 
 #include "Copier.h"
 #include "InternalError.h"
@@ -34,10 +34,10 @@ bool isMu(const std::shared_ptr<TipType> &type) {
 } // namespace
 
 // ---------------------------------------------------------------------------
-// TipTermClosure
+// TipTypeClosure
 // ---------------------------------------------------------------------------
 
-TipTermClosure::TipTermClosure(const TermUnifier &u) : unifier(u) {}
+TipTypeClosure::TipTypeClosure(const TermUnifier &u) : unifier(u) {}
 
 /**
  * Close a type expression by replacing all bound variables with their
@@ -48,20 +48,20 @@ TipTermClosure::TipTermClosure(const TermUnifier &u) : unifier(u) {}
  *   close(unionFind->find(v),…)  →  close(rep, …)  where rep = find(v)
  *   unionFind->add(newTypes)  →  (omitted; TermUnifier's union-find persists)
  */
-std::shared_ptr<TipType> TipTermClosure::close(std::shared_ptr<TipType> type,
+std::shared_ptr<TipType> TipTypeClosure::close(std::shared_ptr<TipType> type,
                                                TipVarSet visited) {
   if (isVar(type)) {
     auto v = std::dynamic_pointer_cast<TipVar>(type);
 
     // Ask the union-find for the canonical representative of v.
     // const_cast is needed because find() is non-const (smart_insert may add).
-    auto vTerm = std::static_pointer_cast<Term>(v);
+    auto vAdapter = TipTermAdapter::wrap(v);
     auto repTerm =
-        const_cast<TermUnifier &>(unifier).find(vTerm);
-    auto rep = std::static_pointer_cast<TipType>(repTerm);
+        const_cast<TermUnifier &>(unifier).find(vAdapter);
+    auto rep = TipTermAdapter::unwrap(repTerm);
 
     // v is "bound" iff its representative is value-different from v.
-    bool bound = !rep->equals(*v);
+    bool bound = (*rep != *v);
 
     if (!visited.count(v) && bound) {
       visited.insert(v);

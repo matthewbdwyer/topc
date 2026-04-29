@@ -52,7 +52,7 @@ TEST_CASE("Substituter: compound type — one occurrence replaced", "[Substitute
 
   auto result = Substituter::substitute(ref.get(), x.get(), sub);
   REQUIRE(result->getFunctor() == "ptr");
-  auto subs = result->getSubterms();
+  auto subs = result->getChildTypes();
   REQUIRE(subs.size() == 1);
   REQUIRE(subs[0]->getFunctor() == "int");
 }
@@ -65,7 +65,7 @@ TEST_CASE("Substituter: multiple occurrences all replaced", "[Substituter]") {
 
   auto result = Substituter::substitute(func.get(), x.get(), sub);
   REQUIRE(result->getFunctor() == "->");
-  auto subs = result->getSubterms();
+  auto subs = result->getChildTypes();
   REQUIRE(subs.size() == 2);  // 1 param + return
   REQUIRE(subs[0]->getFunctor() == "int");  // param replaced
   REQUIRE(subs[1]->getFunctor() == "int");  // return replaced
@@ -79,7 +79,7 @@ TEST_CASE("Substituter: compound substitution is preserved", "[Substituter]") {
   auto result = Substituter::substitute(x.get(), x.get(), sub);
   // Result should be Ref(int)
   REQUIRE(result->getFunctor() == "ptr");
-  auto subs = result->getSubterms();
+  auto subs = result->getChildTypes();
   REQUIRE(subs[0]->getFunctor() == "int");
 }
 
@@ -96,11 +96,10 @@ TEST_CASE("Substituter: TipRecord — field names preserved after substitution",
 
   // Field names should be {f, g} sorted → record{f,g}
   REQUIRE(result->getFunctor() == "record{f,g}");
-  auto subs = result->getSubterms();
+  auto subs = result->getChildTypes();
   REQUIRE(subs.size() == 2);
   REQUIRE(subs[0]->getFunctor() == "int");    // f: x → int
-  auto yResult = std::dynamic_pointer_cast<TipVar>(
-      std::dynamic_pointer_cast<TipType>(subs[1]));
+  auto yResult = std::dynamic_pointer_cast<TipVar>(subs[1]);
   REQUIRE(yResult != nullptr);
   REQUIRE(yResult->getNode() == &nodeB);       // g: y unchanged
 }
@@ -127,14 +126,13 @@ TEST_CASE("Substituter: TipMu — only free variable is replaced", "[Substituter
 
   // Result is TipMu
   REQUIRE(result->getFunctor() == "μ");
-  auto subs = result->getSubterms();
-  REQUIRE(subs.size() == 2);
+  auto muResult = std::dynamic_pointer_cast<TipMu>(result);
+  REQUIRE(muResult != nullptr);
   // Binding variable still a TipVar wrapping nodeA
-  auto bindVar = std::dynamic_pointer_cast<TipVar>(
-      std::dynamic_pointer_cast<TipType>(subs[0]));
-  REQUIRE(bindVar != nullptr);
-  REQUIRE(bindVar->getNode() == &nodeA);
+  REQUIRE(muResult->getV()->getNode() == &nodeA);
   // Body is Ref(int)
-  REQUIRE(subs[1]->getFunctor() == "ptr");
-  REQUIRE(subs[1]->getSubterms()[0]->getFunctor() == "int");
+  REQUIRE(muResult->getT()->getFunctor() == "ptr");
+  auto refBody = std::dynamic_pointer_cast<TipRef>(muResult->getT());
+  REQUIRE(refBody != nullptr);
+  REQUIRE(refBody->getReferencedType()->getFunctor() == "int");
 }

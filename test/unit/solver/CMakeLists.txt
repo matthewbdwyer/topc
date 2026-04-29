@@ -1,0 +1,16 @@
+add_executable(solver_unit_tests)
+target_sources(solver_unit_tests
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/term/TermUnifierStandaloneTest.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/cubic/CubicSolverStandaloneTest.cpp)
+target_include_directories(solver_unit_tests
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/term)
+target_link_libraries(solver_unit_tests
+  PRIVATE
+    term_solver
+    cubic_solver
+    coverage_config
+    Catch2::Catch2WithMain)
+include(Catch)
+catch_discover_tests(solver_unit_tests)

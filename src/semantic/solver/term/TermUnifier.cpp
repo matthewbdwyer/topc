@@ -1,12 +1,4 @@
 #include "TermUnifier.h"
-#include "TipAlpha.h"
-
-// TipAlpha extends TipVar but overrides isVariable() to return false.
-// For unification purposes we treat TipAlpha as a variable,
-// mirroring the old Unifier which used dynamic_cast<TipVar>.
-static bool termIsVariable(const std::shared_ptr<Term> &t) {
-  return t->isVariable() || std::dynamic_pointer_cast<TipAlpha>(t) != nullptr;
-}
 
 void TermUnifier::addConstraint(std::shared_ptr<Term> t1,
                                 std::shared_ptr<Term> t2) {
@@ -49,11 +41,11 @@ void TermUnifier::unify(std::shared_ptr<Term> t1, std::shared_ptr<Term> t2) {
     return;
   }
 
-  if (termIsVariable(t1) && termIsVariable(t2)) {
+  if (t1->isVariable() && t2->isVariable()) {
     unionFind.quick_union(t1, t2);
-  } else if (termIsVariable(t1) && !termIsVariable(t2)) {
+  } else if (t1->isVariable() && !t2->isVariable()) {
     unionFind.quick_union(t1, t2); // proper type t2 becomes root
-  } else if (!termIsVariable(t1) && termIsVariable(t2)) {
+  } else if (!t1->isVariable() && t2->isVariable()) {
     unionFind.quick_union(t2, t1); // proper type t1 becomes root
   } else {
     // Both proper types

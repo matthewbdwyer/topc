@@ -1,4 +1,4 @@
-#include "TipTermBridge.h"
+#include "Unifier.h"
 #include "ASTHelper.h"
 #include "ASTVariableExpr.h"
 #include "TipAlpha.h"
@@ -15,8 +15,8 @@
 
 #include <iostream>
 
-TEST_CASE("TipTermBridge: Collect and then unify constraints",
-          "[TipTermBridge, Collect]") {
+TEST_CASE("Unifier: Collect and then unify constraints",
+          "[Unifier, Collect]") {
 
   SECTION("Test type-safe program 1") {
     std::stringstream program;
@@ -38,7 +38,7 @@ TEST_CASE("TipTermBridge: Collect and then unify constraints",
     TypeConstraintCollectVisitor visitor(symbols.get());
     ast->accept(&visitor);
 
-    TipTermBridge bridge(visitor.getCollectedConstraints());
+    Unifier bridge(visitor.getCollectedConstraints());
     REQUIRE_NOTHROW(bridge.solve());
 
     // Expected types
@@ -77,7 +77,7 @@ deref(p){
     TypeConstraintCollectVisitor visitor(symbols.get());
     ast->accept(&visitor);
 
-    TipTermBridge bridge(visitor.getCollectedConstraints());
+    Unifier bridge(visitor.getCollectedConstraints());
     REQUIRE_NOTHROW(bridge.solve());
 
     auto fDecl = symbols->getFunction("deref");
@@ -122,7 +122,7 @@ deref(p){
     TypeConstraintCollectVisitor visitor(symbols.get());
     ast->accept(&visitor);
 
-    TipTermBridge bridge(visitor.getCollectedConstraints());
+    Unifier bridge(visitor.getCollectedConstraints());
     REQUIRE_THROWS_AS(bridge.solve(), UnificationError);
   }
 
@@ -147,7 +147,7 @@ deref(p){
     TypeConstraintCollectVisitor visitor(symbols.get());
     ast->accept(&visitor);
 
-    TipTermBridge bridge(visitor.getCollectedConstraints());
+    Unifier bridge(visitor.getCollectedConstraints());
     REQUIRE_THROWS_AS(bridge.solve(), UnificationError);
   }
 
@@ -169,13 +169,13 @@ deref(p){
     TypeConstraintCollectVisitor visitor(symbols.get());
     ast->accept(&visitor);
 
-    TipTermBridge bridge(visitor.getCollectedConstraints());
+    Unifier bridge(visitor.getCollectedConstraints());
     REQUIRE_THROWS_AS(bridge.solve(), UnificationError);
   }
 }
 
-TEST_CASE("TipTermBridge: Unify constraints on the fly",
-          "[TipTermBridge, On-the-fly]") {
+TEST_CASE("Unifier: Unify constraints on the fly",
+          "[Unifier, On-the-fly]") {
 
   SECTION("Test type-safe program 1") {
     std::stringstream program;
@@ -337,8 +337,8 @@ deref(p){
   }
 }
 
-TEST_CASE("TipTermBridge: Test unifying TipCons with different arities",
-          "[TipTermBridge]") {
+TEST_CASE("Unifier: Test unifying TipCons with different arities",
+          "[Unifier]") {
   std::vector<std::shared_ptr<TipType>> paramsA{std::make_shared<TipInt>()};
   auto retA = std::make_shared<TipInt>();
   auto tipFunctionA = std::make_shared<TipFunction>(paramsA, retA);
@@ -351,12 +351,12 @@ TEST_CASE("TipTermBridge: Test unifying TipCons with different arities",
   TypeConstraint constraint(tipFunctionA, tipFunctionB);
   std::vector<TypeConstraint> constraints{constraint};
 
-  TipTermBridge bridge(constraints);
+  Unifier bridge(constraints);
   REQUIRE_THROWS_AS(bridge.unify(tipFunctionA, tipFunctionB), UnificationError);
 }
 
-TEST_CASE("TipTermBridge: Test unifying TipCons with the same arity",
-          "[TipTermBridge]") {
+TEST_CASE("Unifier: Test unifying TipCons with the same arity",
+          "[Unifier]") {
   std::vector<std::shared_ptr<TipType>> params{std::make_shared<TipInt>()};
   auto ret = std::make_shared<TipInt>();
   auto tipFunctionA = std::make_shared<TipFunction>(params, ret);
@@ -366,12 +366,12 @@ TEST_CASE("TipTermBridge: Test unifying TipCons with the same arity",
   TypeConstraint constraint(tipFunctionA, tipFunctionB);
   std::vector<TypeConstraint> constraints{constraint};
 
-  TipTermBridge bridge(constraints);
+  Unifier bridge(constraints);
   REQUIRE_NOTHROW(bridge.unify(tipFunctionA, tipFunctionB));
 }
 
-TEST_CASE("TipTermBridge: Test unifying proper types with a type variable",
-          "[TipTermBridge]") {
+TEST_CASE("Unifier: Test unifying proper types with a type variable",
+          "[Unifier]") {
   ASTVariableExpr variableExpr("foo");
   auto tipVar = std::make_shared<TipVar>(&variableExpr);
   auto tipInt = std::make_shared<TipInt>();
@@ -379,12 +379,12 @@ TEST_CASE("TipTermBridge: Test unifying proper types with a type variable",
   TypeConstraint constraint(tipVar, tipInt);
   std::vector<TypeConstraint> constraints{constraint};
 
-  TipTermBridge bridge(constraints);
+  Unifier bridge(constraints);
   REQUIRE_NOTHROW(bridge.unify(tipVar, tipInt));
 }
 
-TEST_CASE("TipTermBridge: Test unifying two different type variables",
-          "[TipTermBridge]") {
+TEST_CASE("Unifier: Test unifying two different type variables",
+          "[Unifier]") {
   ASTVariableExpr variableExprA("foo");
   auto tipVarA = std::make_shared<TipVar>(&variableExprA);
 
@@ -394,11 +394,11 @@ TEST_CASE("TipTermBridge: Test unifying two different type variables",
   TypeConstraint constraint(tipVarA, tipVarB);
   std::vector<TypeConstraint> constraints{constraint};
 
-  TipTermBridge bridge(constraints);
+  Unifier bridge(constraints);
   REQUIRE_NOTHROW(bridge.unify(tipVarA, tipVarB));
 }
 
-TEST_CASE("TipTermBridge: Test closing mu", "[TipTermBridge]") {
+TEST_CASE("Unifier: Test closing mu", "[Unifier]") {
   ASTVariableExpr variableExprG("g");
   auto theAlphaG = std::make_shared<TipAlpha>(&variableExprG);
 
@@ -406,6 +406,7 @@ TEST_CASE("TipTermBridge: Test closing mu", "[TipTermBridge]") {
 
   ASTVariableExpr variableExprFoo("foo");
   auto theVarFoo = std::make_shared<TipVar>(&variableExprFoo);
+  (void)theVarFoo; // constraint2 removed: TipMu is not a valid solver input
 
   ASTVariableExpr variableExprF("f");
   auto theAlphaF = std::make_shared<TipAlpha>(&variableExprF);
@@ -416,9 +417,8 @@ TEST_CASE("TipTermBridge: Test closing mu", "[TipTermBridge]") {
   auto theMu = std::make_shared<TipMu>(theAlphaF, theFunction);
 
   TypeConstraint constraint1(theAlphaG, theInt);
-  TypeConstraint constraint2(theVarFoo, theMu);
-  std::vector<TypeConstraint> constraints{constraint1, constraint2};
-  TipTermBridge bridge(constraints);
+  std::vector<TypeConstraint> constraints{constraint1};
+  Unifier bridge(constraints);
 
   auto closed = bridge.inferred(theMu);
 
@@ -428,15 +428,15 @@ TEST_CASE("TipTermBridge: Test closing mu", "[TipTermBridge]") {
   REQUIRE_NOTHROW(ss.str() == "\u03bc\u03B1<f>.(\u03B1<f>,int) -> int");
 }
 
-TEST_CASE("TipTermBridge: static type predicates", "[TipTermBridge]") {
+TEST_CASE("Unifier: static type predicates", "[Unifier]") {
   ASTVariableExpr varExpr("x");
 
-  REQUIRE(TipTermBridge::isVar(std::make_shared<TipVar>(&varExpr)));
-  REQUIRE(TipTermBridge::isCons(std::make_shared<TipInt>()));
-  REQUIRE(TipTermBridge::isMu(std::make_shared<TipMu>(
+  REQUIRE(Unifier::isVar(std::make_shared<TipVar>(&varExpr)));
+  REQUIRE(Unifier::isCons(std::make_shared<TipInt>()));
+  REQUIRE(Unifier::isMu(std::make_shared<TipMu>(
       std::make_shared<TipAlpha>(&varExpr),
       std::make_shared<TipInt>())));
-  REQUIRE(TipTermBridge::isAlpha(std::make_shared<TipAlpha>(&varExpr)));
-  REQUIRE(TipTermBridge::isProperType(std::make_shared<TipInt>()));
-  REQUIRE_FALSE(TipTermBridge::isProperType(std::make_shared<TipVar>(&varExpr)));
+  REQUIRE(Unifier::isAlpha(std::make_shared<TipAlpha>(&varExpr)));
+  REQUIRE(Unifier::isProperType(std::make_shared<TipInt>()));
+  REQUIRE_FALSE(Unifier::isProperType(std::make_shared<TipVar>(&varExpr)));
 }

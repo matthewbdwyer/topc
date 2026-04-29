@@ -17,5 +17,6 @@ target_include_directories(
           ${CMAKE_SOURCE_DIR}/src/frontend/ast/treetypes
           ${CMAKE_SOURCE_DIR}/src/semantic/types/concrete
           ${CMAKE_SOURCE_DIR}/src/semantic/types/constraints
-          ${CMAKE_SOURCE_DIR}/src/semantic/types/solver)
+          ${CMAKE_SOURCE_DIR}/src/semantic/types/solver
+          ${CMAKE_SOURCE_DIR}/src/semantic/solver/term)
 target_link_libraries(test_helpers PUBLIC frontend semantic)

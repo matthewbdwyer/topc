@@ -3,7 +3,7 @@
 #include "ConstraintCollector.h"
 
 PolyTypeConstraintCollectVisitor::PolyTypeConstraintCollectVisitor(
-    SymbolTable *pTable, CallGraph *callGraph, std::shared_ptr<TipTermBridge> u)
+    SymbolTable *pTable, CallGraph *callGraph, std::shared_ptr<Unifier> u)
     : PolyTypeConstraintVisitor(pTable, callGraph, u,
                                 std::move(buildConstraintHandler())) {}
 

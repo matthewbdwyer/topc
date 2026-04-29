@@ -17,6 +17,8 @@ target_include_directories(tipc_test_includes INTERFACE
     ${CMAKE_SOURCE_DIR}/src/semantic/types/concrete
     ${CMAKE_SOURCE_DIR}/src/semantic/types/constraints
     ${CMAKE_SOURCE_DIR}/src/semantic/types/solver
+    ${CMAKE_SOURCE_DIR}/src/semantic/solver/term
+    ${CMAKE_SOURCE_DIR}/src/semantic/solver/cubic
     ${CMAKE_SOURCE_DIR}/src/semantic/cfa
     ${CMAKE_SOURCE_DIR}/src/semantic/weeding
     ${CMAKE_SOURCE_DIR}/test/unit/helpers
@@ -26,3 +28,4 @@ add_subdirectory(helpers)
 add_subdirectory(codegen)
 add_subdirectory(frontend)
 add_subdirectory(semantic)
+add_subdirectory(solver)

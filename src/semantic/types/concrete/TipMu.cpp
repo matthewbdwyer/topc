@@ -1,4 +1,5 @@
 #include "TipMu.h"
+#include "InternalError.h"
 #include "TipTypeVisitor.h"
 
 #include <iostream>
@@ -33,21 +34,11 @@ void TipMu::accept(TipTypeVisitor *visitor) {
   visitor->endVisit(this);
 }
 
-std::vector<std::shared_ptr<Term>> TipMu::getSubterms() const {
-  return {v, t};
+std::vector<std::shared_ptr<TipType>> TipMu::getChildTypes() const {
+  throw InternalError("TipMu::getChildTypes: TipMu is a closure output, not a solver term");
 }
 
-std::shared_ptr<Term> TipMu::withSubterms(std::vector<std::shared_ptr<Term>> newSubterms) const {
-  if (newSubterms.size() != 2) {
-    throw std::invalid_argument("TipMu requires exactly 2 subterms");
-  }
-  auto newV = std::dynamic_pointer_cast<TipVar>(newSubterms[0]);
-  if (!newV) {
-    throw std::invalid_argument("TipMu first subterm must be a TipVar");
-  }
-  auto newT = std::dynamic_pointer_cast<TipType>(newSubterms[1]);
-  if (!newT) {
-    throw std::invalid_argument("TipMu second subterm must be a TipType");
-  }
-  return std::make_shared<TipMu>(newV, newT);
+std::shared_ptr<TipType> TipMu::withChildTypes(
+    std::vector<std::shared_ptr<TipType>>) const {
+  throw InternalError("TipMu::withChildTypes: TipMu is a closure output, not a solver term");
 }

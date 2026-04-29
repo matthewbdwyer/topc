@@ -20,6 +20,10 @@ public:
   std::size_t arity() const override;
   bool doMatch(TipType const *t) const;
 
+  std::vector<std::shared_ptr<TipType>> getChildTypes() const override {
+    return arguments;
+  }
+
 protected:
   TipCons(std::vector<std::shared_ptr<TipType>> arguments);
   std::vector<std::shared_ptr<TipType>> arguments;

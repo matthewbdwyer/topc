@@ -5,7 +5,7 @@
 
 #include <sstream>
 
-void AbsentFieldChecker::check(ASTProgram *p, TipTermBridge *u) {
+void AbsentFieldChecker::check(ASTProgram *p, Unifier *u) {
   AbsentFieldChecker visitor(u);
   p->accept(&visitor);
 }

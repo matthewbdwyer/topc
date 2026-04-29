@@ -23,9 +23,9 @@ target_sources(
     ${CMAKE_CURRENT_SOURCE_DIR}/constraints/AbsentFieldCheckerTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/TermUnionFindTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/TermUnifierTest.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/solver/TipVarRegistryTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/TipTermClosureTest.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/solver/TipTermBridgeTest.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/solver/TipTermAdapterTest.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/solver/UnifierTest.cpp)
 target_link_libraries(
   typeinference_unit_tests
   PRIVATE antlr4_static

@@ -24,11 +24,13 @@ public:
 
   void accept(TipTypeVisitor *visitor) override;
 
-  // ========== Term interface ==========
+  // ========== Solver-facing interface ==========
   std::string getFunctor() const override { return "ptr"; }
   std::size_t arity() const override { return 1; }
-  std::vector<std::shared_ptr<Term>> getSubterms() const override;
-  std::shared_ptr<Term> withSubterms(std::vector<std::shared_ptr<Term>> newSubterms) const override;
+
+  // ========== TipType structural interface ==========
+  std::shared_ptr<TipType> withChildTypes(
+      std::vector<std::shared_ptr<TipType>> children) const override;
 
 protected:
   std::ostream &print(std::ostream &out) const override;

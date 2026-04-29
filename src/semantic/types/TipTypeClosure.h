@@ -1,12 +1,13 @@
 #pragma once
 
+#include "TipTermAdapter.h"
 #include "TermUnifier.h"
 #include "TipType.h"
 #include "TipVar.h"
 #include <memory>
 
 /**
- * @class TipTermClosure
+ * @class TipTypeClosure
  * @brief Closes TipType expressions using a TermUnifier's union-find solution.
  *
  * Mirrors Unifier::close() but reads variable bindings via
@@ -14,11 +15,11 @@
  * Cycle detection is handled via the TipVarSet visited parameter and produces
  * TipMu quantifiers, identical to Unifier::close().
  */
-class TipTermClosure {
+class TipTypeClosure {
   const TermUnifier &unifier;
 
 public:
-  explicit TipTermClosure(const TermUnifier &unifier);
+  explicit TipTypeClosure(const TermUnifier &unifier);
 
   /**
    * @brief Close a type by replacing all bound variables with their inferred

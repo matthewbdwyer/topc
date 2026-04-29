@@ -1,4 +1,4 @@
-#include "TipTermBridge.h"
+#include "Unifier.h"
 
 #include "TipAlpha.h"
 #include "TipCons.h"
@@ -9,23 +9,23 @@
 // helpers
 // ---------------------------------------------------------------------------
 
-bool TipTermBridge::isCons(std::shared_ptr<TipType> type) {
+bool Unifier::isCons(std::shared_ptr<TipType> type) {
   return std::dynamic_pointer_cast<TipCons>(type) != nullptr;
 }
 
-bool TipTermBridge::isMu(std::shared_ptr<TipType> type) {
+bool Unifier::isMu(std::shared_ptr<TipType> type) {
   return std::dynamic_pointer_cast<TipMu>(type) != nullptr;
 }
 
-bool TipTermBridge::isVar(std::shared_ptr<TipType> type) {
+bool Unifier::isVar(std::shared_ptr<TipType> type) {
   return std::dynamic_pointer_cast<TipVar>(type) != nullptr;
 }
 
-bool TipTermBridge::isAlpha(std::shared_ptr<TipType> type) {
+bool Unifier::isAlpha(std::shared_ptr<TipType> type) {
   return std::dynamic_pointer_cast<TipAlpha>(type) != nullptr;
 }
 
-bool TipTermBridge::isProperType(std::shared_ptr<TipType> type) {
+bool Unifier::isProperType(std::shared_ptr<TipType> type) {
   return isCons(type) || isMu(type) || isAlpha(type);
 }
 
@@ -33,12 +33,12 @@ bool TipTermBridge::isProperType(std::shared_ptr<TipType> type) {
 // Construction
 // ---------------------------------------------------------------------------
 
-TipTermBridge::TipTermBridge() = default;
+Unifier::Unifier() = default;
 
-TipTermBridge::TipTermBridge(std::vector<TypeConstraint> constraints)
-    : pendingConstraints(std::move(constraints)) {
-  for (auto const &c : pendingConstraints) {
-    termUnifier.addConstraint(c.lhs, c.rhs);
+Unifier::Unifier(std::vector<TypeConstraint> constraints) {
+  for (auto const &c : constraints) {
+    termUnifier.addConstraint(TipTermAdapter::wrap(c.lhs),
+                              TipTermAdapter::wrap(c.rhs));
   }
 }
 
@@ -46,14 +46,14 @@ TipTermBridge::TipTermBridge(std::vector<TypeConstraint> constraints)
 // Mutation
 // ---------------------------------------------------------------------------
 
-void TipTermBridge::add(std::vector<TypeConstraint> constraints) {
+void Unifier::add(std::vector<TypeConstraint> constraints) {
   for (auto const &c : constraints) {
-    pendingConstraints.push_back(c);
-    termUnifier.addConstraint(c.lhs, c.rhs);
+    termUnifier.addConstraint(TipTermAdapter::wrap(c.lhs),
+                              TipTermAdapter::wrap(c.rhs));
   }
 }
 
-void TipTermBridge::solve() {
+void Unifier::solve() {
   try {
     termUnifier.solve();
   } catch (const TermUnificationError &e) {
@@ -70,9 +70,10 @@ void TipTermBridge::solve() {
  * Translates TermUnificationError → UnificationError so callers that catch
  * UnificationError continue to work without changes.
  */
-void TipTermBridge::unify(std::shared_ptr<TipType> t1,
-                          std::shared_ptr<TipType> t2) {
-  termUnifier.addConstraint(t1, t2);
+void Unifier::unify(std::shared_ptr<TipType> t1,
+                    std::shared_ptr<TipType> t2) {
+  termUnifier.addConstraint(TipTermAdapter::wrap(t1),
+                            TipTermAdapter::wrap(t2));
   try {
     termUnifier.solve();
   } catch (const TermUnificationError &e) {
@@ -84,6 +85,6 @@ void TipTermBridge::unify(std::shared_ptr<TipType> t1,
 // Inference
 // ---------------------------------------------------------------------------
 
-std::shared_ptr<TipType> TipTermBridge::inferred(std::shared_ptr<TipType> t) {
-  return TipTermClosure(termUnifier).close(t);
+std::shared_ptr<TipType> Unifier::inferred(std::shared_ptr<TipType> t) {
+  return TipTypeClosure(termUnifier).close(t);
 }

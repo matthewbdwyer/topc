@@ -1,4 +1,5 @@
-#include "TipTermClosure.h"
+#include "TipTypeClosure.h"
+#include "TipTermAdapter.h"
 #include "TipVar.h"
 #include "TipAlpha.h"
 #include "TipInt.h"
@@ -10,7 +11,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <memory>
 
-TEST_CASE("TipTermClosure: unbound variable becomes TipAlpha", "[TipTermClosure]") {
+TEST_CASE("TipTypeClosure: unbound variable becomes TipAlpha", "[TipTypeClosure]") {
   ASTNumberExpr nodeX(1);
   auto vx = std::make_shared<TipVar>(&nodeX);
 
@@ -18,7 +19,7 @@ TEST_CASE("TipTermClosure: unbound variable becomes TipAlpha", "[TipTermClosure]
   TermUnifier unifier;
   unifier.solve();
 
-  TipTermClosure closure(unifier);
+  TipTypeClosure closure(unifier);
   auto result = closure.close(vx);
 
   // Unbound variable must produce a TipAlpha with the same node
@@ -27,22 +28,22 @@ TEST_CASE("TipTermClosure: unbound variable becomes TipAlpha", "[TipTermClosure]
   REQUIRE(alpha->getNode() == &nodeX);
 }
 
-TEST_CASE("TipTermClosure: variable bound to TipInt becomes TipInt", "[TipTermClosure]") {
+TEST_CASE("TipTypeClosure: variable bound to TipInt becomes TipInt", "[TipTypeClosure]") {
   ASTNumberExpr nodeX(1);
   auto vx = std::make_shared<TipVar>(&nodeX);
   auto tipInt = std::make_shared<TipInt>();
 
   TermUnifier unifier;
-  unifier.addConstraint(vx, tipInt);
+  unifier.addConstraint(TipTermAdapter::wrap(vx), TipTermAdapter::wrap(tipInt));
   unifier.solve();
 
-  TipTermClosure closure(unifier);
+  TipTypeClosure closure(unifier);
   auto result = closure.close(vx);
 
   REQUIRE(std::dynamic_pointer_cast<TipInt>(result) != nullptr);
 }
 
-TEST_CASE("TipTermClosure: two-hop chain x→y→TipInt resolves to TipInt", "[TipTermClosure]") {
+TEST_CASE("TipTypeClosure: two-hop chain x→y→TipInt resolves to TipInt", "[TipTypeClosure]") {
   ASTNumberExpr nodeX(1);
   ASTNumberExpr nodeY(2);
   auto vx = std::make_shared<TipVar>(&nodeX);
@@ -50,38 +51,38 @@ TEST_CASE("TipTermClosure: two-hop chain x→y→TipInt resolves to TipInt", "[T
   auto tipInt = std::make_shared<TipInt>();
 
   TermUnifier unifier;
-  unifier.addConstraint(vx, vy);    // x → y
-  unifier.addConstraint(vy, tipInt); // y → int
+  unifier.addConstraint(TipTermAdapter::wrap(vx), TipTermAdapter::wrap(vy));    // x → y
+  unifier.addConstraint(TipTermAdapter::wrap(vy), TipTermAdapter::wrap(tipInt)); // y → int
   unifier.solve();
 
-  TipTermClosure closure(unifier);
+  TipTypeClosure closure(unifier);
   auto result = closure.close(vx);
 
   REQUIRE(std::dynamic_pointer_cast<TipInt>(result) != nullptr);
 }
 
-TEST_CASE("TipTermClosure: TipInt passthrough (no variables)", "[TipTermClosure]") {
+TEST_CASE("TipTypeClosure: TipInt passthrough (no variables)", "[TipTypeClosure]") {
   TermUnifier unifier;
   unifier.solve();
 
-  TipTermClosure closure(unifier);
+  TipTypeClosure closure(unifier);
   auto tipInt = std::make_shared<TipInt>();
   auto result = closure.close(tipInt);
 
   REQUIRE(std::dynamic_pointer_cast<TipInt>(result) != nullptr);
 }
 
-TEST_CASE("TipTermClosure: cyclic binding x = TipRef(x) produces TipMu", "[TipTermClosure]") {
+TEST_CASE("TipTypeClosure: cyclic binding x = TipRef(x) produces TipMu", "[TipTypeClosure]") {
   ASTNumberExpr nodeX(1);
   auto vx = std::make_shared<TipVar>(&nodeX);
   auto refX = std::make_shared<TipRef>(vx);
 
   // No occurs check — cyclic constraint is accepted and produces TipMu via close()
   TermUnifier unifier;
-  unifier.addConstraint(vx, refX);
+  unifier.addConstraint(TipTermAdapter::wrap(vx), TipTermAdapter::wrap(refX));
   unifier.solve();
 
-  TipTermClosure closure(unifier);
+  TipTypeClosure closure(unifier);
   auto result = closure.close(vx);
 
   // Result must be a TipMu wrapping a TipRef
@@ -90,17 +91,17 @@ TEST_CASE("TipTermClosure: cyclic binding x = TipRef(x) produces TipMu", "[TipTe
   REQUIRE(std::dynamic_pointer_cast<TipRef>(mu->getT()) != nullptr);
 }
 
-TEST_CASE("TipTermClosure: TipRef with free variable", "[TipTermClosure]") {
+TEST_CASE("TipTypeClosure: TipRef with free variable", "[TipTypeClosure]") {
   ASTNumberExpr nodeX(1);
   auto vx = std::make_shared<TipVar>(&nodeX);
   auto tipInt = std::make_shared<TipInt>();
   auto refX = std::make_shared<TipRef>(vx);
 
   TermUnifier unifier;
-  unifier.addConstraint(vx, tipInt); // x bound to int
+  unifier.addConstraint(TipTermAdapter::wrap(vx), TipTermAdapter::wrap(tipInt)); // x bound to int
   unifier.solve();
 
-  TipTermClosure closure(unifier);
+  TipTypeClosure closure(unifier);
   auto result = closure.close(refX);
 
   // close(TipRef(x)) where x→int  →  TipRef(TipInt)
@@ -109,7 +110,7 @@ TEST_CASE("TipTermClosure: TipRef with free variable", "[TipTermClosure]") {
   REQUIRE(std::dynamic_pointer_cast<TipInt>(ref->getReferencedType()) != nullptr);
 }
 
-TEST_CASE("TipTermClosure: TipRef with unbound variable becomes TipRef(TipAlpha)", "[TipTermClosure]") {
+TEST_CASE("TipTypeClosure: TipRef with unbound variable becomes TipRef(TipAlpha)", "[TipTypeClosure]") {
   ASTNumberExpr nodeX(1);
   auto vx = std::make_shared<TipVar>(&nodeX);
   auto refX = std::make_shared<TipRef>(vx);
@@ -117,7 +118,7 @@ TEST_CASE("TipTermClosure: TipRef with unbound variable becomes TipRef(TipAlpha)
   TermUnifier unifier; // empty — x is unbound
   unifier.solve();
 
-  TipTermClosure closure(unifier);
+  TipTypeClosure closure(unifier);
   auto result = closure.close(refX);
 
   auto ref = std::dynamic_pointer_cast<TipRef>(result);
@@ -125,7 +126,7 @@ TEST_CASE("TipTermClosure: TipRef with unbound variable becomes TipRef(TipAlpha)
   REQUIRE(std::dynamic_pointer_cast<TipAlpha>(ref->getReferencedType()) != nullptr);
 }
 
-TEST_CASE("TipTermClosure: TipMu passthrough (already formed)", "[TipTermClosure]") {
+TEST_CASE("TipTypeClosure: TipMu passthrough (already formed)", "[TipTypeClosure]") {
   ASTNumberExpr nodeX(1);
   auto vx = std::make_shared<TipVar>(&nodeX);
   auto mu = std::make_shared<TipMu>(vx, std::make_shared<TipRef>(vx));
@@ -133,7 +134,7 @@ TEST_CASE("TipTermClosure: TipMu passthrough (already formed)", "[TipTermClosure
   TermUnifier unifier; // no bindings
   unifier.solve();
 
-  TipTermClosure closure(unifier);
+  TipTypeClosure closure(unifier);
   auto result = closure.close(mu);
 
   // close(mu(x, Ref(x))) with empty substitution:

@@ -3,7 +3,7 @@
 #include <catch2/matchers/catch_matchers_string.hpp>
 #include "SemanticError.h"
 #include "SymbolTable.h"
-#include "TipTermBridge.h"
+#include "Unifier.h"
 #include "TypeConstraintCollectVisitor.h"
 
 #include <catch2/catch_test_macros.hpp>
@@ -18,7 +18,7 @@ static void runtest(std::stringstream &program, bool expectPass) {
   TypeConstraintCollectVisitor visitor(symbols.get());
   ast->accept(&visitor);
 
-  auto unifier = std::make_shared<TipTermBridge>(visitor.getCollectedConstraints());
+  auto unifier = std::make_shared<Unifier>(visitor.getCollectedConstraints());
   unifier->solve();
 
   if (expectPass) {

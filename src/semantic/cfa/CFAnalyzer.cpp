@@ -10,7 +10,7 @@ CFAnalyzer CFAnalyzer::analyze(ASTProgram *p, SymbolTable *st) {
 
 std::vector<ASTFunction *>
 CFAnalyzer::getPossibleFunctionsForExpr(ASTNode *n, ASTFunction *f) {
-  return s.getPossibleFunctionsForExpr(getCanonicalForFunction(n, f));
+  return s.getElements(getCanonicalForFunction(n, f));
 }
 
 CFAnalyzer::CFAnalyzer(ASTProgram *p, SymbolTable *st)

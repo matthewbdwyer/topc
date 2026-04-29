@@ -1,8 +1,10 @@
 #include "ASTVisitor.h"
-#include "CubicSolver.h"
+#include "CubicSolverT.h"
 #include "SymbolTable.h"
 #include "treetypes/AST.h"
 #include <stack>
+
+using CfaSolver = CubicSolverT<ASTNode *, ASTFunction *>;
 
 /*! \class CFAnalyzer
  * \brief Performs control flow analyses with the help of AST and Symbol table
@@ -32,7 +34,7 @@ private:
   CFAnalyzer(ASTProgram *p, SymbolTable *st);
   ASTNode *getCanonical(ASTNode *n);
   ASTNode *getCanonicalForFunction(ASTNode *n, ASTFunction *);
-  CubicSolver s;
+  CfaSolver s;
   std::stack<ASTDeclNode *> scope;
   SymbolTable *symbolTable;
   ASTProgram *pgr;

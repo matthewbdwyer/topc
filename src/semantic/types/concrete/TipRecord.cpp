@@ -82,25 +82,10 @@ std::size_t TipRecord::arity() const {
   return arguments.size();
 }
 
-std::vector<std::shared_ptr<Term>> TipRecord::getSubterms() const {
-  std::vector<std::shared_ptr<Term>> result;
-  for (const auto &arg : arguments) {
-    result.push_back(arg);
+std::shared_ptr<TipType> TipRecord::withChildTypes(
+    std::vector<std::shared_ptr<TipType>> children) const {
+  if (children.size() != arguments.size()) {
+    throw std::invalid_argument("TipRecord: wrong number of child types");
   }
-  return result;
-}
-
-std::shared_ptr<Term> TipRecord::withSubterms(std::vector<std::shared_ptr<Term>> newSubterms) const {
-  if (newSubterms.size() != arguments.size()) {
-    throw std::invalid_argument("TipRecord: wrong number of subterms");
-  }
-  std::vector<std::shared_ptr<TipType>> newInits;
-  for (const auto &sub : newSubterms) {
-    auto t = std::dynamic_pointer_cast<TipType>(sub);
-    if (!t) {
-      throw std::invalid_argument("TipRecord subterm must be a TipType");
-    }
-    newInits.push_back(t);
-  }
-  return std::make_shared<TipRecord>(newInits, names);
+  return std::make_shared<TipRecord>(children, names);
 }

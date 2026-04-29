@@ -1,6 +1,7 @@
 #pragma once
 
-#include "TipTermClosure.h"
+#include "TipTermAdapter.h"
+#include "TipTypeClosure.h"
 #include "TipType.h"
 #include "TipVar.h"
 #include "TermUnifier.h"
@@ -9,24 +10,19 @@
 #include <vector>
 
 /*!
- * \class TipTermBridge
+ * \class Unifier
  *
- * \brief Drop-in replacement for Unifier that delegates to TermUnifier.
+ * \brief Facade over TermUnifier that provides the type-inference public API.
  *
- * TipTermBridge provides the same public API as Unifier but uses TermUnifier
- * (backed by TermUnionFind) internally.  This allows TipTermBridge to be
- * substituted for Unifier everywhere in the codebase without changing callers,
- * while ensuring the type-inference algorithm operates over the generic Term
- * abstraction layer.
- *
+ * Unifier delegates to TermUnifier (backed by TermUnionFind) internally.
  * Static helper predicates (isCons, isMu, isVar, isAlpha, isProperType)
- * mirror Unifier::* exactly.
+ * classify TipType values for callers that need to inspect inference results.
  */
-class TipTermBridge {
+class Unifier {
 public:
-  TipTermBridge();
-  explicit TipTermBridge(std::vector<TypeConstraint> constraints);
-  ~TipTermBridge() = default;
+  Unifier();
+  explicit Unifier(std::vector<TypeConstraint> constraints);
+  ~Unifier() = default;
 
   /*!
    * \brief Attempt to unify two types immediately (on-the-fly mode).
@@ -63,5 +59,4 @@ public:
 
 private:
   TermUnifier termUnifier;
-  std::vector<TypeConstraint> pendingConstraints;
 };
