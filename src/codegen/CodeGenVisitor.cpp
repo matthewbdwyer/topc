@@ -1,6 +1,7 @@
 #include "CodeGenVisitor.h"
 
 #include "AST.h"
+#include "ASTVisitor.h"
 #include "CodeGenContext.h"
 #include "InternalError.h"
 #include "SemanticAnalysis.h"
@@ -88,7 +89,7 @@ CodeGenVisitor::generate(ASTProgram *program,
   auto TheModule = std::make_shared<llvm::Module>(programName, ctx.llvmContext);
 
   llvm::Triple targetTriple(llvm::sys::getProcessTriple());
-  TheModule->setTargetTriple(targetTriple.str());
+  TheModule->setTargetTriple(targetTriple);
 
   ctx.nop =
 #if LLVM_VERSION_MAJOR >= 18
@@ -212,30 +213,112 @@ CodeGenVisitor::generate(ASTProgram *program,
 // dispatch
 // ---------------------------------------------------------------------------
 llvm::Value *CodeGenVisitor::dispatch(ASTNode *node) {
-  if (auto *n = dynamic_cast<ASTFunction     *>(node)) return generate(n);
-  if (auto *n = dynamic_cast<ASTNumberExpr   *>(node)) return generate(n);
-  if (auto *n = dynamic_cast<ASTBinaryExpr   *>(node)) return generate(n);
-  if (auto *n = dynamic_cast<ASTVariableExpr *>(node)) return generate(n);
-  if (auto *n = dynamic_cast<ASTInputExpr    *>(node)) return generate(n);
-  if (auto *n = dynamic_cast<ASTFunAppExpr   *>(node)) return generate(n);
-  if (auto *n = dynamic_cast<ASTAllocExpr    *>(node)) return generate(n);
-  if (auto *n = dynamic_cast<ASTNullExpr     *>(node)) return generate(n);
-  if (auto *n = dynamic_cast<ASTRefExpr      *>(node)) return generate(n);
-  if (auto *n = dynamic_cast<ASTDeRefExpr    *>(node)) return generate(n);
-  if (auto *n = dynamic_cast<ASTRecordExpr   *>(node)) return generate(n);
-  if (auto *n = dynamic_cast<ASTFieldExpr    *>(node)) return generate(n);
-  if (auto *n = dynamic_cast<ASTAccessExpr   *>(node)) return generate(n);
-  if (auto *n = dynamic_cast<ASTDeclNode     *>(node)) return generate(n);
-  if (auto *n = dynamic_cast<ASTDeclStmt     *>(node)) return generate(n);
-  if (auto *n = dynamic_cast<ASTAssignStmt   *>(node)) return generate(n);
-  if (auto *n = dynamic_cast<ASTBlockStmt    *>(node)) return generate(n);
-  if (auto *n = dynamic_cast<ASTWhileStmt    *>(node)) return generate(n);
-  if (auto *n = dynamic_cast<ASTIfStmt       *>(node)) return generate(n);
-  if (auto *n = dynamic_cast<ASTOutputStmt   *>(node)) return generate(n);
-  if (auto *n = dynamic_cast<ASTErrorStmt    *>(node)) return generate(n);
-  if (auto *n = dynamic_cast<ASTReturnStmt   *>(node)) return generate(n);
-  // Unknown node type — return nullptr so callers can detect and report errors.
-  return nullptr;
+  if (node == nullptr) {
+    return nullptr;
+  }
+
+  class DispatchVisitor final : public ASTVisitor {
+  public:
+    explicit DispatchVisitor(CodeGenVisitor &codegen) : codegen_(codegen) {}
+
+    llvm::Value *result = nullptr;
+
+    bool visit(ASTFunction *n) override {
+      result = codegen_.generate(n);
+      return false;
+    }
+    bool visit(ASTNumberExpr *n) override {
+      result = codegen_.generate(n);
+      return false;
+    }
+    bool visit(ASTBinaryExpr *n) override {
+      result = codegen_.generate(n);
+      return false;
+    }
+    bool visit(ASTVariableExpr *n) override {
+      result = codegen_.generate(n);
+      return false;
+    }
+    bool visit(ASTInputExpr *n) override {
+      result = codegen_.generate(n);
+      return false;
+    }
+    bool visit(ASTFunAppExpr *n) override {
+      result = codegen_.generate(n);
+      return false;
+    }
+    bool visit(ASTAllocExpr *n) override {
+      result = codegen_.generate(n);
+      return false;
+    }
+    bool visit(ASTNullExpr *n) override {
+      result = codegen_.generate(n);
+      return false;
+    }
+    bool visit(ASTRefExpr *n) override {
+      result = codegen_.generate(n);
+      return false;
+    }
+    bool visit(ASTDeRefExpr *n) override {
+      result = codegen_.generate(n);
+      return false;
+    }
+    bool visit(ASTRecordExpr *n) override {
+      result = codegen_.generate(n);
+      return false;
+    }
+    bool visit(ASTFieldExpr *n) override {
+      result = codegen_.generate(n);
+      return false;
+    }
+    bool visit(ASTAccessExpr *n) override {
+      result = codegen_.generate(n);
+      return false;
+    }
+    bool visit(ASTDeclNode *n) override {
+      result = codegen_.generate(n);
+      return false;
+    }
+    bool visit(ASTDeclStmt *n) override {
+      result = codegen_.generate(n);
+      return false;
+    }
+    bool visit(ASTAssignStmt *n) override {
+      result = codegen_.generate(n);
+      return false;
+    }
+    bool visit(ASTBlockStmt *n) override {
+      result = codegen_.generate(n);
+      return false;
+    }
+    bool visit(ASTWhileStmt *n) override {
+      result = codegen_.generate(n);
+      return false;
+    }
+    bool visit(ASTIfStmt *n) override {
+      result = codegen_.generate(n);
+      return false;
+    }
+    bool visit(ASTOutputStmt *n) override {
+      result = codegen_.generate(n);
+      return false;
+    }
+    bool visit(ASTErrorStmt *n) override {
+      result = codegen_.generate(n);
+      return false;
+    }
+    bool visit(ASTReturnStmt *n) override {
+      result = codegen_.generate(n);
+      return false;
+    }
+
+  private:
+    CodeGenVisitor &codegen_;
+  };
+
+  DispatchVisitor visitor(*this);
+  node->accept(&visitor);
+  return visitor.result;
 }
 
 // ---------------------------------------------------------------------------

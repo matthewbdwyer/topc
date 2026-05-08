@@ -3,7 +3,8 @@ set -ex
 
 ANTLR_VERSION=4
 JAVA_VERSION=11
-LLVM_VERSION=17
+# Default to LLVM 22, but allow callers/CI to override.
+LLVM_VERSION=${LLVM_VERSION:-22}
 
 ROOT_DIR=${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}
 

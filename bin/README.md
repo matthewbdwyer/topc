@@ -16,6 +16,8 @@ Runs the full suite of tests.
 
 By default the script runs both the system and unit tests. This behavior can be changed at the command line by providing the `-s` switch to run only the system tests, or by providing the `-u` switch to run only the unit tests.  
 
+By default the script also removes stale `*.gcda` files before running tests to avoid gcov merge/corruption warnings. Set `TIPC_KEEP_COVERAGE=1` to skip this cleanup when you intentionally want to preserve coverage artifacts.
+
 _example usage:_
 ```bash
 # Run only the unit tests.

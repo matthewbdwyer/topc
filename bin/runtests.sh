@@ -14,10 +14,18 @@ usage() {
   echo "-h  display help"
   echo "-s  runs system tests only"
   echo "-u  runs unit tests only"
+  echo
+  echo "Environment: set TIPC_KEEP_COVERAGE=1 to skip pre-test gcda cleanup"
+}
+
+clean_coverage_files() {
+  if [ "${TIPC_KEEP_COVERAGE:-0}" = "1" ]; then
+    return
+  fi
+  find "${ROOT_DIR}" -name '*gcda' -delete
 }
 
 run_unit_tests() {
-  find "${ROOT_DIR}" -name '*gcda' -delete
   echo "running the unit test suite"
   local status=0
   while IFS= read -r binary; do
@@ -78,6 +86,8 @@ while getopts ":hsu" opt; do
   esac
 done
 shift $((OPTIND - 1))
+
+clean_coverage_files
 
 if [ -n "${run_unit_tests}" ]; then
   assert_unit_test_dir

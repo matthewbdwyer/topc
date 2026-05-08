@@ -88,6 +88,11 @@ endif()
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 
+# TIP relies on opaque pointers and APIs from newer LLVM releases.
+if(LLVM_PACKAGE_VERSION VERSION_LESS "22.0.0")
+  message(FATAL_ERROR "LLVM 22+ is required, found ${LLVM_PACKAGE_VERSION}")
+endif()
+
 include_directories(${LLVM_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
 

@@ -17,7 +17,7 @@ This project implements `tipc` which compiles TIP programs into LLVM bitcode.  L
 
 ## Dependencies
 
-`tipc` is implemented in C++17 and depends on a number of tools and packages, e.g., [ANTLR4](https://www.antlr.org), [Catch2](https://github.com/catchorg/Catch2), [CMake](https://cmake.org/), [Doxygen](https://www.doxygen.nl/), [loguru](https://github.com/emilk/loguru), [Java](https://www.java.com), [LLVM](https://www.llvm.org).  To simplify dependency management the project provides a [bootstrap](bin/bootstrap.sh) script to install all of the required dependencies on linux ubuntu and mac platforms; if you are using `portal.cs.virginia.edu` to build then you can replace this script with running `module load <pathto>/tipc/conf/modulefiles/tipc/F24`, where `<pathto>` is the path to where you have installed `tipc`.
+`tipc` is implemented in C++17 and depends on a number of tools and packages, e.g., [ANTLR4](https://www.antlr.org), [Catch2](https://github.com/catchorg/Catch2), [CMake](https://cmake.org/), [Doxygen](https://www.doxygen.nl/), [loguru](https://github.com/emilk/loguru), [Java](https://www.java.com), [LLVM](https://www.llvm.org) (LLVM 22+ required).  To simplify dependency management the project provides a [bootstrap](bin/bootstrap.sh) script to install all of the required dependencies on linux ubuntu and mac platforms and configure shell variables used by the build/test scripts; if you are using `portal.cs.virginia.edu` to build then you can replace this script with running `module load <pathto>/tipc/conf/modulefiles/tipc/F26`, where `<pathto>` is the path to where you have installed `tipc`.
 
 ## Building tipc
 
@@ -25,7 +25,7 @@ The project uses [GitHub Actions](https://docs.github.com/en/actions) for buildi
 
 After cloning this repository you can build the compiler by moving to into the top-level directory and issuing these commands:
   1. `./bin/bootstrap.sh`
-  2. `. ~/.bashrc`
+  2. `. ~/.bashrc` (or `. ~/.zshrc` on macOS zsh)
   3. `mkdir build`
   4. `cd build`
   5. `cmake ..`
@@ -41,21 +41,28 @@ The project includes more than 300 unit tests grouped into several executables. 
 
 All of the tests should pass.
 
+## Maintenance Upgrade Notes
+
+This release focuses on dependency updates and internal architectural cleanup.
+
+- LLVM 22+ is required.
+- Keep `TIPCLANG` on the same LLVM major version as the LLVM used by CMake (for example, on macOS Homebrew: `/opt/homebrew/opt/llvm/bin/clang`).
+- `bin/runtests.sh` now cleans stale `*.gcda` files before tests by default to avoid merge/corruption warnings. Set `TIPC_KEEP_COVERAGE=1` to skip this cleanup when preserving coverage artifacts is intentional.
+
 ### Ubuntu Linux
 
-Our continuous integration process builds on both Ubuntu 22.04 and 20.04, so these are well-supported.  We do not support other linux distributions, but we know that people in the past have ported `tipc` to different distributions. 
+Our continuous integration process builds on current Ubuntu LTS images, so recent Ubuntu versions are well-supported. We do not support other linux distributions, but we know that people in the past have ported `tipc` to different distributions.
 
 ### Mac OS
 
-Our continuous integration process builds on macOS 12 and macOS 13 so modern versions of macOS are well-supported.  `tipc` builds on both Intel and Apple Silicon, i.e., Apple's M1 ARM processor.  
+Our continuous integration process builds on current macOS images, so modern macOS versions are well-supported. `tipc` builds on both Intel and Apple Silicon systems.
 
 ### Windows Subsystem for Linux
 
-If you are using a Windows machine, tipc can be built in the Windows Subsystem for Linux (WSL). [Here](https://docs.microsoft.com/en-us/windows/wsl/install-win10#update-to-wsl-2) are instructions to install WSL and upgrade to WSL2. It is highly recommended to upgrade to WSL2. Once installed, you should install
-[Ubuntu 20.04](https://docs.microsoft.com/en-us/windows/wsl/install-win10#update-to-wsl-2). Once finished, you can open a virtual instance of Ubuntu and follow 
+If you are using a Windows machine, tipc can be built in the Windows Subsystem for Linux (WSL). [Here](https://learn.microsoft.com/windows/wsl/install) are instructions to install WSL and upgrade to WSL2. It is highly recommended to upgrade to WSL2. Once installed, you should install a recent Ubuntu release in WSL. Once finished, you can open a virtual instance of Ubuntu and follow
 the instructions above to build tipc. 
 
-You may recieve an error saying "No CMAKE_CXX_COMPILER could be found" when running `cmake ..`. If this is the case, you should install g++ with the command: `sudo apt-get install g++`.
+You may receive an error saying "No CMAKE_CXX_COMPILER could be found" when running `cmake ..`. If this is the case, you should install g++ with the command: `sudo apt-get install g++`.
 
 ## Using tipc
 
@@ -140,9 +147,7 @@ Note that the `tipg4` directory has a standalone ANTLR4 grammar.  It's README de
 ### The bin directory
 To facilitate development of `tipc` we have collected a number of helper scripts into the `bin` directory of the project. Among them are scripts to run the entire test bed (`runtests.sh`), to run a code coverage analysis (`gencov.sh`), and to generate the project documentation (`gendocs.sh`).  Please see the `README` in the bin directory for example usages.  
 
-When rebuilding and rerunning tests you may get errors about 
-failing to merge `gcov` files. This happens when `gcov` files linger from previous
-runs. To cleanup these messages, simply run the `cleancov.sh` script.
+By default, `runtests.sh` cleans stale `*.gcda` files before running tests to avoid `gcov` merge warnings. If you intentionally want to preserve coverage artifacts across runs, set `TIPC_KEEP_COVERAGE=1`.
 
 ### CLion
 
@@ -154,7 +159,7 @@ If you are building for the first time with CLion, follow the first two steps of
 
 From the `File` menu select `New` and then `Project from Version Control`.  You can type in the URL for this github repository and then hit the `Clone` button.   The scripts described above assume a directory structure, but a little bit of setup will synchronize your CLion project with those assumptions and allow for easy development using both CLion and scripts, when needed.
 
-From the `CLion` menu select `Build, Execution, Deployment` and then `CMake`.  You want to change the `Build directory` to `build` and then define an `Environment` variable.   When you ran the `bootstrap.sh` script it defined a shell variable `LLVM_DIR` in your `.bashrc`.  Copy that definition into the `Environment` field under `Cache variables`.  Your `Settings` should look as follows:
+From the `CLion` menu select `Build, Execution, Deployment` and then `CMake`.  You want to change the `Build directory` to `build` and then define an `Environment` variable.   When you ran the `bootstrap.sh` script it defined shell variables such as `LLVM_DIR` and `TIPCLANG` in your shell profile (`.bashrc` or `.zshrc`).  Copy those definitions into the `Environment` field under `Cache variables`.  Your `Settings` should look as follows:
 
 ![CLion CMake Settings](docs/assets/clion/clion_settings_for_tipc.png)
 
@@ -162,7 +167,7 @@ Now you can click `Apply` and then `OK` to complete the setup.
 
 The project can now be built or rebuilt by clicking the "Build" button in the toolbar.
 
-CLion has great debugging support as well as test coverage support for the Catch2 tests included in the project.  You will rarely need to use the commandline scripts, but if you do just move to `~/CLionProjects/tipc` and you can execute them there to:
+CLion has great debugging support as well as test coverage support for the Catch2 tests included in the project.  You will rarely need to use the commandline scripts, but if you do just move to the repository root and you can execute them there to:
  1. resolve `gcov` merge errors by running `cleancov.sh`
  2. run system tests with `runtests.sh`
  3. generate documentation with `gendocs.sh`
@@ -182,7 +187,7 @@ find src -iname *.h -o -iname *.cpp | xargs clang-format -style=llvm -i
 ```
 
 Using [pre-commit](https://pre-commit.com/) we can enforce styling before each
-commit. This is encourged to keep a uniform style across the codebase. Install
+commit. This is encouraged to keep a uniform style across the codebase. Install
 pre-commit by following the
 [instructions](https://pre-commit.com/#installation) in their documentation.
 Then, install the tipc hooks by running,
@@ -196,7 +201,7 @@ Now, `c++` and `cmake` formatting will be checked before each commit.
 
 The TIP grammar, [tipg4](./tipg4/TIP.g4), is implemented using ANTLR4.  This grammar is free of any semantic actions, though it does use ANTLR4 rule features which allow for control over the tree visitors that form key parts of the compiler.  This allows the structure of the grammar to remain relatively clean, i.e., no grammar factoring or stratification needed.  
 
-The `tipc` compiler is has a pretty classic design.  It is comprised of four phases:
+The `tipc` compiler has a pretty classic design.  It is comprised of four phases:
  * [frontend](./src/frontend) takes care of parsing, constructing an AST representation, and pretty printing
  * [semantic analysis](./src/semantic) that performs assignability, symbol, and type checking
  * [code generation](./src/codegen) that produces LLVM bitcode from an AST and emits a binary
@@ -206,8 +211,8 @@ Doxygen [documentation](https://matthewbdwyer.github.io/tipc) for the project is
 available for the project.  The documentation is a work in progress 
 and will improve over time.
 
-The `tipc` driver program only produces a bitcode file, `.bc`. You need to link it 
-with the [runtime library](./rtlib/tip_rtlib.c) which define the processing of command 
+The `tipc` driver program only produces a bitcode file, `.bc`. You need to link it
+with the [runtime library](./rtlib/tip_rtlib.c) which defines the processing of command
 line arguments, which is non-trivial for TIP, establish necessary runtime structures, 
 and implement IO routines. A [script](./bin/build.sh) is available to link binaries 
 compiled by `tipc` with the runtime library.
@@ -232,11 +237,11 @@ We welcome issue reports and pull-requests along these lines.
 
 Other than issues related to the efficiency of the code that it generates, the `tipc` compiler has two limitations.
 
-`tipc` supports a variant of the TIP language semantics in a few ways.  It implements the `!=` operator which allows us to conveniently write self-contained system tests and it implements the [C operator precedence rules](https://en.cppreference.com/w/c/language/operator_precedence), whereas the original TIP uses a few different rules.  This surfaces in the interplay between pointer dereference and field access.  An expression `*r.f` is interpreted as `*(r.f)` according t the C precedence rules and as `(*r).f` according to the [TIP Scala](https://github.com/cs-au-dk/TIP) implementation.  If in doubt, add parentheses to express your meaning.
+`tipc` supports a variant of the TIP language semantics in a few ways.  It implements the `!=` operator which allows us to conveniently write self-contained system tests and it implements the [C operator precedence rules](https://en.cppreference.com/w/c/language/operator_precedence), whereas the original TIP uses a few different rules.  This surfaces in the interplay between pointer dereference and field access.  An expression `*r.f` is interpreted as `*(r.f)` according to the C precedence rules and as `(*r).f` according to the [TIP Scala](https://github.com/cs-au-dk/TIP) implementation.  If in doubt, add parentheses to express your meaning.
 
-By default `tipc` implements the unification-based monomorphic type inference algorithm used in the [Scala implementation](https://github.com/cs-au-dk/TIP/).  `tipc` also support a form of polymorphic type inference using the `--pi` option.  To use polymorphic type inference programmers can add the `poly` keyword to a function declaration, but `tipc` will only perform polymorphic type inference for such functions if they are non-recursive.
+By default `tipc` implements the unification-based monomorphic type inference algorithm used in the [Scala implementation](https://github.com/cs-au-dk/TIP/).  `tipc` also supports a form of polymorphic type inference using the `--pi` option.  To use polymorphic type inference programmers can add the `poly` keyword to a function declaration, but `tipc` will only perform polymorphic type inference for such functions if they are non-recursive.
 
-There is also a difference in type inference related to records.  The type system that ensures that any expression appearing in the record position of a field access expression is in fact a record, but it does not infer precise record typing.  Instead the strategy used is to define an *uber* record that consists of all of the fields referenced across the program. Code generation for records will allocate a global record and then explicitly initialize fields present in a record expression. If the record is being created via an `alloc` expresion, the fields that aren't explictly set will be set to a default value 0, as we allocate memory using the C function `calloc`. If the record is being created without explictly allocating memory for it, the fields that aren't explictly set will not be given any value, but may still be referenced. This can lead to some unexpected behavior.  Consider this TIP program:
+There is also a difference in type inference related to records.  The type system that ensures that any expression appearing in the record position of a field access expression is in fact a record, but it does not infer precise record typing.  Instead the strategy used is to define an *uber* record that consists of all of the fields referenced across the program. Code generation for records will allocate a global record and then explicitly initialize fields present in a record expression. If the record is being created via an `alloc` expression, the fields that aren't explicitly set will be set to a default value 0, as we allocate memory using the C function `calloc`. If the record is being created without explicitly allocating memory for it, the fields that aren't explicitly set will not be given any value, but may still be referenced. This can lead to some unexpected behavior.  Consider this TIP program:
 ```
 main() { var r; r = {g:1}; return access(r); }
 access(r) { return r.f; }
@@ -274,12 +279,12 @@ main(){
     return 0;
 }
 ```
-This is a valid tip program which can be compiled into an executable using and observe it's memory usage using:
+This is a valid TIP program which can be compiled into an executable and whose memory usage can be observed using:
 ```
 /path/to/tipc/bin/build.sh --do test/system/leak/recordLeak.tip
-./recordLeak &; top
+./recordLeak & top
 ```
-You can then kill top using `Ctrl+C` and then kill the ./recordleak with `fg` and `Ctrl+C`. It's important that you disable the optimizer with the `--do` flag. Otherwise, the optimizer would be smart enough to simply return the `y` parameter's value. If we remove the alloc from `foo`, as we do in [recordNoLeak.tip](test/system/leak/recordNoLeak.tip), then the record is allocated on the call stack and it is reclained when the call to `foo` returns:
+You can then kill top using `Ctrl+C` and then kill `./recordLeak` with `fg` and `Ctrl+C`. It's important that you disable the optimizer with the `--do` flag. Otherwise, the optimizer would be smart enough to simply return the `y` parameter's value. If we remove the alloc from `foo`, as we do in [recordNoLeak.tip](test/system/leak/recordNoLeak.tip), then the record is allocated on the call stack and it is reclaimed when the call to `foo` returns:
 ```
 // recordNoLeak.tip
 foo(x,y,z){
@@ -330,7 +335,7 @@ to this project.
 + [Smart Pointers](https://youtu.be/xGDLkt-jBJ4)
 
 ### CMake Resources
-+ [CMake docs](https://cmake.org/cmake/help/v3.7/)
++ [CMake docs](https://cmake.org/cmake/help/latest/)
 + [More Modern CMake](https://youtu.be/y7ndUhdQuU8)
 + [Oh No! More Modern CMake](https://youtu.be/y9kSr5enrSk)
 
