@@ -19,6 +19,12 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Debug)
 endif()
 
+# Apple's system linker (ld) cannot parse DWARF 5, which LLVM clang
+# generates by default. Force DWARF 4 to suppress the linker warnings.
+if(APPLE)
+  add_compile_options(-gdwarf-4)
+endif()
+
 # cleanup the code with clang-tidy set(CMAKE_CXX_CLANG_TIDY clang-tidy
 # -checks=-*,readability-*)
 
