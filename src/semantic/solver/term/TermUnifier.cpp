@@ -68,14 +68,28 @@ std::shared_ptr<Term> TermUnifier::find(std::shared_ptr<Term> term) {
 }
 
 std::shared_ptr<Term> TermUnifier::apply(std::shared_ptr<Term> term) {
+  std::unordered_set<const Term *> active;
+  return apply(term, active);
+}
+
+std::shared_ptr<Term>
+TermUnifier::apply(std::shared_ptr<Term> term,
+                   std::unordered_set<const Term *> &active) {
   auto rep = unionFind.find(term);
 
   if (rep->isVariable()) {
     return rep; // unbound variable
   }
 
+  if (active.count(rep.get()) > 0) {
+    return term;
+  }
+
+  active.insert(rep.get());
+
   auto subterms = rep->getSubterms();
   if (subterms.empty()) {
+    active.erase(rep.get());
     return rep;
   }
 
@@ -83,12 +97,14 @@ std::shared_ptr<Term> TermUnifier::apply(std::shared_ptr<Term> term) {
   newSubterms.reserve(subterms.size());
   bool changed = false;
   for (const auto &sub : subterms) {
-    auto newSub = apply(sub);
+    auto newSub = apply(sub, active);
     if (!newSub->equals(*sub)) {
       changed = true;
     }
     newSubterms.push_back(newSub);
   }
+
+  active.erase(rep.get());
 
   if (!changed) {
     return rep;

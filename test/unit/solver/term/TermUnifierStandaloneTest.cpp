@@ -114,3 +114,15 @@ TEST_CASE("EmptyConstraintSet", "[TermUnifier][standalone]") {
   TermUnifier u;
   REQUIRE_NOTHROW(u.solve());
 }
+
+TEST_CASE("ApplyHandlesCyclicBinding", "[TermUnifier][standalone]") {
+  auto x = var("x");
+  auto fx = cons("f", {x});
+  TermUnifier u;
+  u.addConstraint(x, fx);
+  u.solve();
+  auto applied = u.apply(x);
+  REQUIRE(applied->getFunctor() == "f");
+  REQUIRE(applied->arity() == 1);
+  REQUIRE(applied->getSubterms()[0]->isVariable());
+}

@@ -3,6 +3,7 @@
 #include "TermInterface.h"
 #include "TermUnionFind.h"
 #include <memory>
+#include <unordered_set>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -63,5 +64,6 @@ private:
   TermUnionFind unionFind;
 
   void unify(std::shared_ptr<Term> t1, std::shared_ptr<Term> t2);
+  std::shared_ptr<Term>
+  apply(std::shared_ptr<Term> term, std::unordered_set<const Term *> &active);
 };
-
