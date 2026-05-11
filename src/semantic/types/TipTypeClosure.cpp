@@ -68,9 +68,11 @@ std::shared_ptr<TipType> TipTypeClosure::close(std::shared_ptr<TipType> type,
 
       auto closedV = close(rep, visited);
 
-      // Reuse existing alpha; otherwise create a fresh one for this node
-      auto newV =
-          isAlpha(v) ? v : std::make_shared<TipAlpha>(v->getNode());
+      // Reuse existing alpha (preserving context and name); otherwise create a fresh one for this node
+      auto newV = v;
+      if (!isAlpha(v)) {
+        newV = std::make_shared<TipAlpha>(v->getNode());
+      }
 
       auto freeV = TypeVars::collect(closedV.get());
 
@@ -83,7 +85,10 @@ std::shared_ptr<TipType> TipTypeClosure::close(std::shared_ptr<TipType> type,
         return closedV;
       }
     } else {
-      // Unbound or already-visited (cycle guard) — return a fresh alpha
+      // Unbound or already-visited (cycle guard) — return the original variable (preserving TipAlpha identity if present)
+      if (isAlpha(v)) {
+        return v;
+      }
       return std::make_shared<TipAlpha>(v->getNode());
     }
 

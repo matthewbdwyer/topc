@@ -14,5 +14,5 @@ void TypeVars::endVisit(TipVar *element) {
 
 void TypeVars::endVisit(TipAlpha *element) {
   vars.insert(
-      std::make_shared<TipAlpha>(element->getNode(), element->getName()));
+      std::make_shared<TipAlpha>(element->getNode(), element->getContext(), element->getName()));
 }
