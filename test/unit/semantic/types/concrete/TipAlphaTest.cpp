@@ -5,7 +5,7 @@
 
 #include <sstream>
 
-TEST_CASE("TipAlpha: Test TipAlphas are compared by their underlying objects"
+TEST_CASE("TipAlpha: Test TipAlphas are compared by their underlying objects",
           "[TipAlpha]") {
   ASTNumberExpr num(13);
   TipAlpha tipAlphaA(&num);
@@ -13,7 +13,7 @@ TEST_CASE("TipAlpha: Test TipAlphas are compared by their underlying objects"
   REQUIRE(tipAlphaA == tipAlphaB);
 }
 
-TEST_CASE("TipAlpha: TipAlpha equality with context and names"
+TEST_CASE("TipAlpha: TipAlpha equality with context and names",
           "[TipAlpha]") {
   ASTNumberExpr num1(13);
   ASTNumberExpr num2(42);
@@ -36,7 +36,7 @@ TEST_CASE("TipAlpha: TipAlpha equality with context and names"
   REQUIRE(tipAlpha21foo == tipAlpha21foo2);
 }
 
-TEST_CASE("TipAlpha: Test getter"
+TEST_CASE("TipAlpha: Test getter",
           "[TipAlpha]") {
   ASTNumberExpr num1(13);
   ASTNumberExpr num2(42);
@@ -49,7 +49,7 @@ TEST_CASE("TipAlpha: Test getter"
   REQUIRE(node2->getValue() == 42);
 }
 
-TEST_CASE("TipAlpha: Test output stream"
+TEST_CASE("TipAlpha: Test output stream",
           "[TipAlpha]") {
   ASTNumberExpr num(13);
   TipAlpha tipAlphaA(&num);

@@ -1,3 +1,4 @@
+#include <cassert>
 #include "PolyTypeConstraintVisitor.h"
 #include "FreshAlphaCopier.h"
 #include "TypeVars.h"

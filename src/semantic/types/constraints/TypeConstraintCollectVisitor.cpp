@@ -1,3 +1,4 @@
+#include <cassert>
 #include "TypeConstraintCollectVisitor.h"
 #include "ConstraintCollector.h"
 

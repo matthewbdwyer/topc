@@ -25,13 +25,12 @@ public:
   }
   ~ASTFunction() = default;
   ASTDeclNode *getDecl() const { return DECL.get(); };
-  std::string getName() const { return DECL->getName(); };
+  const std::string &getName() const { return DECL->getName(); };
   bool isPoly() const { return ISPOLY; };
   std::vector<ASTDeclNode *> getFormals() const;
   std::vector<ASTDeclStmt *> getDeclarations() const;
   std::vector<ASTStmt *> getStmts() const;
   void accept(ASTVisitor *visitor) override;
-  llvm::Value *codegen() override;
 
 protected:
   std::ostream &print(std::ostream &out) const override;

@@ -6,7 +6,7 @@
 
 #include <sstream>
 
-TEST_CASE("TipRef: Test TipRefs are compared by their underlying term"
+TEST_CASE("TipRef: Test TipRefs are compared by their underlying term",
           "[TipRef]") {
   auto term = std::make_shared<TipInt>();
   TipRef tipRef(term);
@@ -28,14 +28,14 @@ TEST_CASE("TipRef: Test TipRefs are compared by their underlying term"
   }
 }
 
-TEST_CASE("TipRef: Test arity is one"
+TEST_CASE("TipRef: Test arity is one",
           "[TipRef]") {
   auto term = std::make_shared<TipInt>();
   TipRef tipRef(term);
   REQUIRE(1 == tipRef.arity());
 }
 
-TEST_CASE("TipRef: Test getter"
+TEST_CASE("TipRef: Test getter",
           "[TipRef]") {
   std::vector<std::shared_ptr<TipType>> params{std::make_shared<TipInt>(),
                                                std::make_shared<TipInt>()};
@@ -46,7 +46,7 @@ TEST_CASE("TipRef: Test getter"
   REQUIRE(*tipFunction == *tipRef.getReferencedType());
 }
 
-TEST_CASE("TipRef: Test output stream"
+TEST_CASE("TipRef: Test output stream",
           "[TipRef]") {
   std::vector<std::shared_ptr<TipType>> params{std::make_shared<TipInt>(),
                                                std::make_shared<TipInt>()};

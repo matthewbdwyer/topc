@@ -2,6 +2,7 @@
 #include "CallGraph.h"
 #include "PolyTypeConstraintCollectVisitor.h"
 #include "SymbolTable.h"
+#include "Unifier.h"
 #include "TypeConstraintCollectVisitor.h"
 
 #include <catch2/catch_test_macros.hpp>

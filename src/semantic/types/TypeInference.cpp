@@ -1,9 +1,10 @@
+#include <cassert>
 #include "TypeInference.h"
 #include "AbsentFieldChecker.h"
 #include "PolyTypeConstraintCollectVisitor.h"
+#include "Unifier.h"
 #include "TypeConstraint.h"
 #include "TypeConstraintCollectVisitor.h"
-#include "Unifier.h"
 #include "loguru.hpp"
 #include <memory>
 

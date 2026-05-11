@@ -28,3 +28,11 @@ void TipInt::accept(TipTypeVisitor *visitor) {
   visitor->visit(this);
   visitor->endVisit(this);
 }
+
+std::shared_ptr<TipType> TipInt::withChildTypes(
+    std::vector<std::shared_ptr<TipType>> children) const {
+  if (!children.empty()) {
+    throw std::invalid_argument("TipInt has no child types");
+  }
+  return std::make_shared<TipInt>();
+}

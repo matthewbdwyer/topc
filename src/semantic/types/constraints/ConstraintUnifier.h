@@ -1,8 +1,8 @@
 #pragma once
 
 #include "ConstraintHandler.h"
-#include "TypeConstraint.h"
 #include "Unifier.h"
+#include "TypeConstraint.h"
 
 /*!
  * \class ConstraintUnifier

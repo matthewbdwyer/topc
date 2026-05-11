@@ -1,5 +1,6 @@
 #include "TipAlpha.h"
 #include "TipTypeVisitor.h"
+#include "ASTNode.h"
 #include "loguru.hpp"
 #include <sstream>
 
@@ -46,3 +47,15 @@ ASTNode *TipAlpha::getContext() const { return context; }
 std::string const &TipAlpha::getName() const { return name; }
 
 void TipAlpha::accept(TipTypeVisitor *visitor) { visitor->endVisit(this); }
+
+std::string TipAlpha::getFunctor() const {
+  return "α" + name;
+}
+
+std::shared_ptr<TipType> TipAlpha::withChildTypes(
+    std::vector<std::shared_ptr<TipType>> children) const {
+  if (!children.empty()) {
+    throw std::invalid_argument("TipAlpha has no child types");
+  }
+  return std::make_shared<TipAlpha>(node, context, name);
+}

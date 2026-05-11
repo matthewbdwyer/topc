@@ -28,8 +28,7 @@ TEST_CASE("ASTProgramTest: ASTProgram output is the hash of the source.",
   REQUIRE(expectedOutput == actualOutput.str());
 }
 
-TEST_CASE("ASTProgramTest: ASTProgram returns nullptr when getting nonexistent "
-          "function",
+TEST_CASE("ASTProgramTest: ASTProgram returns nullptr when getting nonexistent function",
           "[ASTProgram]") {
   std::stringstream stream;
   stream << R"(

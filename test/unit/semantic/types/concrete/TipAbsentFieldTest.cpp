@@ -6,13 +6,13 @@
 #include <sstream>
 #include <string>
 
-TEST_CASE("TipAbsentField: test TipAbsentField is a TipCons"
+TEST_CASE("TipAbsentField: test TipAbsentField is a TipCons",
           "[tip_absentfield]") {
   TipAbsentField t;
   REQUIRE_FALSE(nullptr == dynamic_cast<TipCons *>(&t));
 }
 
-TEST_CASE("TipAbsentField: test TipAbsentField is a TipType"
+TEST_CASE("TipAbsentField: test TipAbsentField is a TipType",
           "[tip_absentfield]") {
   TipAbsentField t;
   REQUIRE_FALSE(nullptr == dynamic_cast<TipType *>(&t));

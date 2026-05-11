@@ -7,7 +7,7 @@
 #include <iostream>
 #include <sstream>
 
-TEST_CASE("TipFunction: Test getters"
+TEST_CASE("TipFunction: Test getters",
           "[TipFunction]") {
   std::vector<std::shared_ptr<TipType>> params{std::make_shared<TipInt>(),
                                                std::make_shared<TipInt>()};
@@ -18,7 +18,7 @@ TEST_CASE("TipFunction: Test getters"
   REQUIRE(*ret == *tipFunction.getReturnType());
 }
 
-TEST_CASE("TipFunction: Test equality"
+TEST_CASE("TipFunction: Test equality",
           "[TipFunction]") {
   std::vector<std::shared_ptr<TipType>> paramsA{std::make_shared<TipInt>(),
                                                 std::make_shared<TipInt>()};
@@ -58,7 +58,7 @@ TEST_CASE("TipFunction: Test equality"
   }
 }
 
-TEST_CASE("TipFunction: Test output stream"
+TEST_CASE("TipFunction: Test output stream",
           "[TipFunction]") {
   std::vector<std::shared_ptr<TipType>> params{std::make_shared<TipInt>(),
                                                std::make_shared<TipInt>()};

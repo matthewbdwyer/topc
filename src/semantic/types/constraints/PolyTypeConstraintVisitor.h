@@ -1,8 +1,8 @@
 #pragma once
 
 #include "CallGraph.h"
-#include "TypeConstraintVisitor.h"
 #include "Unifier.h"
+#include "TypeConstraintVisitor.h"
 
 /*! \class PolyTypeConstraintVisitor
  *

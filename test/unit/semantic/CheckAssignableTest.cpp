@@ -1,6 +1,6 @@
 #include "CheckAssignable.h"
 #include "ASTHelper.h"
-#include "ExceptionContainsWhat.h"
+#include <catch2/matchers/catch_matchers_string.hpp>
 #include "SemanticError.h"
 
 #include <catch2/catch_test_macros.hpp>
@@ -32,8 +32,8 @@ TEST_CASE("Check Assignable: complex field lhs", "[Symbol]") {
   std::stringstream stream;
   stream << R"(recordlhs() { var x; {f:0, g:1}.f = x; return 0; })";
   auto ast = ASTHelper::build_ast(stream);
-  REQUIRE_THROWS_MATCHES(CheckAssignable::check(ast.get()), SemanticError,
-                         ContainsWhat("{f:0,g:1} is an expression, and not a "
+  REQUIRE_THROWS_WITH(CheckAssignable::check(ast.get()),
+                         Catch::Matchers::ContainsSubstring("{f:0,g:1} is an expression, and not a "
                                       "variable corresponding to a record"));
 }
 
@@ -66,54 +66,54 @@ TEST_CASE("Check Assignable: constant lhs", "[Symbol]") {
   std::stringstream stream;
   stream << R"(constlhs() { var x; 7 = x; return 0; })";
   auto ast = ASTHelper::build_ast(stream);
-  REQUIRE_THROWS_MATCHES(CheckAssignable::check(ast.get()), SemanticError,
-                         ContainsWhat("7 not an l-value"));
+  REQUIRE_THROWS_WITH(CheckAssignable::check(ast.get()),
+                         Catch::Matchers::ContainsSubstring("7 not an l-value"));
 }
 
 TEST_CASE("Check Assignable: binary lhs", "[Symbol]") {
   std::stringstream stream;
   stream << R"(binlhs() { var x; x+1 = x; return 0; })";
   auto ast = ASTHelper::build_ast(stream);
-  REQUIRE_THROWS_MATCHES(CheckAssignable::check(ast.get()), SemanticError,
-                         ContainsWhat("(x+1) not an l-value"));
+  REQUIRE_THROWS_WITH(CheckAssignable::check(ast.get()),
+                         Catch::Matchers::ContainsSubstring("(x+1) not an l-value"));
 }
 
 TEST_CASE("Check Assignable: function lhs", "[Symbol]") {
   std::stringstream stream;
   stream << R"(foo() { return 0; } funlhs() { var x; foo() = x; return 0; })";
   auto ast = ASTHelper::build_ast(stream);
-  REQUIRE_THROWS_MATCHES(CheckAssignable::check(ast.get()), SemanticError,
-                         ContainsWhat("foo() not an l-value"));
+  REQUIRE_THROWS_WITH(CheckAssignable::check(ast.get()),
+                         Catch::Matchers::ContainsSubstring("foo() not an l-value"));
 }
 
 TEST_CASE("Check Assignable: alloc lhs", "[Symbol]") {
   std::stringstream stream;
   stream << R"(alloclhs() { var x; alloc 1 = x; return 0; })";
   auto ast = ASTHelper::build_ast(stream);
-  REQUIRE_THROWS_MATCHES(CheckAssignable::check(ast.get()), SemanticError,
-                         ContainsWhat("alloc 1 not an l-value"));
+  REQUIRE_THROWS_WITH(CheckAssignable::check(ast.get()),
+                         Catch::Matchers::ContainsSubstring("alloc 1 not an l-value"));
 }
 
 TEST_CASE("Check Assignable: record lhs", "[Symbol]") {
   std::stringstream stream;
   stream << R"(recordlhs() { var x; {f:0, g:1} = x; return 0; })";
   auto ast = ASTHelper::build_ast(stream);
-  REQUIRE_THROWS_MATCHES(CheckAssignable::check(ast.get()), SemanticError,
-                         ContainsWhat("{f:0,g:1} not an l-value"));
+  REQUIRE_THROWS_WITH(CheckAssignable::check(ast.get()),
+                         Catch::Matchers::ContainsSubstring("{f:0,g:1} not an l-value"));
 }
 
 TEST_CASE("Check Assignable: address of pointer", "[Symbol]") {
   std::stringstream stream;
   stream << R"(recordlhs(p) { var x; x = &(*p); return 0; })";
   auto ast = ASTHelper::build_ast(stream);
-  REQUIRE_THROWS_MATCHES(CheckAssignable::check(ast.get()), SemanticError,
-                         ContainsWhat("(*p) not an l-value"));
+  REQUIRE_THROWS_WITH(CheckAssignable::check(ast.get()),
+                         Catch::Matchers::ContainsSubstring("(*p) not an l-value"));
 }
 
 TEST_CASE("Check Assignable: address of expr", "[Symbol]") {
   std::stringstream stream;
   stream << R"(recordlhs(p) { var x, y; x = &(y*y); return 0; })";
   auto ast = ASTHelper::build_ast(stream);
-  REQUIRE_THROWS_MATCHES(CheckAssignable::check(ast.get()), SemanticError,
-                         ContainsWhat("(y*y) not an l-value"));
+  REQUIRE_THROWS_WITH(CheckAssignable::check(ast.get()),
+                         Catch::Matchers::ContainsSubstring("(y*y) not an l-value"));
 }

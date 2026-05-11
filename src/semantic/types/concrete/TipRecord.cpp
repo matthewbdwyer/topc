@@ -1,5 +1,7 @@
 #include "TipRecord.h"
 #include "TipTypeVisitor.h"
+#include <algorithm>
+#include <sstream>
 
 TipRecord::TipRecord(std::vector<std::shared_ptr<TipType>> inits,
                      std::vector<std::string> names)
@@ -58,4 +60,32 @@ void TipRecord::accept(TipTypeVisitor *visitor) {
     }
   }
   visitor->endVisit(this);
+}
+
+std::string TipRecord::getFunctor() const {
+  std::ostringstream os;
+  os << "record{";
+  // Create sorted copy of names for consistent functor
+  std::vector<std::string> sortedNames = names;
+  std::sort(sortedNames.begin(), sortedNames.end());
+  bool first = true;
+  for (const auto &name : sortedNames) {
+    if (!first) os << ",";
+    os << name;
+    first = false;
+  }
+  os << "}";
+  return os.str();
+}
+
+std::size_t TipRecord::arity() const {
+  return arguments.size();
+}
+
+std::shared_ptr<TipType> TipRecord::withChildTypes(
+    std::vector<std::shared_ptr<TipType>> children) const {
+  if (children.size() != arguments.size()) {
+    throw std::invalid_argument("TipRecord: wrong number of child types");
+  }
+  return std::make_shared<TipRecord>(children, names);
 }

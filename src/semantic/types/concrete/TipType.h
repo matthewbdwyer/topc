@@ -1,32 +1,58 @@
 #pragma once
 
+#include <iostream>
 #include <memory>
-#include <ostream>
+#include <sstream>
+#include <vector>
 
-// Forward declare the visitor to resolve circular dependency
 class TipTypeVisitor;
 
-/*! \class TipType
- * \brief Abstract base class of all types
+/*!
+ * \class TipType
  *
- * Defines equality comparisons, output operator, and accept for visitor.
- * Type variables and operators, like mu, directly subtype TipType.
- * All other types, e.g., ints, functions, etc., are subtypes of TipCons,
- * since this allows type unification to just handle TipCons.  Consequently,
- * it means that if you want to extend the types supported you will need to
- * subtype TipCons.
+ * \brief Abstract base class for all TIP types.
  */
 class TipType {
 public:
-  virtual bool operator==(const TipType &other) const = 0;
-  virtual bool operator!=(const TipType &other) const = 0;
   virtual ~TipType() = default;
-  friend std::ostream &operator<<(std::ostream &os, const TipType &obj) {
-    return obj.print(os);
-  }
 
+  //! Print the type to an output stream
+  virtual std::ostream &print(std::ostream &out) const = 0;
+
+  //! Accept a visitor
   virtual void accept(TipTypeVisitor *visitor) = 0;
 
-protected:
-  virtual std::ostream &print(std::ostream &out) const = 0;
+  //! Compare two types for equality
+  virtual bool operator==(const TipType &other) const = 0;
+
+  bool operator!=(const TipType &other) const { return !(*this == other); }
+
+  // ========== TipType structural interface ==========
+
+  /*! Returns the direct child types (arguments) of this type.
+   *  Default is empty; TipCons overrides to return arguments.
+   *  \throws InternalError for TipMu (must not enter the solver). */
+  virtual std::vector<std::shared_ptr<TipType>> getChildTypes() const { return {}; }
+
+  /*! Reconstruct this type with a new set of child types.
+   *  \throws InternalError for TipMu (must not enter the solver). */
+  virtual std::shared_ptr<TipType> withChildTypes(
+      std::vector<std::shared_ptr<TipType>> children) const = 0;
+
+  // ========== Solver-facing type predicates / functors ==========
+
+  virtual bool isVariable() const { return false; }
+  virtual std::string getFunctor() const = 0;
+  virtual std::size_t arity() const { return 0; }
+
+  std::string toString() const {
+    std::ostringstream oss;
+    print(oss);
+    return oss.str();
+  }
 };
+
+//! Stream insertion operator for TipType
+inline std::ostream &operator<<(std::ostream &out, const TipType &t) {
+  return t.print(out);
+}

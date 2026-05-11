@@ -12,24 +12,20 @@ target_sources(
     ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipAbsentFieldTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipRefTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipVarTest.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipVarSetTest.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipTypeTermTest.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/SubstituterTest.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/CopierTest.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TypeVarsTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/constraints/TypeConstraintCollectTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/constraints/PolyTypeConstraintCollectTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/constraints/TypeConstraintTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/constraints/AbsentFieldCheckerTest.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/solvers/UnifierTest.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/solvers/UnionFindTest.cpp)
-target_include_directories(
-  typeinference_unit_tests
-  PRIVATE ${CMAKE_SOURCE_DIR}/src/error
-          ${CMAKE_SOURCE_DIR}/src/frontend/ast
-          ${CMAKE_SOURCE_DIR}/src/frontend/ast/treetypes
-          ${CMAKE_SOURCE_DIR}/src/semantic/symboltable
-          ${CMAKE_SOURCE_DIR}/src/semantic/cfa
-          ${CMAKE_SOURCE_DIR}/src/semantic/types/concrete
-          ${CMAKE_SOURCE_DIR}/src/semantic/types/constraints
-          ${CMAKE_SOURCE_DIR}/src/semantic/types/solver
-          ${CMAKE_SOURCE_DIR}/test/unit/helpers
-          ${CMAKE_SOURCE_DIR}/test/unit/matchers)
+    ${CMAKE_CURRENT_SOURCE_DIR}/solver/TermUnionFindTest.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/solver/TermUnifierTest.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/solver/TipTermClosureTest.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/solver/TipTermAdapterTest.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/solver/UnifierTest.cpp)
 target_link_libraries(
   typeinference_unit_tests
   PRIVATE antlr4_static
@@ -43,5 +39,8 @@ target_link_libraries(
           optimizer
           error
           test_helpers
+          tipc_test_includes
           coverage_config
           Catch2::Catch2WithMain)
+include(Catch)
+catch_discover_tests(typeinference_unit_tests)

@@ -12,7 +12,6 @@ public:
   ASTBlockStmt(std::vector<std::shared_ptr<ASTStmt>> STMTS);
   std::vector<ASTStmt *> getStmts() const;
   void accept(ASTVisitor *visitor) override;
-  llvm::Value *codegen() override;
 
 protected:
   std::ostream &print(std::ostream &out) const override;

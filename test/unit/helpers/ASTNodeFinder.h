@@ -1,16 +1,17 @@
+#pragma once
 #include "ASTVisitor.h"
 
 template<class N>
 class NodeFinder : public ASTVisitor {
 public:
-    static std::shared_ptr<N> find_node(ASTProgram *p) {
+    static N *find_node(ASTProgram *p) {
         NodeFinder<N> visitor;
         p->accept(&visitor);
         return visitor.found_node;
     }
 
-    virtual void endVisit(N *element) {  found_node = std::make_shared<N>(*element); };
+    void endVisit(N *element) override { found_node = element; }
 
 private:
-    std::shared_ptr<N> found_node;
+    N *found_node = nullptr;
 };

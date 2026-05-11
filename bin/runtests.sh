@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 set -e
 
 # Set ROOT_DIR to GITHUB_WORKSPACE or the top-level Git directory if GITHUB_WORKSPACE is not set
@@ -14,13 +14,29 @@ usage() {
   echo "-h  display help"
   echo "-s  runs system tests only"
   echo "-u  runs unit tests only"
+  echo
+  echo "Environment: set TIPC_KEEP_COVERAGE=1 to skip pre-test gcda cleanup"
+}
+
+clean_coverage_files() {
+  if [ "${TIPC_KEEP_COVERAGE:-0}" = "1" ]; then
+    return
+  fi
+  find "${ROOT_DIR}" -name '*gcda' -delete
 }
 
 run_unit_tests() {
-  find "${ROOT_DIR}" -name '*gcda' -delete
   echo "running the unit test suite"
-  find "${UNIT_TEST_DIR}" -name '*_unit_tests' | xargs -n1 sh -c
-  echo "unit test run complete"
+  local status=0
+  while IFS= read -r binary; do
+    "$binary" || status=1
+  done < <(find "${UNIT_TEST_DIR}" -name '*_unit_tests' | sort)
+  if [ $status -eq 0 ]; then
+    echo "unit test run complete"
+  else
+    echo "unit tests FAILED"
+  fi
+  return $status
 }
 
 assert_unit_test_dir() {
@@ -39,9 +55,7 @@ run_system_tests() {
   fi
 
   echo "running the system test suite"
-  # Change to SYSTEM_TEST_DIR directory
-  cd "${SYSTEM_TEST_DIR}" || exit 1
-  if ! ./run.sh; then
+  if ! "${SYSTEM_TEST_DIR}/run.sh"; then
     echo "error while running system tests"
     exit 1
   fi
@@ -72,6 +86,8 @@ while getopts ":hsu" opt; do
   esac
 done
 shift $((OPTIND - 1))
+
+clean_coverage_files
 
 if [ -n "${run_unit_tests}" ]; then
   assert_unit_test_dir

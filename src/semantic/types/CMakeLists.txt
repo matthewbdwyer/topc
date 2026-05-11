@@ -13,8 +13,6 @@ target_sources(
     ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipInt.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipInt.h
     ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipMu.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipMu.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipMu.h
     ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipMu.h
     ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipRecord.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipRecord.h
@@ -46,10 +44,6 @@ target_sources(
     ${CMAKE_CURRENT_SOURCE_DIR}/constraints/AbsentFieldChecker.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/constraints/AbsentFieldChecker.h
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/UnificationError.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/solver/Unifier.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/solver/Unifier.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/solver/UnionFind.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/solver/UnionFind.h
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/TypeVars.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/TypeVars.h
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/Copier.cpp
@@ -57,7 +51,13 @@ target_sources(
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/FreshAlphaCopier.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/FreshAlphaCopier.h
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/Substituter.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/solver/Substituter.h)
+    ${CMAKE_CURRENT_SOURCE_DIR}/solver/Substituter.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/solver/TipTermAdapter.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/solver/TipTermAdapter.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/TipTypeClosure.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/TipTypeClosure.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/solver/Unifier.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/solver/Unifier.h)
 target_include_directories(
   types
   PRIVATE ${CMAKE_SOURCE_DIR}/src
@@ -66,7 +66,21 @@ target_include_directories(
           ${CMAKE_SOURCE_DIR}/src/frontend/ast/treetypes
           ${CMAKE_SOURCE_DIR}/src/semantic/symboltable
           ${CMAKE_SOURCE_DIR}/src/semantic/cfa
+          ${CMAKE_SOURCE_DIR}/src/semantic/solver/term
+          ${CMAKE_SOURCE_DIR}/src/semantic/solver/cubic
+          ${CMAKE_CURRENT_SOURCE_DIR}
           ${CMAKE_CURRENT_SOURCE_DIR}/concrete
           ${CMAKE_CURRENT_SOURCE_DIR}/constraints
           ${CMAKE_CURRENT_SOURCE_DIR}/solver)
-target_link_libraries(types PRIVATE coverage_config loguru)
+
+# Ensure the types directory itself is in the include path
+target_include_directories(types PUBLIC 
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}/concrete
+  ${CMAKE_CURRENT_SOURCE_DIR}/solver
+  ${CMAKE_SOURCE_DIR}/src/semantic/solver/term
+)
+
+target_link_libraries(types
+  PRIVATE coverage_config loguru
+  PUBLIC term_solver)

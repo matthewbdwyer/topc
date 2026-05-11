@@ -36,3 +36,11 @@ void TipRef::accept(TipTypeVisitor *visitor) {
   }
   visitor->endVisit(this);
 }
+
+std::shared_ptr<TipType> TipRef::withChildTypes(
+    std::vector<std::shared_ptr<TipType>> children) const {
+  if (children.size() != 1) {
+    throw std::invalid_argument("TipRef requires exactly 1 child type");
+  }
+  return std::make_shared<TipRef>(children[0]);
+}

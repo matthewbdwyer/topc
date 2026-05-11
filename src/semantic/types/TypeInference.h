@@ -17,7 +17,7 @@
 class TypeInference {
   SymbolTable *symbols;
 
-  // This unifier stores either the monomorphic or polymorphic type inference
+  // This bridge stores either the monomorphic or polymorphic type inference
   // results
   std::shared_ptr<Unifier> unifier;
 
@@ -42,7 +42,7 @@ public:
    * monomorphic inference \param cg The program call graph \param symbols The
    * symbol table
    */
-  static std::shared_ptr<TypeInference>
+  [[nodiscard]] static std::shared_ptr<TypeInference>
   run(ASTProgram *ast, bool polyInf, CallGraph *cg, SymbolTable *symbols);
 
   /*! \fn getInferredType

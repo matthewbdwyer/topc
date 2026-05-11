@@ -8,7 +8,6 @@ class ASTNullExpr : public ASTExpr {
 public:
   ASTNullExpr() {}
   void accept(ASTVisitor *visitor) override;
-  llvm::Value *codegen() override;
 
 protected:
   std::ostream &print(std::ostream &out) const override;

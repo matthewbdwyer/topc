@@ -1,60 +1,53 @@
 #pragma once
 
+#include "TipTermAdapter.h"
+#include "TipTypeClosure.h"
 #include "TipType.h"
 #include "TipVar.h"
+#include "TermUnifier.h"
 #include "TypeConstraint.h"
-#include "UnionFind.h"
-#include <set>
+#include <memory>
 #include <vector>
 
 /*!
  * \class Unifier
  *
- * \brief Class used to solve type constraints and establish typability.
+ * \brief Facade over TermUnifier that provides the type-inference public API.
  *
- * Make uses of a union-find data structure. This class will throw a
- * UnificationError anytime two terms cannot be unified, either because
- * their constructor or arity mismatch.
+ * Unifier delegates to TermUnifier (backed by TermUnionFind) internally.
+ * Static helper predicates (isCons, isMu, isVar, isAlpha, isProperType)
+ * classify TipType values for callers that need to inspect inference results.
  */
 class Unifier {
 public:
   Unifier();
-
-  /*! \brief Construct a Unifier with seeded with constraints.
-   *
-   * Useful for when one is collecting and then unifying constraints.
-   */
-  explicit Unifier(std::vector<TypeConstraint>);
-
-  /*! \brief Construct an empty Unifier.
-   *
-   * Useful for when unifying on the fly.
-   */
+  explicit Unifier(std::vector<TypeConstraint> constraints);
   ~Unifier() = default;
 
-  /*! \brief Attempt to unify the two types
-   * \throws UnificationError when constraints cannot be unifierd.
+  /*!
+   * \brief Attempt to unify two types immediately (on-the-fly mode).
+   * \throws UnificationError when constraints cannot be unified.
+   *
+   * Wraps the constraint in a TermUnifier call and solves it inline,
+   * mirroring Unifier::unify().
    */
   void unify(std::shared_ptr<TipType> t1, std::shared_ptr<TipType> t2);
 
-  /*! \brief Add constraints to this unifier.
-   */
-  void add(std::vector<TypeConstraint>);
+  /*! \brief Add constraints to this bridge (mirrors Unifier::add()). */
+  void add(std::vector<TypeConstraint> constraints);
 
-  /*! \brief Solve the system of constraints that have presented to this
-   * unifier. 
-   * \pre The unifier has been constructed with seed values. 
-   * Incremental solving can be achieved by adding constraints, via
-   * the add method, after solving.  This will cause the new constraints
-   * to be unified with the currently unified constraints.
+  /*!
+   * \brief Solve all pending constraints (batch mode).
+   * \pre addConstraint calls have been made or constructor seeded with
+   *      constraints.
    */
   void solve();
 
-  /*! \brief Returns the inferred type for a given type.
-   * \pre The unifier has computed a solution.
-   * This will close the type by replacing any variables that
-   * are bound to proper types in the inferred solution with that
-   * proper type.
+  /*!
+   * \brief Return the inferred type for a given type variable.
+   *
+   * Closes the type by replacing all bound variables with their inferred
+   * proper types, producing TipMu for recursive types.
    */
   std::shared_ptr<TipType> inferred(std::shared_ptr<TipType> t);
 
@@ -65,11 +58,5 @@ public:
   static bool isProperType(std::shared_ptr<TipType> type);
 
 private:
-  std::shared_ptr<TipType> close(std::shared_ptr<TipType> type,
-                                 std::set<std::shared_ptr<TipVar>> visited);
-  void throwUnifyException(std::shared_ptr<TipType> TipType1,
-                           std::shared_ptr<TipType> TipType2);
-
-  std::vector<TypeConstraint> constraints;
-  std::shared_ptr<UnionFind> unionFind;
+  TermUnifier termUnifier;
 };

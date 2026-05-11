@@ -7,7 +7,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
-TEST_CASE("TipCons: Test doMatch considers arity"
+TEST_CASE("TipCons: Test doMatch considers arity",
           "[TipCons]") {
   auto tipInt = std::make_shared<TipInt>();
 
@@ -24,7 +24,7 @@ TEST_CASE("TipCons: Test doMatch considers arity"
   REQUIRE_FALSE(tipFunction2->doMatch(tipFunction1.get()));
 }
 
-TEST_CASE("TipCons: Test doMatch considers constructor type"
+TEST_CASE("TipCons: Test doMatch considers constructor type",
           "[TipCons]") {
   std::vector<std::shared_ptr<TipType>> params{};
 
@@ -50,10 +50,52 @@ TEST_CASE("TipCons: Test doMatch considers constructor type"
   REQUIRE_FALSE(tipFunction->doMatch(tipRecord.get()));
 }
 
-TEST_CASE("TipCons: Test doMatch only works on TipCons"
+TEST_CASE("TipCons: Test doMatch only works on TipCons",
           "[TipCons]") {
   auto tipInt = std::make_shared<TipInt>();
   auto tipRef = std::make_shared<TipRef>(tipInt);
 
   REQUIRE_FALSE(tipRef->doMatch(tipInt.get()));
+}
+
+TEST_CASE("TipCons: doMatch returns true for matching constructors", "[TipCons]") {
+  auto tipInt = std::make_shared<TipInt>();
+
+  // TipInt matches TipInt
+  REQUIRE(tipInt->doMatch(tipInt.get()));
+
+  // TipRef matches TipRef
+  auto ref1 = std::make_shared<TipRef>(tipInt);
+  auto ref2 = std::make_shared<TipRef>(tipInt);
+  REQUIRE(ref1->doMatch(ref2.get()));
+
+  // TipFunction([int], int) matches TipFunction([int], int)
+  auto func1 = std::make_shared<TipFunction>(
+      std::vector<std::shared_ptr<TipType>>{tipInt}, tipInt);
+  auto func2 = std::make_shared<TipFunction>(
+      std::vector<std::shared_ptr<TipType>>{tipInt}, tipInt);
+  REQUIRE(func1->doMatch(func2.get()));
+
+  // TipRecord({f: int}) matches TipRecord({f: int}) — same field name
+  auto rec1 = std::make_shared<TipRecord>(
+      std::vector<std::shared_ptr<TipType>>{tipInt},
+      std::vector<std::string>{"f"});
+  auto rec2 = std::make_shared<TipRecord>(
+      std::vector<std::shared_ptr<TipType>>{tipInt},
+      std::vector<std::string>{"f"});
+  REQUIRE(rec1->doMatch(rec2.get()));
+}
+
+TEST_CASE("TipCons: TipRecord doMatch fails for different field names same arity", "[TipCons]") {
+  // This is the critical field-name semantics test:
+  // {f: int} and {g: int} have the same arity but different functors.
+  auto tipInt = std::make_shared<TipInt>();
+  auto recF = std::make_shared<TipRecord>(
+      std::vector<std::shared_ptr<TipType>>{tipInt},
+      std::vector<std::string>{"f"});
+  auto recG = std::make_shared<TipRecord>(
+      std::vector<std::shared_ptr<TipType>>{tipInt},
+      std::vector<std::string>{"g"});
+  REQUIRE_FALSE(recF->doMatch(recG.get()));
+  REQUIRE_FALSE(recG->doMatch(recF.get()));
 }

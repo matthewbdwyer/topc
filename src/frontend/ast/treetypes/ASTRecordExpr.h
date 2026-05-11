@@ -13,7 +13,6 @@ public:
   ASTRecordExpr(std::vector<std::shared_ptr<ASTFieldExpr>> FIELDS);
   std::vector<ASTFieldExpr *> getFields() const;
   void accept(ASTVisitor *visitor) override;
-  llvm::Value *codegen() override;
 
 protected:
   std::ostream &print(std::ostream &out) const override;

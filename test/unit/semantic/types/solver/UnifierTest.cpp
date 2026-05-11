@@ -15,7 +15,8 @@
 
 #include <iostream>
 
-TEST_CASE("Unifier: Collect and then unify constraints", "[Unifier, Collect]") {
+TEST_CASE("Unifier: Collect and then unify constraints",
+          "[Unifier, Collect]") {
 
   SECTION("Test type-safe program 1") {
     std::stringstream program;
@@ -37,8 +38,8 @@ TEST_CASE("Unifier: Collect and then unify constraints", "[Unifier, Collect]") {
     TypeConstraintCollectVisitor visitor(symbols.get());
     ast->accept(&visitor);
 
-    Unifier unifier(visitor.getCollectedConstraints());
-    REQUIRE_NOTHROW(unifier.solve());
+    Unifier bridge(visitor.getCollectedConstraints());
+    REQUIRE_NOTHROW(bridge.solve());
 
     // Expected types
     std::vector<std::shared_ptr<TipType>> emptyParams;
@@ -49,16 +50,16 @@ TEST_CASE("Unifier: Collect and then unify constraints", "[Unifier, Collect]") {
     auto fDecl = symbols->getFunction("short");
     auto fType = std::make_shared<TipVar>(fDecl);
 
-    REQUIRE(*unifier.inferred(fType) == *funRetInt);
+    REQUIRE(*bridge.inferred(fType) == *funRetInt);
 
     auto xType = std::make_shared<TipVar>(symbols->getLocal("x", fDecl));
-    REQUIRE(*unifier.inferred(xType) == *intType);
+    REQUIRE(*bridge.inferred(xType) == *intType);
 
     auto yType = std::make_shared<TipVar>(symbols->getLocal("y", fDecl));
-    REQUIRE(*unifier.inferred(yType) == *ptrToInt);
+    REQUIRE(*bridge.inferred(yType) == *ptrToInt);
 
     auto zType = std::make_shared<TipVar>(symbols->getLocal("z", fDecl));
-    REQUIRE(*unifier.inferred(zType) == *intType);
+    REQUIRE(*bridge.inferred(zType) == *intType);
   }
 
   SECTION("Test type-safe deref") {
@@ -76,26 +77,25 @@ deref(p){
     TypeConstraintCollectVisitor visitor(symbols.get());
     ast->accept(&visitor);
 
-    Unifier unifier(visitor.getCollectedConstraints());
-    REQUIRE_NOTHROW(unifier.solve());
+    Unifier bridge(visitor.getCollectedConstraints());
+    REQUIRE_NOTHROW(bridge.solve());
 
     auto fDecl = symbols->getFunction("deref");
     auto fType = std::make_shared<TipVar>(fDecl);
     auto pType = std::make_shared<TipVar>(symbols->getLocal("p", fDecl));
 
-    auto polyInferred = unifier.inferred(fType);
+    auto polyInferred = bridge.inferred(fType);
     auto polyFun = std::dynamic_pointer_cast<TipFunction>(polyInferred);
-    REQUIRE(polyFun != nullptr);               // function type
-    REQUIRE(polyFun->getParamTypes().size() == 1); // single parameter
+    REQUIRE(polyFun != nullptr);
+    REQUIRE(polyFun->getParamTypes().size() == 1);
     auto polyArg = polyFun->getParamTypes().back();
     auto polyArgRef = std::dynamic_pointer_cast<TipRef>(polyArg);
-    REQUIRE(polyArgRef != nullptr); // param is ref
+    REQUIRE(polyArgRef != nullptr);
     auto polyArgAddressOfField = polyArgRef->getReferencedType();
-    REQUIRE(std::dynamic_pointer_cast<TipAlpha>(
-        polyArgAddressOfField)); // param is ref of an alpha
+    REQUIRE(std::dynamic_pointer_cast<TipAlpha>(polyArgAddressOfField));
 
-    auto pInferred = unifier.inferred(pType);
-    REQUIRE(*pInferred == *polyArg); // p is the parameter type
+    auto pInferred = bridge.inferred(pType);
+    REQUIRE(*pInferred == *polyArg);
   }
 
   SECTION("Test unification error 1") {
@@ -122,8 +122,8 @@ deref(p){
     TypeConstraintCollectVisitor visitor(symbols.get());
     ast->accept(&visitor);
 
-    Unifier unifier(visitor.getCollectedConstraints());
-    REQUIRE_THROWS_AS(unifier.solve(), UnificationError);
+    Unifier bridge(visitor.getCollectedConstraints());
+    REQUIRE_THROWS_AS(bridge.solve(), UnificationError);
   }
 
   SECTION("Test unification error 2") {
@@ -147,8 +147,8 @@ deref(p){
     TypeConstraintCollectVisitor visitor(symbols.get());
     ast->accept(&visitor);
 
-    Unifier unifier(visitor.getCollectedConstraints());
-    REQUIRE_THROWS_AS(unifier.solve(), UnificationError);
+    Unifier bridge(visitor.getCollectedConstraints());
+    REQUIRE_THROWS_AS(bridge.solve(), UnificationError);
   }
 
   SECTION("Test unification error 3") {
@@ -169,12 +169,13 @@ deref(p){
     TypeConstraintCollectVisitor visitor(symbols.get());
     ast->accept(&visitor);
 
-    Unifier unifier(visitor.getCollectedConstraints());
-    REQUIRE_THROWS_AS(unifier.solve(), UnificationError);
+    Unifier bridge(visitor.getCollectedConstraints());
+    REQUIRE_THROWS_AS(bridge.solve(), UnificationError);
   }
 }
 
-TEST_CASE("Unifier: Unify constraints on the fly", "[Unifier, On-the-fly]") {
+TEST_CASE("Unifier: Unify constraints on the fly",
+          "[Unifier, On-the-fly]") {
 
   SECTION("Test type-safe program 1") {
     std::stringstream program;
@@ -350,12 +351,12 @@ TEST_CASE("Unifier: Test unifying TipCons with different arities",
   TypeConstraint constraint(tipFunctionA, tipFunctionB);
   std::vector<TypeConstraint> constraints{constraint};
 
-  Unifier unifier(constraints);
-  REQUIRE_THROWS_AS(unifier.unify(tipFunctionA, tipFunctionB),
-                    UnificationError);
+  Unifier bridge(constraints);
+  REQUIRE_THROWS_AS(bridge.unify(tipFunctionA, tipFunctionB), UnificationError);
 }
 
-TEST_CASE("Unifier: Test unifying TipCons with the same arity", "[Unifier]") {
+TEST_CASE("Unifier: Test unifying TipCons with the same arity",
+          "[Unifier]") {
   std::vector<std::shared_ptr<TipType>> params{std::make_shared<TipInt>()};
   auto ret = std::make_shared<TipInt>();
   auto tipFunctionA = std::make_shared<TipFunction>(params, ret);
@@ -365,8 +366,8 @@ TEST_CASE("Unifier: Test unifying TipCons with the same arity", "[Unifier]") {
   TypeConstraint constraint(tipFunctionA, tipFunctionB);
   std::vector<TypeConstraint> constraints{constraint};
 
-  Unifier unifier(constraints);
-  REQUIRE_NOTHROW(unifier.unify(tipFunctionA, tipFunctionB));
+  Unifier bridge(constraints);
+  REQUIRE_NOTHROW(bridge.unify(tipFunctionA, tipFunctionB));
 }
 
 TEST_CASE("Unifier: Test unifying proper types with a type variable",
@@ -378,11 +379,12 @@ TEST_CASE("Unifier: Test unifying proper types with a type variable",
   TypeConstraint constraint(tipVar, tipInt);
   std::vector<TypeConstraint> constraints{constraint};
 
-  Unifier unifier(constraints);
-  REQUIRE_NOTHROW(unifier.unify(tipVar, tipInt));
+  Unifier bridge(constraints);
+  REQUIRE_NOTHROW(bridge.unify(tipVar, tipInt));
 }
 
-TEST_CASE("Unifier: Test unifying two different type variables", "[Unifier]") {
+TEST_CASE("Unifier: Test unifying two different type variables",
+          "[Unifier]") {
   ASTVariableExpr variableExprA("foo");
   auto tipVarA = std::make_shared<TipVar>(&variableExprA);
 
@@ -392,12 +394,11 @@ TEST_CASE("Unifier: Test unifying two different type variables", "[Unifier]") {
   TypeConstraint constraint(tipVarA, tipVarB);
   std::vector<TypeConstraint> constraints{constraint};
 
-  Unifier unifier(constraints);
-  REQUIRE_NOTHROW(unifier.unify(tipVarA, tipVarB));
+  Unifier bridge(constraints);
+  REQUIRE_NOTHROW(bridge.unify(tipVarA, tipVarB));
 }
 
-TEST_CASE("Unifier: Test closing mu ", "[Unifier]") {
-  // Some building block types for setting up test
+TEST_CASE("Unifier: Test closing mu", "[Unifier]") {
   ASTVariableExpr variableExprG("g");
   auto theAlphaG = std::make_shared<TipAlpha>(&variableExprG);
 
@@ -405,8 +406,8 @@ TEST_CASE("Unifier: Test closing mu ", "[Unifier]") {
 
   ASTVariableExpr variableExprFoo("foo");
   auto theVarFoo = std::make_shared<TipVar>(&variableExprFoo);
+  (void)theVarFoo; // constraint2 removed: TipMu is not a valid solver input
 
-  // mu alpha<f> . (alpha<f>, alpha<g>) -> alpha<g>
   ASTVariableExpr variableExprF("f");
   auto theAlphaF = std::make_shared<TipAlpha>(&variableExprF);
 
@@ -415,18 +416,27 @@ TEST_CASE("Unifier: Test closing mu ", "[Unifier]") {
 
   auto theMu = std::make_shared<TipMu>(theAlphaF, theFunction);
 
-  // unify alpha<g> with int
-  // unify var<foo> with theMu
   TypeConstraint constraint1(theAlphaG, theInt);
-  TypeConstraint constraint2(theVarFoo, theMu);
-  std::vector<TypeConstraint> constraints{constraint1, constraint2};
-  Unifier unifier(constraints);
+  std::vector<TypeConstraint> constraints{constraint1};
+  Unifier bridge(constraints);
 
-  // closing the mu should produce: mu alpha<f> . (alpha<f>, int) -> int
-  auto closed = unifier.inferred(theMu);
+  auto closed = bridge.inferred(theMu);
 
   std::stringstream ss;
   ss << *closed;
 
   REQUIRE_NOTHROW(ss.str() == "\u03bc\u03B1<f>.(\u03B1<f>,int) -> int");
+}
+
+TEST_CASE("Unifier: static type predicates", "[Unifier]") {
+  ASTVariableExpr varExpr("x");
+
+  REQUIRE(Unifier::isVar(std::make_shared<TipVar>(&varExpr)));
+  REQUIRE(Unifier::isCons(std::make_shared<TipInt>()));
+  REQUIRE(Unifier::isMu(std::make_shared<TipMu>(
+      std::make_shared<TipAlpha>(&varExpr),
+      std::make_shared<TipInt>())));
+  REQUIRE(Unifier::isAlpha(std::make_shared<TipAlpha>(&varExpr)));
+  REQUIRE(Unifier::isProperType(std::make_shared<TipInt>()));
+  REQUIRE_FALSE(Unifier::isProperType(std::make_shared<TipVar>(&varExpr)));
 }

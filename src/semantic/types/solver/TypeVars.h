@@ -1,12 +1,13 @@
 #pragma once
 
 #include "TipTypeVisitor.h"
+#include "TipVar.h"
 #include <set>
 
 /*! \brief Produces set of type variables in a type expression.
  */
 class TypeVars : public TipTypeVisitor {
-  std::set<std::shared_ptr<TipVar>> vars;
+  TipVarSet vars;
 
 public:
   TypeVars() = default;
@@ -16,9 +17,9 @@ public:
    * \param t The type within which to collect variables.
    * \return The set of type variables.
    */
-  static std::set<std::shared_ptr<TipVar>> collect(TipType *t);
+  static TipVarSet collect(TipType *t);
 
-  std::set<std::shared_ptr<TipVar>> getVars() { return vars; }
+  TipVarSet getVars() { return vars; }
 
   virtual void endVisit(TipMu *element) override;
   virtual void endVisit(TipAlpha *element) override;

@@ -1,15 +1,15 @@
 #pragma once
 
 #include "TipType.h"
+#include <memory>
 #include <vector>
+
+class TipTypeVisitor;
 
 /*!
  * \class TipCons
  *
- * \brief Abstract base class for all proper types
- *
- * This virtual type adds common functionality for composite types
- * that have type sub-expressions.
+ * \brief Abstract base for compound TIP types (constructors).
  */
 class TipCons : public TipType {
 public:
@@ -17,10 +17,12 @@ public:
 
   const std::vector<std::shared_ptr<TipType>> &getArguments() const;
   void setArguments(std::vector<std::shared_ptr<TipType>> &args);
-  virtual int arity() const;
+  std::size_t arity() const override;
   bool doMatch(TipType const *t) const;
 
-  // delegate the obligation to override accept to subtypes
+  std::vector<std::shared_ptr<TipType>> getChildTypes() const override {
+    return arguments;
+  }
 
 protected:
   TipCons(std::vector<std::shared_ptr<TipType>> arguments);

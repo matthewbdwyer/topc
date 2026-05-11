@@ -1,4 +1,5 @@
 #include "TipMu.h"
+#include "InternalError.h"
 #include "TipTypeVisitor.h"
 
 #include <iostream>
@@ -31,4 +32,13 @@ void TipMu::accept(TipTypeVisitor *visitor) {
     t->accept(visitor);
   }
   visitor->endVisit(this);
+}
+
+std::vector<std::shared_ptr<TipType>> TipMu::getChildTypes() const {
+  throw InternalError("TipMu::getChildTypes: TipMu is a closure output, not a solver term");
+}
+
+std::shared_ptr<TipType> TipMu::withChildTypes(
+    std::vector<std::shared_ptr<TipType>>) const {
+  throw InternalError("TipMu::withChildTypes: TipMu is a closure output, not a solver term");
 }

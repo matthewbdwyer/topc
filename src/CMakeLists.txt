@@ -29,11 +29,13 @@ target_include_directories(
           ${CMAKE_CURRENT_SOURCE_DIR}/frontend/prettyprint
           ${CMAKE_CURRENT_SOURCE_DIR}/semantic
           ${CMAKE_CURRENT_SOURCE_DIR}/semantic/cfa
+          ${CMAKE_CURRENT_SOURCE_DIR}/semantic/solver/cubic
           ${CMAKE_CURRENT_SOURCE_DIR}/semantic/symboltable
           ${CMAKE_CURRENT_SOURCE_DIR}/semantic/types
           ${CMAKE_CURRENT_SOURCE_DIR}/semantic/types/concrete
           ${CMAKE_CURRENT_SOURCE_DIR}/semantic/types/constraints
           ${CMAKE_CURRENT_SOURCE_DIR}/semantic/types/solver
+          ${CMAKE_CURRENT_SOURCE_DIR}/semantic/solver/term
           ${CMAKE_CURRENT_SOURCE_DIR}/semantic/weeding
           ${CMAKE_CURRENT_SOURCE_DIR}/codegen
           ${CMAKE_CURRENT_SOURCE_DIR}/optimizer)

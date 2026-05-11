@@ -19,6 +19,12 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Debug)
 endif()
 
+# Apple's system linker (ld) cannot parse DWARF 5, which LLVM clang
+# generates by default. Force DWARF 4 to suppress the linker warnings.
+if(APPLE)
+  add_compile_options(-gdwarf-4)
+endif()
+
 # cleanup the code with clang-tidy set(CMAKE_CXX_CLANG_TIDY clang-tidy
 # -checks=-*,readability-*)
 
@@ -40,15 +46,14 @@ endif()
 
 # ANTLR4 CPP target rules ###########
 
-# Point CMake to the Corretto install location to avoid setting the system path.
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  set(JAVA_HOME "/usr/lib/jvm/java-11-amazon-corretto")
-elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-  set(JAVA_HOME
-      "/Library/Java/JavaVirtualMachines/amazon-corretto-11.jdk/Contents/Home")
-else()
-  message(FATAL_ERROR "${CMAKE_SYSTEM_NAME} is not supported")
+# Locate Java via find_program so any JDK 11+ install works.
+find_program(JAVA_EXECUTABLE NAMES java)
+if(NOT JAVA_EXECUTABLE)
+  message(FATAL_ERROR
+    "Java not found. Install a JDK 11+ or set JAVA_HOME manually.")
 endif()
+get_filename_component(JAVA_BIN_DIR "${JAVA_EXECUTABLE}" DIRECTORY)
+get_filename_component(JAVA_HOME "${JAVA_BIN_DIR}/.." ABSOLUTE)
 
 set(ANTLR4_WITH_STATIC_CRT OFF)
 set(ANTLR_TAG 4.13.1)
@@ -89,6 +94,11 @@ endif()
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 
+# TIP relies on opaque pointers and APIs from newer LLVM releases.
+if(LLVM_PACKAGE_VERSION VERSION_LESS "22.0.0")
+  message(FATAL_ERROR "LLVM 22+ is required, found ${LLVM_PACKAGE_VERSION}")
+endif()
+
 include_directories(${LLVM_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
 
@@ -114,6 +124,7 @@ FetchContent_Declare(
   GIT_TAG v3.3.2)
 
 FetchContent_MakeAvailable(Catch2)
+list(APPEND CMAKE_MODULE_PATH "${catch2_SOURCE_DIR}/extras")
 
 option(BUILD_TESTING "Build the testing tree." ON)
 # Only build tests if we are the top-level project Allows this to be used by

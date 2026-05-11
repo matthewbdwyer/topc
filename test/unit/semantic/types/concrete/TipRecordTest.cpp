@@ -7,7 +7,7 @@
 #include <iostream>
 #include <sstream>
 
-TEST_CASE("TipRecord: Test getters"
+TEST_CASE("TipRecord: Test getters",
           "[TipRecord]") {
   std::vector<std::shared_ptr<TipType>> inits{
       std::make_shared<TipInt>(),
@@ -23,7 +23,7 @@ TEST_CASE("TipRecord: Test getters"
   REQUIRE(dynamic_cast<const TipRef *>(tipRecord.getInits().back().get()));
 }
 
-TEST_CASE("TipRecord: Test arity"
+TEST_CASE("TipRecord: Test arity",
           "[TipRecord]") {
   std::vector<std::shared_ptr<TipType>> inits{
       std::make_shared<TipInt>(), std::make_shared<TipInt>(),
@@ -36,7 +36,7 @@ TEST_CASE("TipRecord: Test arity"
   REQUIRE(5 == tipRecord.arity());
 }
 
-TEST_CASE("TipRecord: Test equality"
+TEST_CASE("TipRecord: Test equality",
           "[TipRecord]") {
   std::vector<std::shared_ptr<TipType>> initsA{
       std::make_shared<TipInt>(),
@@ -83,7 +83,7 @@ TEST_CASE("TipRecord: Test equality"
   }
 }
 
-TEST_CASE("TipRecord: Test output stream"
+TEST_CASE("TipRecord: Test output stream",
           "[TipRecord]") {
   std::vector<std::shared_ptr<TipType>> inits{
       std::make_shared<TipInt>(),

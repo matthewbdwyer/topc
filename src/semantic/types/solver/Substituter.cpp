@@ -92,6 +92,6 @@ void Substituter::endVisit(TipAlpha *element) {
     visitedTypes.push_back(copy);
   } else {
     visitedTypes.push_back(
-        std::make_shared<TipAlpha>(element->getNode(), element->getName()));
+        std::make_shared<TipAlpha>(element->getNode(), element->getContext(), element->getName()));
   }
 }

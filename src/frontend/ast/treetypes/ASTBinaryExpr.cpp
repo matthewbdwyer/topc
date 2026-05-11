@@ -1,5 +1,17 @@
 #include "ASTBinaryExpr.h"
 #include "ASTVisitor.h"
+#include "InternalError.h"
+
+ASTBinaryExpr::BinaryOp ASTBinaryExpr::parseOp(const std::string &op) {
+  if (op == "+")  return BinaryOp::Add;
+  if (op == "-")  return BinaryOp::Sub;
+  if (op == "*")  return BinaryOp::Mul;
+  if (op == "/")  return BinaryOp::Div;
+  if (op == ">")  return BinaryOp::Gt;
+  if (op == "==") return BinaryOp::Eq;
+  if (op == "!=") return BinaryOp::Neq;
+  throw InternalError("Unknown binary operator: " + op);
+}
 
 void ASTBinaryExpr::accept(ASTVisitor *visitor) {
   if (visitor->visit(this)) {

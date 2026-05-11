@@ -41,7 +41,7 @@ public:
    * \param The AST of the program and symbol table
    */
 
-  static std::shared_ptr<CallGraph> build(ASTProgram *, SymbolTable *st);
+  [[nodiscard]] static std::shared_ptr<CallGraph> build(ASTProgram *, SymbolTable *st);
 
   /*! \brief Return the total num of vertices for a given call graph.
    */

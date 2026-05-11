@@ -5,7 +5,7 @@
 
 TipFunction::TipFunction(std::vector<std::shared_ptr<TipType>> params,
                          std::shared_ptr<TipType> ret)
-    : TipCons(std::move(combine(params, ret))) {}
+    : TipCons(combine(params, ret)) {}
 
 std::vector<std::shared_ptr<TipType>>
 TipFunction::combine(std::vector<std::shared_ptr<TipType>> params,
@@ -22,6 +22,20 @@ std::vector<std::shared_ptr<TipType>> TipFunction::getParamTypes() const {
 
 std::shared_ptr<TipType> TipFunction::getReturnType() const {
   return arguments.back();
+}
+
+std::size_t TipFunction::arity() const {
+  return arguments.size();  // params + return type stored together
+}
+
+std::shared_ptr<TipType> TipFunction::withChildTypes(
+    std::vector<std::shared_ptr<TipType>> children) const {
+  if (children.size() != arguments.size()) {
+    throw std::invalid_argument("TipFunction: wrong number of child types");
+  }
+  std::vector<std::shared_ptr<TipType>> params(children.begin(),
+                                               children.end() - 1);
+  return std::make_shared<TipFunction>(params, children.back());
 }
 
 std::ostream &TipFunction::print(std::ostream &out) const {

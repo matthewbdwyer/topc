@@ -22,7 +22,7 @@ header1:                                          ; preds = %body1, %entry
 
 body1:                                            ; preds = %header1
   %addtmp = add i64 %f2.0, %f1.0
-  %subtmp = add i64 %i.0, -1
+  %subtmp = add nsw i64 %i.0, -1
   br label %header1
 
 exit1:                                            ; preds = %header1

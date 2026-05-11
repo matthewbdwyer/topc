@@ -16,7 +16,6 @@ public:
   ASTExpr *getCondition() const { return COND.get(); }
   ASTStmt *getBody() const { return BODY.get(); }
   void accept(ASTVisitor *visitor) override;
-  llvm::Value *codegen() override;
 
 protected:
   std::ostream &print(std::ostream &out) const override;

@@ -66,6 +66,7 @@ target_include_directories(
           ${CMAKE_CURRENT_SOURCE_DIR}
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes
           ${CMAKE_SOURCE_DIR}/externals/PicoSHA2
+          ${CMAKE_SOURCE_DIR}/src/error
           ${CMAKE_SOURCE_DIR}/src/frontend/prettyprint
           ${CMAKE_SOURCE_DIR}/src/frontend/iterators)
 target_link_libraries(ast PRIVATE antlr4_static antlrgen codegen iterators
