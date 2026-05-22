@@ -63,3 +63,38 @@ void LocalNameCollector::endVisit(ASTVariableExpr *element) {
     }
   }
 }
+
+// ---- For-loop variable scoping ----
+
+bool LocalNameCollector::visit(ASTForStmt *element) {
+  // The for-loop variable will be added to curMap by endVisit(ASTDeclNode*).
+  // We note its name here so we can remove it when the loop ends.
+  forVarStack.push_back(element->getVar()->getName());
+  return true;
+}
+
+void LocalNameCollector::endVisit(ASTForStmt *element) {
+  if (!forVarStack.empty()) {
+    curMap.erase(forVarStack.back());
+    forVarStack.pop_back();
+  }
+}
+
+// ---- Case arm binding scoping ----
+
+bool LocalNameCollector::visit(ASTCaseArm *element) {
+  // Collect the names of bindings in this arm so we can remove them afterward.
+  std::vector<std::string> names;
+  for (auto b : element->getBindings())
+    names.push_back(b->getName());
+  caseArmBindingStack.push_back(std::move(names));
+  return true;
+}
+
+void LocalNameCollector::endVisit(ASTCaseArm *element) {
+  if (!caseArmBindingStack.empty()) {
+    for (auto &n : caseArmBindingStack.back())
+      curMap.erase(n);
+    caseArmBindingStack.pop_back();
+  }
+}

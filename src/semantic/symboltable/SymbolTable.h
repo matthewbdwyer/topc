@@ -18,14 +18,20 @@ class SymbolTable {
   std::map<std::string, std::pair<ASTDeclNode *, bool>> functionNames;
   std::map<ASTDeclNode *, std::map<std::string, ASTDeclNode *>> localNames;
   std::vector<std::string> fieldNames;
+  // TOP extensions: sum types and constructors
+  std::map<std::string, ASTSumTypeDecl *> typeNames;
+  std::map<std::string, ASTSumVariant *> constructorNames;
 
 public:
   SymbolTable(
       std::map<std::string, std::pair<ASTDeclNode *, bool>> fMap,
       std::map<ASTDeclNode *, std::map<std::string, ASTDeclNode *>> lMap,
-      std::vector<std::string> fSet)
+      std::vector<std::string> fSet,
+      std::map<std::string, ASTSumTypeDecl *> tMap = {},
+      std::map<std::string, ASTSumVariant *> cMap = {})
       : functionNames(std::move(fMap)), localNames(std::move(lMap)),
-        fieldNames(std::move(fSet)) {}
+        fieldNames(std::move(fSet)), typeNames(std::move(tMap)),
+        constructorNames(std::move(cMap)) {}
 
   /*! \brief Return the declaration node for a given function name.
    * \param s The Function name
@@ -58,6 +64,22 @@ public:
   /*! \brief Returns the record field names referenced in the program.
    */
   std::vector<std::string> getFields();
+
+  /*! \brief Return the declaration node for a sum type by name.
+   * \param name The type name (must start with uppercase).
+   * \return The ASTSumTypeDecl, or nullptr if not found.
+   */
+  ASTSumTypeDecl *getSumType(std::string name);
+
+  /*! \brief Return the variant declaration for a constructor tag.
+   * \param tag The constructor name (must start with uppercase).
+   * \return The ASTSumVariant, or nullptr if not found.
+   */
+  ASTSumVariant *getConstructor(std::string tag);
+
+  /*! \brief Return all declared sum type names.
+   */
+  std::vector<std::string> getSumTypes();
 
   /*! \fn build
    *  \brief Perform symbol analysis and construct symbol table.
