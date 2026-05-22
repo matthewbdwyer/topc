@@ -27,7 +27,7 @@ class ASTNumberExpr;
 class ASTOutputStmt;
 class ASTProgram;
 class ASTRecordExpr;
-class ASTRefExpr;
+class ASTBorrowExpr;
 class ASTReturnStmt;
 class ASTVariableExpr;
 class ASTWhileStmt;
@@ -74,7 +74,7 @@ public:
   llvm::Value *generate(ASTFunAppExpr   *node);
   llvm::Value *generate(ASTAllocExpr    *node);
   llvm::Value *generate(ASTNullExpr     *node);
-  llvm::Value *generate(ASTRefExpr      *node);
+  llvm::Value *generate(ASTBorrowExpr     *node);
   llvm::Value *generate(ASTDeRefExpr    *node);
   llvm::Value *generate(ASTRecordExpr   *node);
   llvm::Value *generate(ASTFieldExpr    *node);

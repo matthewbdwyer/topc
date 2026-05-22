@@ -34,7 +34,9 @@ std::string joinWithDelim(std::vector<std::string> &visitResults,
 }
 
 void PrettyPrinter::endVisit(ASTProgram *element) {
-  os << joinWithDelim(visitResults, "\n", element->getFunctions().size(), 1);
+  int total = static_cast<int>(element->getTypedecls().size()) +
+              static_cast<int>(element->getFunctions().size());
+  os << joinWithDelim(visitResults, "\n", total, 1);
   os.flush();
 }
 
@@ -248,4 +250,90 @@ void PrettyPrinter::endVisit(ASTReturnStmt *element) {
 
 std::string PrettyPrinter::indent() const {
   return std::string(indentLevel * indentSize, indentChar);
+}
+
+// TOP/SOP pretty-printer implementations
+
+void PrettyPrinter::endVisit(ASTSumVariant *element) {
+  if (element->getParams().empty()) {
+    visitResults.push_back(element->getTag());
+  } else {
+    std::string paramsStr =
+        joinWithDelim(visitResults, ", ", element->getParams().size(), 1);
+    visitResults.push_back(element->getTag() + "(" + paramsStr + ")");
+  }
+}
+
+void PrettyPrinter::endVisit(ASTSumTypeDecl *element) {
+  std::string variantsStr =
+      joinWithDelim(visitResults, " | ", element->getVariants().size(), 1);
+  visitResults.push_back("type " + element->getName() + " = " + variantsStr +
+                         ";");
+}
+
+bool PrettyPrinter::visit(ASTCaseStmt *element) {
+  indentLevel++;
+  return true;
+}
+
+void PrettyPrinter::endVisit(ASTCaseStmt *element) {
+  indentLevel--;
+  // arms are on top of the stack; scrutinee is below them
+  std::string armsStr =
+      joinWithDelim(visitResults, "\n", element->getArms().size(), 1);
+  std::string scrutStr = visitResults.back();
+  visitResults.pop_back();
+  visitResults.push_back(indent() + "case " + scrutStr + " of {\n" + armsStr +
+                         "\n" + indent() + "}");
+}
+
+void PrettyPrinter::endVisit(ASTCaseArm *element) {
+  std::string bodyStr = visitResults.back();
+  visitResults.pop_back();
+  // strip leading whitespace so the body is inline after "->"
+  bodyStr.erase(0, bodyStr.find_first_not_of(" \t"));
+  std::string bindingsStr;
+  if (!element->getBindings().empty()) {
+    bindingsStr =
+        "(" +
+        joinWithDelim(visitResults, ", ", element->getBindings().size(), 1) +
+        ")";
+  }
+  visitResults.push_back(indent() + element->getTag() + bindingsStr + " -> " +
+                         bodyStr);
+}
+
+bool PrettyPrinter::visit(ASTForStmt *element) {
+  indentLevel++;
+  return true;
+}
+
+void PrettyPrinter::endVisit(ASTForStmt *element) {
+  std::string bodyStr = visitResults.back();
+  visitResults.pop_back();
+  std::string iterStr = visitResults.back();
+  visitResults.pop_back();
+  std::string varStr = visitResults.back();
+  visitResults.pop_back();
+  indentLevel--;
+  visitResults.push_back(indent() + "for (" + varStr + " : " + iterStr +
+                         ") \n" + bodyStr);
+}
+
+void PrettyPrinter::endVisit(ASTRangeExpr *element) {
+  if (element->getStep()) {
+    std::string stepStr = visitResults.back();
+    visitResults.pop_back();
+    std::string hiStr = visitResults.back();
+    visitResults.pop_back();
+    std::string loStr = visitResults.back();
+    visitResults.pop_back();
+    visitResults.push_back(loStr + " .. " + hiStr + " by " + stepStr);
+  } else {
+    std::string hiStr = visitResults.back();
+    visitResults.pop_back();
+    std::string loStr = visitResults.back();
+    visitResults.pop_back();
+    visitResults.push_back(loStr + " .. " + hiStr);
+  }
 }

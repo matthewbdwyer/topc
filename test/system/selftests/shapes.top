@@ -1,0 +1,18 @@
+type Shape = Circle(r) | Rect(w, h) | Point;
+
+area(s) {
+  var a;
+  a = 0;
+  case s of {
+    Circle(r) -> a = r * r;
+    Rect(w, h) -> a = w * h;
+    Point -> a = 0;
+  }
+  return a;
+}
+
+main() {
+  var s, r;
+  r = area(alloc 0);
+  return r;
+}

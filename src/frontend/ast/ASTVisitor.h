@@ -38,8 +38,8 @@ public:
   virtual void endVisit(ASTFunAppExpr *element) {}
   virtual bool visit(ASTAllocExpr *element) { return true; }
   virtual void endVisit(ASTAllocExpr *element) {}
-  virtual bool visit(ASTRefExpr *element) { return true; }
-  virtual void endVisit(ASTRefExpr *element) {}
+  virtual bool visit(ASTBorrowExpr *element) { return true; }
+  virtual void endVisit(ASTBorrowExpr *element) {}
   virtual bool visit(ASTDeRefExpr *element) { return true; }
   virtual void endVisit(ASTDeRefExpr *element) {}
   virtual bool visit(ASTNullExpr *element) { return true; }
@@ -68,4 +68,17 @@ public:
   virtual void endVisit(ASTErrorStmt *element) {}
   virtual bool visit(ASTBlockStmt *element) { return true; }
   virtual void endVisit(ASTBlockStmt *element) {}
+  // TOP/SOP extension nodes
+  virtual bool visit(ASTSumTypeDecl *element) { return true; }
+  virtual void endVisit(ASTSumTypeDecl *element) {}
+  virtual bool visit(ASTSumVariant *element) { return true; }
+  virtual void endVisit(ASTSumVariant *element) {}
+  virtual bool visit(ASTCaseStmt *element) { return true; }
+  virtual void endVisit(ASTCaseStmt *element) {}
+  virtual bool visit(ASTCaseArm *element) { return true; }
+  virtual void endVisit(ASTCaseArm *element) {}
+  virtual bool visit(ASTForStmt *element) { return true; }
+  virtual void endVisit(ASTForStmt *element) {}
+  virtual bool visit(ASTRangeExpr *element) { return true; }
+  virtual void endVisit(ASTRangeExpr *element) {}
 };

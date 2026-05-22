@@ -17,6 +17,11 @@ target_sources(
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTBinaryExpr.h
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTBlockStmt.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTBlockStmt.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTBorrowExpr.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTCaseArm.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTCaseArm.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTCaseStmt.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTCaseStmt.h
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTDeRefExpr.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTDeRefExpr.h
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTDeclNode.cpp
@@ -28,6 +33,8 @@ target_sources(
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTExpr.h
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTFieldExpr.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTFieldExpr.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTForStmt.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTForStmt.h
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTFunAppExpr.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTFunAppExpr.h
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTFunction.cpp
@@ -45,6 +52,8 @@ target_sources(
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTOutputStmt.h
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTProgram.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTProgram.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTRangeExpr.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTRangeExpr.h
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTRecordExpr.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTRecordExpr.h
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTRefExpr.cpp
@@ -52,6 +61,10 @@ target_sources(
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTReturnStmt.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTReturnStmt.h
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTStmt.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTSumTypeDecl.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTSumTypeDecl.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTSumVariant.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTSumVariant.h
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTVariableExpr.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTVariableExpr.h
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTWhileStmt.cpp

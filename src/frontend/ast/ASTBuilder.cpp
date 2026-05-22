@@ -54,6 +54,9 @@ static std::shared_ptr<ASTDeclStmt> visitedDeclStmt = nullptr;
 static std::shared_ptr<ASTExpr> visitedExpr = nullptr;
 static std::shared_ptr<ASTFieldExpr> visitedFieldExpr = nullptr;
 static std::shared_ptr<ASTFunction> visitedFunction = nullptr;
+static std::shared_ptr<ASTSumTypeDecl> visitedTypedecl = nullptr;
+static std::shared_ptr<ASTSumVariant> visitedSumVariant = nullptr;
+static std::shared_ptr<ASTCaseArm> visitedCaseArm = nullptr;
 
 /**********************************************************************
  * These methods override selected methods in the TIPBaseVisitor.
@@ -85,13 +88,19 @@ static std::shared_ptr<ASTFunction> visitedFunction = nullptr;
  */
 
 std::shared_ptr<ASTProgram> ASTBuilder::build(TIPParser::ProgramContext *ctx) {
+  std::vector<std::shared_ptr<ASTSumTypeDecl>> pTypedecls;
+  for (auto td : ctx->typeDecl()) {
+    visit(td);
+    pTypedecls.push_back(visitedTypedecl);
+  }
+
   std::vector<std::shared_ptr<ASTFunction>> pFunctions;
   for (auto fn : ctx->function()) {
     visit(fn);
     pFunctions.push_back(visitedFunction);
   }
 
-  auto prog = std::make_shared<ASTProgram>(pFunctions);
+  auto prog = std::make_shared<ASTProgram>(pTypedecls, pFunctions);
   prog->setName(generateSHA256(ctx->getText()));
   return prog;
 }
@@ -282,7 +291,7 @@ Any ASTBuilder::visitAllocExpr(TIPParser::AllocExprContext *ctx) {
 
 Any ASTBuilder::visitRefExpr(TIPParser::RefExprContext *ctx) {
   visit(ctx->expr());
-  visitedExpr = std::make_shared<ASTRefExpr>(visitedExpr);
+  visitedExpr = std::make_shared<ASTBorrowExpr>(visitedExpr);
 
   LOG_S(1) << "Built AST node " << *visitedExpr;
 
@@ -479,29 +488,97 @@ Any ASTBuilder::visitReturnStmt(TIPParser::ReturnStmtContext *ctx) {
   return "";
 } // LCOV_EXCL_LINE
 
-// TOP extensions — Phase 1 stubs (AST nodes created in Phase 2)
-Any ASTBuilder::visitTypeDecl(TIPParser::TypeDeclContext *ctx) {
-  throw InternalError("visitTypeDecl: not yet implemented");
-}
-
+// TOP extensions — Phase 2 AST builder implementations
 Any ASTBuilder::visitSumVariant(TIPParser::SumVariantContext *ctx) {
-  throw InternalError("visitSumVariant: not yet implemented");
+  std::string tag = ctx->CONID()->getText();
+  std::vector<std::shared_ptr<ASTDeclNode>> params;
+  for (auto nd : ctx->nameDeclaration()) {
+    visit(nd);
+    params.push_back(visitedDeclNode);
+  }
+  visitedSumVariant = std::make_shared<ASTSumVariant>(tag, params);
+  LOG_S(1) << "Built AST node " << *visitedSumVariant;
+  visitedSumVariant->setLocation(ctx->getStart()->getLine(),
+                                 ctx->getStart()->getCharPositionInLine());
+  return "";
 }
 
-Any ASTBuilder::visitCaseStmt(TIPParser::CaseStmtContext *ctx) {
-  throw InternalError("visitCaseStmt: not yet implemented");
+Any ASTBuilder::visitTypeDecl(TIPParser::TypeDeclContext *ctx) {
+  std::string name = ctx->CONID()->getText();
+  std::vector<std::shared_ptr<ASTSumVariant>> variants;
+  for (auto sv : ctx->sumVariant()) {
+    visit(sv);
+    variants.push_back(visitedSumVariant);
+  }
+  visitedTypedecl = std::make_shared<ASTSumTypeDecl>(name, variants);
+  LOG_S(1) << "Built AST node " << *visitedTypedecl;
+  visitedTypedecl->setLocation(ctx->getStart()->getLine(),
+                               ctx->getStart()->getCharPositionInLine());
+  return "";
 }
 
 Any ASTBuilder::visitCaseArm(TIPParser::CaseArmContext *ctx) {
-  throw InternalError("visitCaseArm: not yet implemented");
+  std::string tag = ctx->CONID()->getText();
+  std::vector<std::shared_ptr<ASTDeclNode>> bindings;
+  for (auto id : ctx->IDENTIFIER()) {
+    auto decl = std::make_shared<ASTDeclNode>(id->getText());
+    decl->setLocation(static_cast<int>(id->getSymbol()->getLine()),
+                      static_cast<int>(id->getSymbol()->getCharPositionInLine()));
+    bindings.push_back(decl);
+  }
+  visit(ctx->statement());
+  auto body = visitedStmt;
+  visitedCaseArm = std::make_shared<ASTCaseArm>(tag, bindings, body);
+  LOG_S(1) << "Built AST node " << *visitedCaseArm;
+  visitedCaseArm->setLocation(ctx->getStart()->getLine(),
+                              ctx->getStart()->getCharPositionInLine());
+  return "";
+}
+
+Any ASTBuilder::visitCaseStmt(TIPParser::CaseStmtContext *ctx) {
+  visit(ctx->expr());
+  auto scrutinee = visitedExpr;
+  std::vector<std::shared_ptr<ASTCaseArm>> arms;
+  for (auto arm : ctx->caseArm()) {
+    visit(arm);
+    arms.push_back(visitedCaseArm);
+  }
+  visitedStmt = std::make_shared<ASTCaseStmt>(scrutinee, arms);
+  LOG_S(1) << "Built AST node " << *visitedStmt;
+  visitedStmt->setLocation(ctx->getStart()->getLine(),
+                           ctx->getStart()->getCharPositionInLine());
+  return "";
 }
 
 Any ASTBuilder::visitForStmt(TIPParser::ForStmtContext *ctx) {
-  throw InternalError("visitForStmt: not yet implemented");
+  visit(ctx->nameDeclaration());
+  auto var = visitedDeclNode;
+  visit(ctx->expr());
+  auto iterable = visitedExpr;
+  visit(ctx->statement());
+  auto body = visitedStmt;
+  visitedStmt = std::make_shared<ASTForStmt>(var, iterable, body);
+  LOG_S(1) << "Built AST node " << *visitedStmt;
+  visitedStmt->setLocation(ctx->getStart()->getLine(),
+                           ctx->getStart()->getCharPositionInLine());
+  return "";
 }
 
 Any ASTBuilder::visitRangeExpr(TIPParser::RangeExprContext *ctx) {
-  throw InternalError("visitRangeExpr: not yet implemented");
+  visit(ctx->expr(0));
+  auto lo = visitedExpr;
+  visit(ctx->expr(1));
+  auto hi = visitedExpr;
+  std::shared_ptr<ASTExpr> step = nullptr;
+  if (ctx->expr().size() == 3) {
+    visit(ctx->expr(2));
+    step = visitedExpr;
+  }
+  visitedExpr = std::make_shared<ASTRangeExpr>(lo, hi, step);
+  LOG_S(1) << "Built AST node " << *visitedExpr;
+  visitedExpr->setLocation(ctx->getStart()->getLine(),
+                           ctx->getStart()->getCharPositionInLine());
+  return "";
 }
 
 Any ASTBuilder::visitAssignStmt(TIPParser::AssignStmtContext *ctx) {

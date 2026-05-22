@@ -255,7 +255,7 @@ llvm::Value *CodeGenVisitor::dispatch(ASTNode *node) {
       result = codegen_.generate(n);
       return false;
     }
-    bool visit(ASTRefExpr *n) override {
+    bool visit(ASTBorrowExpr *n) override {
       result = codegen_.generate(n);
       return false;
     }
@@ -550,7 +550,7 @@ llvm::Value *CodeGenVisitor::generate(ASTNullExpr *node) {
       nullPtr, llvm::Type::getInt64Ty(ctx.llvmContext), "nullPtrIntVal");
 }
 
-llvm::Value *CodeGenVisitor::generate(ASTRefExpr *node) {
+llvm::Value *CodeGenVisitor::generate(ASTBorrowExpr *node) {
   LOG_S(1) << "Generating code for " << *node;
   auto &ctx = *ctx_;
 

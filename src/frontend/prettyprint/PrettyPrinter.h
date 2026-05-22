@@ -54,6 +54,15 @@ public:
   virtual void endVisit(ASTOutputStmt *element) override;
   virtual void endVisit(ASTReturnStmt *element) override;
   virtual void endVisit(ASTErrorStmt *element) override;
+  // TOP/SOP extension nodes
+  virtual void endVisit(ASTSumVariant *element) override;
+  virtual void endVisit(ASTSumTypeDecl *element) override;
+  virtual bool visit(ASTCaseStmt *element) override;
+  virtual void endVisit(ASTCaseStmt *element) override;
+  virtual void endVisit(ASTCaseArm *element) override;
+  virtual bool visit(ASTForStmt *element) override;
+  virtual void endVisit(ASTForStmt *element) override;
+  virtual void endVisit(ASTRangeExpr *element) override;
 
 private:
   std::string indent() const;
