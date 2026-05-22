@@ -15,10 +15,11 @@ function : nameDeclaration
 
 ////////////////////// TOP Type Declarations ////////////////////////// 
 
-// Sum type declarations (top-level only)
-typeDecl : KTYPE IDENTIFIER '=' sumVariant ('|' sumVariant)* ';' ;
+// Sum type declarations (top-level only).
+// Type names and constructor names must begin with an uppercase letter (CONID).
+typeDecl : KTYPE CONID '=' sumVariant ('|' sumVariant)* ';' ;
 
-sumVariant : IDENTIFIER ('(' nameDeclaration (',' nameDeclaration)* ')')? ;
+sumVariant : CONID ('(' nameDeclaration (',' nameDeclaration)* ')')? ;
 
 ////////////////////// TIP Declarations ///////////////////////// 
 
@@ -95,7 +96,7 @@ returnStmt : KRETURN expr ';'  ;
 
 // TOP case statement (pattern-match on sum type)
 caseStmt : KCASE expr KOF '{' caseArm+ '}' ;
-caseArm  : IDENTIFIER ('(' IDENTIFIER (',' IDENTIFIER)* ')')? ARROW statement ;
+caseArm  : CONID ('(' IDENTIFIER (',' IDENTIFIER)* ')')? ARROW statement ;
 
 // SOP for-loop stub (AST building deferred to sopc)
 forStmt : KFOR '(' nameDeclaration ':' expr ')' statement ;
@@ -139,6 +140,11 @@ KBY     : 'by' ;
 // TOP operator tokens (must precede SUB and GT so maximal-munch applies)
 ARROW   : '->' ;
 DOTDOT  : '..' ;
+
+// Constructor/type identifiers must begin with an uppercase letter.
+// CONID must precede IDENTIFIER so ANTLR4 assigns uppercase-starting words
+// to CONID via the first-match rule.
+CONID : [A-Z][a-zA-Z0-9_]* ;
 
 IDENTIFIER : [a-zA-Z_][a-zA-Z0-9_]* ;
 

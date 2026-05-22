@@ -380,6 +380,33 @@ TEST_CASE("TOP Parser: reject range expr single dot", "[TOP Parser]") {
   REQUIRE_FALSE(ParserHelper::is_parsable(stream));
 }
 
+TEST_CASE("TOP Parser: reject lowercase type name", "[TOP Parser]") {
+  std::stringstream stream;
+  stream << R"(
+      type color = Red | Green;
+      main() { return 0; }
+    )";
+  REQUIRE_FALSE(ParserHelper::is_parsable(stream));
+}
+
+TEST_CASE("TOP Parser: reject lowercase constructor in type decl", "[TOP Parser]") {
+  std::stringstream stream;
+  stream << R"(
+      type Color = red | Green;
+      main() { return 0; }
+    )";
+  REQUIRE_FALSE(ParserHelper::is_parsable(stream));
+}
+
+TEST_CASE("TOP Parser: reject lowercase constructor in case arm", "[TOP Parser]") {
+  std::stringstream stream;
+  stream << R"(
+      type C = A | B;
+      f(x) { var r; case x of { a -> r = 1; } return r; }
+    )";
+  REQUIRE_FALSE(ParserHelper::is_parsable(stream));
+}
+
 TEST_CASE("TIP Parser: keywords as ids", "[TIP Parser]") {
   std::stringstream stream;
   stream << R"(
