@@ -42,7 +42,7 @@ run_selftest() {
     ((numfailures++))
     return
   fi
-  ${TIPCLANG} -w "${tipfile}.bc" "${RTLIB}/tip_rtlib.bc" -o "${base}"
+  ${TIPCLANG} -w -fsanitize=address "${tipfile}.bc" "${RTLIB}/tip_rtlib.bc" -o "${base}"
 
   ${TIMEOUT} "./${base}" &>/dev/null
   local exit_code=${?}
@@ -80,7 +80,7 @@ do
     ((numfailures++))
     continue
   fi
-  ${TIPCLANG} -w "${SCRIPT_DIR}/iotests/$executable.tip.bc" "${RTLIB}/tip_rtlib.bc" -o "$executable"
+  ${TIPCLANG} -w -fsanitize=address "${SCRIPT_DIR}/iotests/$executable.tip.bc" "${RTLIB}/tip_rtlib.bc" -o "$executable"
 
   ./${executable} $input >"${SCRIPT_DIR}/iotests/$executable.output" 2>&1
 
@@ -124,7 +124,7 @@ do
     ((numfailures++))
     continue
   fi
-  ${TIPCLANG} -w "$i.bc" "${RTLIB}/tip_rtlib.bc" -o "$base"
+  ${TIPCLANG} -w -fsanitize=address "$i.bc" "${RTLIB}/tip_rtlib.bc" -o "$base"
 
   ${TIMEOUT} "./${base}" &>/dev/null
   exit_code=${?}

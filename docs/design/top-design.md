@@ -1,5 +1,5 @@
-## O-TIP: A Memory-Safe Redesign of the TIP Language
-O-TIP (Ownership-TIP) is a redesign of the Tiny Imperative Programming (TIP) language. It transforms TIP from a "leaky" minimalist language into a memory-safe, statically verified language by introducing Ownership, Lifetimes, and Structural Types, all while maintaining TIP’s signature implicit type inference.
+## TOP: A Memory-Safe Redesign of the TIP Language
+TOP (Ownership-TIP) is a redesign of the Tiny Imperative Programming (TIP) language. It transforms TIP from a "leaky" minimalist language into a memory-safe, statically verified language by introducing Ownership, Lifetimes, and Structural Types, all while maintaining TIP’s signature implicit type inference.
 ------------------------------
 ## 1. Core Philosophy
 
@@ -10,7 +10,7 @@ O-TIP (Ownership-TIP) is a redesign of the Tiny Imperative Programming (TIP) lan
 
 ------------------------------
 ## 2. Ownership and Move Semantics
-In O-TIP, variables don't just hold values; they own resources.
+In TOP, variables don't just hold values; they own resources.
 ## Move-on-Assignment
 Standard assignment (p = q) is now a move.
 
@@ -26,7 +26,7 @@ The compiler tracks the lexical scope of every "Owner."
 
 ------------------------------
 ## 3. Borrowing with &
-To avoid the "Hot Potato" problem (repeatedly moving and returning pointers), O-TIP introduces Borrowing.
+To avoid the "Hot Potato" problem (repeatedly moving and returning pointers), TOP introduces Borrowing.
 
 * The & Operator: Used to "lend" access to a resource without giving up ownership.
 * Immutability: To keep the initial redesign simple, all borrows are read-only.
@@ -42,7 +42,7 @@ main() {
 
 ------------------------------
 ## 4. Strengthened Type System
-O-TIP extends TIP’s unification-based inference to include Subtyping and Lifetime Constraints.
+TOP extends TIP’s unification-based inference to include Subtyping and Lifetime Constraints.
 
 * Types as Pairs: A type is represented as (BaseType, OwnershipState).
 * Constraint Solver: Instead of just checking if T1 == T2, the solver ensures that for any borrow, the Lifetime(Source) >= Lifetime(Borrow).
@@ -50,7 +50,7 @@ O-TIP extends TIP’s unification-based inference to include Subtyping and Lifet
 
 ------------------------------
 ## 5. Enhanced Data Structures (Optional Additions)
-To further strengthen the language, O-TIP introduces formal Product and Sum types, replacing raw pointer offsets.
+To further strengthen the language, TOP introduces formal Product and Sum types, replacing raw pointer offsets.
 ## Product Types (Records)
 Groups related data into a single owned unit.
 
@@ -72,9 +72,9 @@ case p of
   None      -> print 0
 
 ------------------------------
-## 6. Feature Summary: TIP vs. O-TIP
+## 6. Feature Summary: TIP vs. TOP
 
-| Feature | Standard TIP | O-TIP |
+| Feature | Standard TIP | TOP |
 |---|---|---|
 | Memory Management | Manual (Leaky) | Automatic (RAII/Scope) |
 | Pointer Safety | Unsafe / No checks | Ownership & Borrowing |

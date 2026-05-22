@@ -26,6 +26,9 @@ static cl::opt<bool> polyinf("pi",
                              cl::cat(TIPcat));
 static cl::opt<bool> disopt("do", cl::desc("disable bitcode optimization"),
                             cl::cat(TIPcat));
+static cl::opt<bool> emitAsan("asan",
+                              cl::desc("instrument generated IR with AddressSanitizer"),
+                              cl::cat(TIPcat));
 static cl::opt<int> debug(
     "verbose",
     cl::desc("enable log messages (Levels 1-3) \n Level 1 - Basic logging for "
@@ -127,7 +130,7 @@ int main(int argc, char *argv[]) {
           CodeGenerator::generate(ast.get(), analysisResults.get(), sourceFile);
 
       if (!disopt) {
-        Optimizer::optimize(llvmModule.get());
+        Optimizer::optimize(llvmModule.get(), emitAsan);
       }
 
       if (emitHrAsm) {
