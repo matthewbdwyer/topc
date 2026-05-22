@@ -10,10 +10,13 @@
 
 #include "TipAbsentField.h"
 #include "TipAlpha.h"
+#include "TipBorrowRef.h"
 #include "TipFunction.h"
 #include "TipInt.h"
 #include "TipMu.h"
+#include "TipOwningRef.h"
 #include "TipRecord.h"
 #include "TipRef.h"
+#include "TipSumType.h"
 #include "TipType.h"
 #include "TipVar.h"

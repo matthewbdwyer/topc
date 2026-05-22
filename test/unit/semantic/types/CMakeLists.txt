@@ -21,6 +21,7 @@ target_sources(
     ${CMAKE_CURRENT_SOURCE_DIR}/constraints/PolyTypeConstraintCollectTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/constraints/TypeConstraintTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/constraints/AbsentFieldCheckerTest.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/constraints/Phase6TypeTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/TermUnionFindTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/TermUnifierTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/TipTermClosureTest.cpp

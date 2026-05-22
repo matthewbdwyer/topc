@@ -37,6 +37,12 @@ public:
   virtual void endVisit(TipAbsentField *element) {}
   virtual bool visit(TipRef *element) { return true; }
   virtual void endVisit(TipRef *element) {}
+  virtual bool visit(TipOwningRef *element) { return true; }
+  virtual void endVisit(TipOwningRef *element) {}
+  virtual bool visit(TipBorrowRef *element) { return true; }
+  virtual void endVisit(TipBorrowRef *element) {}
+  virtual bool visit(TipSumType *element) { return true; }
+  virtual void endVisit(TipSumType *element) {}
   virtual bool visit(TipVar *element) { return true; }
   virtual void endVisit(TipVar *element) {}
 };

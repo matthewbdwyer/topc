@@ -2,6 +2,7 @@
 
 #include "ASTVisitor.h"
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -23,7 +24,7 @@ class LocalNameCollector : public ASTVisitor {
   bool first = true;
   // Scoping stacks for lexically-scoped constructs
   std::vector<std::string> forVarStack;          // for-loop iteration variable names
-  std::vector<std::vector<std::string>> caseArmBindingStack; // case arm binding names
+  std::set<std::string> caseArmBindingNames;     // names bound by any case arm (may be overwritten)
 
 public:
   LocalNameCollector(std::map<std::string, std::pair<ASTDeclNode *, bool>> fMap)

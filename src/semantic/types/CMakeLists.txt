@@ -20,6 +20,12 @@ target_sources(
     ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipAbsentField.h
     ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipRef.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipRef.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipOwningRef.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipOwningRef.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipBorrowRef.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipBorrowRef.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipSumType.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipSumType.h
     ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipType.h
     ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipVar.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipVar.h

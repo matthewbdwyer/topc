@@ -78,6 +78,16 @@ std::vector<std::string> SymbolTable::getSumTypes() {
   return names;
 }
 
+ASTSumTypeDecl *SymbolTable::getConstructorOwner(std::string tag) {
+  for (auto &p : typeNames) {
+    for (auto *v : p.second->getVariants()) {
+      if (v->getTag() == tag)
+        return p.second;
+    }
+  }
+  return nullptr;
+}
+
 void SymbolTable::print(std::ostream &s) {
   s << "Functions : {";
   auto skip = true;

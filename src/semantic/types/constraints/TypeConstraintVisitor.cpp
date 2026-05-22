@@ -1,15 +1,22 @@
 #include "TypeConstraintVisitor.h"
+#include "ASTCaseStmt.h"
+#include "ASTSumTypeDecl.h"
+#include "ASTSumVariant.h"
 #include "TipAbsentField.h"
 #include "TipAlpha.h"
+#include "TipBorrowRef.h"
 #include "TipFunction.h"
 #include "TipInt.h"
+#include "TipOwningRef.h"
 #include "TipRecord.h"
 #include "TipRef.h"
+#include "TipSumType.h"
 #include "TipVar.h"
 
 TypeConstraintVisitor::TypeConstraintVisitor(
     SymbolTable *st, std::shared_ptr<ConstraintHandler> handler)
-    : symbolTable(st), constraintHandler(std::move(handler)){};
+    : symbolTable(st), constraintHandler(std::move(handler)),
+      isTopProgram(!st->getSumTypes().empty()) {};
 
 /*! \fn astToVar
  *  \brief Convert an AST node to a type variable.
@@ -141,32 +148,53 @@ void TypeConstraintVisitor::endVisit(ASTFunAppExpr *element) {
 /*! \brief Type constraints for heap allocation.
  *
  * Type Rules for "alloc E":
- *   [[alloc E]] = &[[E]]
+ *   TIP:  [[alloc E]] = &[[E]]        (TipRef)
+ *   TOP:  [[alloc E]] = own&[[E]]     (TipOwningRef)
  */
 void TypeConstraintVisitor::endVisit(ASTAllocExpr *element) {
-  constraintHandler->handle(
-      astToVar(element),
-      std::make_shared<TipRef>(astToVar(element->getInitializer())));
+  if (isTopProgram) {
+    constraintHandler->handle(
+        astToVar(element),
+        std::make_shared<TipOwningRef>(astToVar(element->getInitializer())));
+  } else {
+    constraintHandler->handle(
+        astToVar(element),
+        std::make_shared<TipRef>(astToVar(element->getInitializer())));
+  }
 }
 
 /*! \brief Type constraints for address of.
  *
  * Type Rules for "&X":
- *   [[&X]] = &[[X]]
+ *   TIP:  [[&X]] = &[[X]]         (TipRef)
+ *   TOP:  [[&X]] = borrow&[[X]]   (TipBorrowRef)
  */
 void TypeConstraintVisitor::endVisit(ASTRefExpr *element) {
-  constraintHandler->handle(
-      astToVar(element), std::make_shared<TipRef>(astToVar(element->getVar())));
+  if (isTopProgram) {
+    constraintHandler->handle(
+        astToVar(element),
+        std::make_shared<TipBorrowRef>(astToVar(element->getVar())));
+  } else {
+    constraintHandler->handle(
+        astToVar(element),
+        std::make_shared<TipRef>(astToVar(element->getVar())));
+  }
 }
 
 /*! \brief Type constraints for pointer dereference.
  *
  * Type Rules for "*E":
- *   [[E]] = &[[*E]]
+ *   TIP:  [[E]] = &[[*E]]         (TipRef)
+ *   TOP:  [[E]] = own&[[*E]]      (TipOwningRef)
  */
 void TypeConstraintVisitor::endVisit(ASTDeRefExpr *element) {
-  constraintHandler->handle(astToVar(element->getPtr()),
-                            std::make_shared<TipRef>(astToVar(element)));
+  if (isTopProgram) {
+    constraintHandler->handle(astToVar(element->getPtr()),
+                              std::make_shared<TipOwningRef>(astToVar(element)));
+  } else {
+    constraintHandler->handle(astToVar(element->getPtr()),
+                              std::make_shared<TipRef>(astToVar(element)));
+  }
 }
 
 /*! \brief Type constraints for null literal.
@@ -291,4 +319,63 @@ void TypeConstraintVisitor::endVisit(ASTAccessExpr *element) {
 void TypeConstraintVisitor::endVisit(ASTErrorStmt *element) {
   constraintHandler->handle(astToVar(element->getArg()),
                             std::make_shared<TipInt>());
+}
+
+/*! \brief Skip constraint generation for sum type declarations.
+ *
+ * Sum type declarations define the structure used in case constraints;
+ * they do not themselves produce type constraints.
+ */
+bool TypeConstraintVisitor::visit(ASTSumTypeDecl *element) {
+  return false; // do not recurse into variant param decls
+}
+
+/*! \brief Type constraints for a case statement.
+ *
+ * For "case E of { C1(v1,...) -> S1; ... Cn(vn,...) -> Sn; }":
+ *   1. [[E]] = SumType(TypeName, { C1->payloads..., ..., Cn->... })
+ *      where each payload slot is a TipVar keyed to the ASTSumVariant param.
+ *   2. For each arm Ci(vi,...): [[vi_j]] = [[variant_param_i_j]]
+ */
+void TypeConstraintVisitor::endVisit(ASTCaseStmt *element) {
+  if (element->getArms().empty())
+    return;
+
+  // Identify the owning sum type declaration from the first arm's tag.
+  auto firstTag = element->getArms()[0]->getTag();
+  auto *ownerDecl = symbolTable->getConstructorOwner(firstTag);
+  if (!ownerDecl)
+    return; // unknown constructor caught by weeding
+
+  // Build TipSumType: one type var per variant param (keyed to the param node).
+  std::vector<std::string> ctorNames;
+  std::vector<std::shared_ptr<TipType>> payloads;
+  std::map<std::string, int> arities;
+
+  for (auto *variant : ownerDecl->getVariants()) {
+    const std::string &tag = variant->getTag();
+    ctorNames.push_back(tag);
+    auto params = variant->getParams();
+    arities[tag] = static_cast<int>(params.size());
+    for (auto *param : params) {
+      payloads.push_back(astToVar(param));
+    }
+  }
+
+  auto sumTy = std::make_shared<TipSumType>(ownerDecl->getName(), ctorNames,
+                                            payloads, arities);
+  constraintHandler->handle(astToVar(element->getScrutinee()), sumTy);
+
+  // Constrain each arm's binding variables to the corresponding variant params.
+  for (auto *arm : element->getArms()) {
+    auto *variant = symbolTable->getConstructor(arm->getTag());
+    if (!variant)
+      continue;
+    auto variantParams = variant->getParams();
+    auto armBindings = arm->getBindings();
+    for (std::size_t i = 0; i < armBindings.size(); i++) {
+      constraintHandler->handle(astToVar(armBindings[i]),
+                                astToVar(variantParams[i]));
+    }
+  }
 }

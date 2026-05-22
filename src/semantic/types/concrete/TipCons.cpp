@@ -1,5 +1,8 @@
 #include "TipCons.h"
+#include "TipBorrowRef.h"
+#include "TipOwningRef.h"
 #include "TipRecord.h"
+#include "TipSumType.h"
 #include "TipTypeVisitor.h"
 
 std::size_t TipCons::arity() const { return arguments.size(); }
@@ -20,7 +23,8 @@ template <typename T> bool sameType(const TipType *x, const TipType *y) {
 bool TipCons::doMatch(TipType const *t) const {
   // Check if they are both the same TipType subtype
   if (sameType<TipFunction>(t, this) || sameType<TipInt>(t, this) ||
-      sameType<TipRef>(t, this)) {
+      sameType<TipRef>(t, this) || sameType<TipOwningRef>(t, this) ||
+      sameType<TipBorrowRef>(t, this)) {
     auto tipCons = dynamic_cast<TipCons const *>(t);
     return tipCons->arity() == arity();
   }
@@ -30,6 +34,12 @@ bool TipCons::doMatch(TipType const *t) const {
     if (rec1->arity() != rec2->arity()) return false;
     // Two records match only if they share the same canonical field names.
     return rec1->getFunctor() == rec2->getFunctor();
+  }
+  if (sameType<TipSumType>(t, this)) {
+    // Two sum types match only if they share the same type name (i.e. functor).
+    return dynamic_cast<TipCons const *>(t)->arity() == arity() &&
+           dynamic_cast<TipSumType const *>(this)->getFunctor() ==
+               dynamic_cast<TipSumType const *>(t)->getFunctor();
   }
   return false;
 }

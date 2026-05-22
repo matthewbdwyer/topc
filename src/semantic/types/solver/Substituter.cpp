@@ -1,5 +1,8 @@
 #include "Substituter.h"
 #include "Copier.h"
+#include "TipBorrowRef.h"
+#include "TipOwningRef.h"
+#include "TipSumType.h"
 
 #include <algorithm>
 #include <iterator>
@@ -73,6 +76,30 @@ void Substituter::endVisit(TipRef *element) {
   auto pointedToType = visitedTypes.back();
   visitedTypes.pop_back();
   visitedTypes.push_back(std::make_shared<TipRef>(pointedToType));
+}
+
+void Substituter::endVisit(TipOwningRef *element) {
+  auto pointedToType = visitedTypes.back();
+  visitedTypes.pop_back();
+  visitedTypes.push_back(std::make_shared<TipOwningRef>(pointedToType));
+}
+
+void Substituter::endVisit(TipBorrowRef *element) {
+  auto pointedToType = visitedTypes.back();
+  visitedTypes.pop_back();
+  visitedTypes.push_back(std::make_shared<TipBorrowRef>(pointedToType));
+}
+
+void Substituter::endVisit(TipSumType *element) {
+  std::vector<std::shared_ptr<TipType>> payloads;
+  for (std::size_t i = 0; i < element->getArguments().size(); i++) {
+    payloads.push_back(visitedTypes.back());
+    visitedTypes.pop_back();
+  }
+  std::reverse(payloads.begin(), payloads.end());
+  visitedTypes.push_back(std::make_shared<TipSumType>(
+      element->getTypeName(), element->getCtorOrder(), payloads,
+      element->getCtorArities()));
 }
 
 /*! \brief Substitute if variable is the target.

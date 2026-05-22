@@ -56,11 +56,16 @@ public:
   void endVisit(ASTRefExpr *element) override;
   void endVisit(ASTWhileStmt *element) override;
 
+  // TOP extensions
+  bool visit(ASTSumTypeDecl *element) override;
+  void endVisit(ASTCaseStmt *element) override;
+
 protected:
   std::shared_ptr<ConstraintHandler> constraintHandler;
   SymbolTable *symbolTable;
   std::shared_ptr<TipType> astToVar(ASTNode *n);
 
 private:
+  bool isTopProgram; ///< true when the program contains sum type declarations
   std::stack<ASTDeclNode *> scope;
 };

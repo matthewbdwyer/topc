@@ -12,6 +12,7 @@ LocalNameCollector::build(
 
 bool LocalNameCollector::visit(ASTFunction *element) {
   curMap.clear();
+  caseArmBindingNames.clear();
   funName = element->getName();
   first = true;
   return true;
@@ -32,12 +33,14 @@ void LocalNameCollector::endVisit(ASTDeclNode *element) {
     first = false;
   } else {
     if (fMap.count(element->getName()) == 0) {
-      if (curMap.count(element->getName()) == 0) {
+      if (curMap.count(element->getName()) == 0 ||
+          caseArmBindingNames.count(element->getName()) != 0) {
+        // Either first occurrence, or a case arm binding being re-bound by
+        // a subsequent case arm — silently overwrite.
         LOG_S(1) << "Adding var [[" << element->getName() << "@"
                  << element->getLine() << ":" << element->getColumn()
                  << "]] to symbol table.";
-        curMap.insert(
-            std::pair<std::string, ASTDeclNode *>(element->getName(), element));
+        curMap[element->getName()] = element;
       } else {
         throw SemanticError(
             "Symbol error line " + std::to_string(element->getLine()) +
@@ -83,18 +86,14 @@ void LocalNameCollector::endVisit(ASTForStmt *element) {
 // ---- Case arm binding scoping ----
 
 bool LocalNameCollector::visit(ASTCaseArm *element) {
-  // Collect the names of bindings in this arm so we can remove them afterward.
-  std::vector<std::string> names;
+  // Register binding names so they may be overwritten by a subsequent arm.
   for (auto b : element->getBindings())
-    names.push_back(b->getName());
-  caseArmBindingStack.push_back(std::move(names));
+    caseArmBindingNames.insert(b->getName());
   return true;
 }
 
 void LocalNameCollector::endVisit(ASTCaseArm *element) {
-  if (!caseArmBindingStack.empty()) {
-    for (auto &n : caseArmBindingStack.back())
-      curMap.erase(n);
-    caseArmBindingStack.pop_back();
-  }
+  // Arm bindings stay in curMap (and thus in localNames) for type inference.
+  // The caseArmBindingNames set allows subsequent arms with the same binding
+  // name to overwrite without a "redeclared" error.
 }

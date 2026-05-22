@@ -81,6 +81,12 @@ public:
    */
   std::vector<std::string> getSumTypes();
 
+  /*! \brief Return the sum type declaration that owns the given constructor tag.
+   * \param tag The constructor name.
+   * \return The ASTSumTypeDecl that declares it, or nullptr if not found.
+   */
+  ASTSumTypeDecl *getConstructorOwner(std::string tag);
+
   /*! \fn build
    *  \brief Perform symbol analysis and construct symbol table.
    *
