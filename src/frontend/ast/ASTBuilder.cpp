@@ -1,5 +1,6 @@
 #include "ASTBuilder.h"
 
+#include "InternalError.h"
 #include "picosha2.h"
 
 #include "loguru.hpp"
@@ -477,6 +478,31 @@ Any ASTBuilder::visitReturnStmt(TIPParser::ReturnStmtContext *ctx) {
                            ctx->getStart()->getCharPositionInLine());
   return "";
 } // LCOV_EXCL_LINE
+
+// TOP extensions — Phase 1 stubs (AST nodes created in Phase 2)
+Any ASTBuilder::visitTypeDecl(TIPParser::TypeDeclContext *ctx) {
+  throw InternalError("visitTypeDecl: not yet implemented");
+}
+
+Any ASTBuilder::visitSumVariant(TIPParser::SumVariantContext *ctx) {
+  throw InternalError("visitSumVariant: not yet implemented");
+}
+
+Any ASTBuilder::visitCaseStmt(TIPParser::CaseStmtContext *ctx) {
+  throw InternalError("visitCaseStmt: not yet implemented");
+}
+
+Any ASTBuilder::visitCaseArm(TIPParser::CaseArmContext *ctx) {
+  throw InternalError("visitCaseArm: not yet implemented");
+}
+
+Any ASTBuilder::visitForStmt(TIPParser::ForStmtContext *ctx) {
+  throw InternalError("visitForStmt: not yet implemented");
+}
+
+Any ASTBuilder::visitRangeExpr(TIPParser::RangeExprContext *ctx) {
+  throw InternalError("visitRangeExpr: not yet implemented");
+}
 
 Any ASTBuilder::visitAssignStmt(TIPParser::AssignStmtContext *ctx) {
   visit(ctx->expr(0));

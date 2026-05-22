@@ -67,4 +67,12 @@ public:
   Any visitOutputStmt(TIPParser::OutputStmtContext *ctx) override;
   Any visitErrorStmt(TIPParser::ErrorStmtContext *ctx) override;
   Any visitReturnStmt(TIPParser::ReturnStmtContext *ctx) override;
+
+  // TOP extensions (Phase 1 stubs — AST nodes built in Phase 2)
+  Any visitTypeDecl(TIPParser::TypeDeclContext *ctx) override;
+  Any visitSumVariant(TIPParser::SumVariantContext *ctx) override;
+  Any visitCaseStmt(TIPParser::CaseStmtContext *ctx) override;
+  Any visitCaseArm(TIPParser::CaseArmContext *ctx) override;
+  Any visitForStmt(TIPParser::ForStmtContext *ctx) override;
+  Any visitRangeExpr(TIPParser::RangeExprContext *ctx) override;
 };

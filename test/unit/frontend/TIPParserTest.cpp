@@ -258,6 +258,128 @@ TEST_CASE("TIP Parser: no expression statements", "[TIP Parser]") {
   REQUIRE_FALSE(ParserHelper::is_parsable(stream));
 }
 
+/************ TOP extension parser tests ************/
+
+TEST_CASE("TOP Parser: sum type decl single variant no payload", "[TOP Parser]") {
+  std::stringstream stream;
+  stream << R"(
+      type Color = Red | Green | Blue;
+      main() { return 0; }
+    )";
+  REQUIRE(ParserHelper::is_parsable(stream));
+}
+
+TEST_CASE("TOP Parser: sum type decl with payload variants", "[TOP Parser]") {
+  std::stringstream stream;
+  stream << R"(
+      type Shape = Circle(r) | Rect(w, h) | Point;
+      main() { return 0; }
+    )";
+  REQUIRE(ParserHelper::is_parsable(stream));
+}
+
+TEST_CASE("TOP Parser: sum type decl single variant with payload", "[TOP Parser]") {
+  std::stringstream stream;
+  stream << R"(
+      type Box = Wrap(val);
+      main() { return 0; }
+    )";
+  REQUIRE(ParserHelper::is_parsable(stream));
+}
+
+TEST_CASE("TOP Parser: case stmt single arm", "[TOP Parser]") {
+  std::stringstream stream;
+  stream << R"(
+      type Color = Red | Green | Blue;
+      f(x) {
+        var result;
+        case x of { Red -> result = 0; }
+        return result;
+      }
+    )";
+  REQUIRE(ParserHelper::is_parsable(stream));
+}
+
+TEST_CASE("TOP Parser: case stmt multiple arms with payload", "[TOP Parser]") {
+  std::stringstream stream;
+  stream << R"(
+      type Shape = Circle(r) | Rect(w, h);
+      area(s) {
+        var result;
+        case s of {
+          Circle(r) -> result = r * r;
+          Rect(w, h) -> result = w * h;
+        }
+        return result;
+      }
+    )";
+  REQUIRE(ParserHelper::is_parsable(stream));
+}
+
+TEST_CASE("TOP Parser: for stmt", "[TOP Parser]") {
+  std::stringstream stream;
+  stream << R"(
+      f(xs) {
+        var total;
+        for (x : xs) { total = total + x; }
+        return total;
+      }
+    )";
+  REQUIRE(ParserHelper::is_parsable(stream));
+}
+
+TEST_CASE("TOP Parser: range expr no by", "[TOP Parser]") {
+  std::stringstream stream;
+  stream << R"(
+      f() {
+        var total;
+        for (x : 1..10) { total = total + x; }
+        return total;
+      }
+    )";
+  REQUIRE(ParserHelper::is_parsable(stream));
+}
+
+TEST_CASE("TOP Parser: range expr with by", "[TOP Parser]") {
+  std::stringstream stream;
+  stream << R"(
+      f() {
+        var total;
+        for (x : 0..100 by 2) { total = total + x; }
+        return total;
+      }
+    )";
+  REQUIRE(ParserHelper::is_parsable(stream));
+}
+
+/*** Negative TOP parser tests ***/
+
+TEST_CASE("TOP Parser: reject case missing of", "[TOP Parser]") {
+  std::stringstream stream;
+  stream << R"(
+      type C = A | B;
+      f(x) { case x { A -> return 1; } return 0; }
+    )";
+  REQUIRE_FALSE(ParserHelper::is_parsable(stream));
+}
+
+TEST_CASE("TOP Parser: reject sum type decl missing equals", "[TOP Parser]") {
+  std::stringstream stream;
+  stream << R"(
+      type Color Red | Green | Blue;
+      main() { return 0; }
+    )";
+  REQUIRE_FALSE(ParserHelper::is_parsable(stream));
+}
+
+TEST_CASE("TOP Parser: reject range expr single dot", "[TOP Parser]") {
+  std::stringstream stream;
+  stream << R"(
+      f() { var x; for (i : 1.10) { x = x + i; } return x; }
+    )";
+  REQUIRE_FALSE(ParserHelper::is_parsable(stream));
+}
+
 TEST_CASE("TIP Parser: keywords as ids", "[TIP Parser]") {
   std::stringstream stream;
   stream << R"(

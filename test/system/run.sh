@@ -1,7 +1,8 @@
 #!/bin/bash
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="${GITHUB_WORKSPACE:-$(cd "${SCRIPT_DIR}/../.." && pwd)}"
-TIPC="${ROOT_DIR}/build/src/tipc"
+TIPC="${ROOT_DIR}/build/src/topc"
+TIPC_ALIAS="${ROOT_DIR}/build/src/tipc"
 RTLIB="${ROOT_DIR}/rtlib"
 SCRATCH_DIR="$(mktemp -d)"
 
@@ -29,12 +30,14 @@ initialize_test() {
 }
 
 # Compile, link, and run a single selftest program.
-# Usage: run_selftest <tipfile> [extra_tipc_flags]
+# Usage: run_selftest <srcfile> [extra_topc_flags]
 run_selftest() {
   local tipfile="$1"
   local extra_flags="${2:-}"
   local base
+  # Strip either .tip or .top extension
   base="$(basename "${tipfile}" .tip)"
+  base="$(basename "${base}" .top)"
 
   initialize_test
   if ! ${TIPC} ${extra_flags} "${tipfile}"; then
@@ -59,9 +62,17 @@ run_selftest() {
   rm -f "${tipfile}.bc"
 }
 
-# Self contained test cases
+# Self contained test cases (.tip — pure TIP programs)
 for i in "${SCRIPT_DIR}"/selftests/*.tip
 do
+  run_selftest "$i" ""
+  run_selftest "$i" "-do"
+done
+
+# Self contained test cases (.top — TOP programs)
+for i in "${SCRIPT_DIR}"/selftests/*.top
+do
+  [ -e "$i" ] || break
   run_selftest "$i" ""
   run_selftest "$i" "-do"
 done
@@ -213,11 +224,28 @@ if [ ${exit_code} -eq 0 ]; then
   ((numfailures++))
 fi
 
-# Type checking at the system level
+# Type checking at the system level (.tip programs)
 for i in "${SCRIPT_DIR}"/selftests/*.tip
 do
   initialize_test
   base="$(basename $i .tip)"
+
+  ${TIPC} -pp -pt "$i" >"${SCRATCH_DIR}/$base.pppt"
+  diff "$i.pppt" "${SCRATCH_DIR}/$base.pppt" >"${SCRATCH_DIR}/$base.diff"
+  if [[ -s ${SCRATCH_DIR}/$base.diff ]]
+  then
+    echo "Test differences for: $i"
+    cat "${SCRATCH_DIR}/$base.diff"
+    ((numfailures++))
+  fi
+done
+
+# Type checking at the system level (.top programs)
+for i in "${SCRIPT_DIR}"/selftests/*.top
+do
+  [ -e "$i" ] || break
+  initialize_test
+  base="$(basename $i .top)"
 
   ${TIPC} -pp -pt "$i" >"${SCRATCH_DIR}/$base.pppt"
   diff "$i.pppt" "${SCRATCH_DIR}/$base.pppt" >"${SCRATCH_DIR}/$base.diff"

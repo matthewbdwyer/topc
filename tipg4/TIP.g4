@@ -1,9 +1,10 @@
 grammar TIP;
 // Grammar for Moeller and Schwartzbach's Tiny Imperative Language (TIP)
+// Extended with TOP (Typed Ownership Programming) constructs.
 
 ////////////////////// TIP Programs ////////////////////////// 
 
-program : (function)+
+program : (typeDecl | function)+
 ;
 
 function : nameDeclaration 
@@ -11,6 +12,13 @@ function : nameDeclaration
            KPOLY?
            '{' (declaration*) (statement*) returnStmt '}' 
 ;
+
+////////////////////// TOP Type Declarations ////////////////////////// 
+
+// Sum type declarations (top-level only)
+typeDecl : KTYPE IDENTIFIER '=' sumVariant ('|' sumVariant)* ';' ;
+
+sumVariant : IDENTIFIER ('(' nameDeclaration (',' nameDeclaration)* ')')? ;
 
 ////////////////////// TIP Declarations ///////////////////////// 
 
@@ -45,6 +53,7 @@ expr : expr '(' (expr (',' expr)*)? ')' 	#funAppExpr
      | expr op=(ADD | SUB) expr 		#additiveExpr
      | expr op=GT expr 				#relationalExpr
      | expr op=(EQ | NE) expr 			#equalityExpr
+     | expr DOTDOT expr (KBY expr)?             #rangeExpr
      | IDENTIFIER				#varExpr
      | NUMBER					#numExpr
      | KINPUT					#inputExpr
@@ -66,6 +75,8 @@ statement : blockStmt
     | ifStmt
     | outputStmt
     | errorStmt
+    | caseStmt
+    | forStmt
 ;
 
 assignStmt : expr '=' expr ';' ;
@@ -82,6 +93,12 @@ errorStmt : KERROR expr ';'  ;
 
 returnStmt : KRETURN expr ';'  ;
 
+// TOP case statement (pattern-match on sum type)
+caseStmt : KCASE expr KOF '{' caseArm+ '}' ;
+caseArm  : IDENTIFIER ('(' IDENTIFIER (',' IDENTIFIER)* ')')? ARROW statement ;
+
+// SOP for-loop stub (AST building deferred to sopc)
+forStmt : KFOR '(' nameDeclaration ':' expr ')' statement ;
 
 ////////////////////// TIP Lexicon ////////////////////////// 
 
@@ -97,8 +114,7 @@ NE  : '!=' ;
 
 NUMBER : [0-9]+ ;
 
-// Placing the keyword definitions first causes ANTLR4 to prioritize
-// their matching relative to IDENTIFIER (which comes later).
+// Existing TIP keywords
 KALLOC  : 'alloc' ;
 KINPUT  : 'input' ;
 KWHILE  : 'while' ;
@@ -110,8 +126,19 @@ KNULL   : 'null' ;
 KOUTPUT : 'output' ;
 KERROR  : 'error' ;
 
-// Keyword to declare functions as polymorphic
+// Keyword to declare functions as polymorphic (ignored in Phase 7; removed after)
 KPOLY   : 'poly' ;
+
+// TOP keywords
+KTYPE   : 'type' ;
+KCASE   : 'case' ;
+KOF     : 'of' ;
+KFOR    : 'for' ;
+KBY     : 'by' ;
+
+// TOP operator tokens (must precede SUB and GT so maximal-munch applies)
+ARROW   : '->' ;
+DOTDOT  : '..' ;
 
 IDENTIFIER : [a-zA-Z_][a-zA-Z0-9_]* ;
 

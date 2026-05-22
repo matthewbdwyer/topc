@@ -3,7 +3,7 @@ set -e
 
 # Set ROOT_DIR to TIPDIR or the top-level Git directory if TIPDIR is not set
 ROOT_DIR=${TIPDIR:-$(git rev-parse --show-toplevel)}
-TIPC="${ROOT_DIR}/build/src/tipc"
+TIPC="${ROOT_DIR}/build/src/topc"
 RTLIB="${ROOT_DIR}/rtlib"
 
 # Check if TIPCLANG environment variable is set
