@@ -4,8 +4,8 @@
 #include "ASTVisualizer.h"
 #include "ParseError.h"
 #include "PrettyPrinter.h"
-#include "TIPLexer.h"
-#include "TIPParser.h"
+#include "TOPLexer.h"
+#include "TOPParser.h"
 
 #include "loguru.hpp"
 
@@ -32,9 +32,9 @@ void ParserErrorListener::syntaxError(Recognizer *recognizer,
 
 std::shared_ptr<ASTProgram> FrontEnd::parse(std::istream &stream) {
   ANTLRInputStream input(stream);
-  TIPLexer lexer(&input);
+  TOPLexer lexer(&input);
   CommonTokenStream tokens(&lexer);
-  TIPParser parser(&tokens);
+  TOPParser parser(&tokens);
   LexerErrorListener lexerErrorListener;
   ParserErrorListener parserErrorListener;
 
@@ -48,7 +48,7 @@ std::shared_ptr<ASTProgram> FrontEnd::parse(std::istream &stream) {
 
   LOG_S(1) << "Parsing program";
 
-  TIPParser::ProgramContext *tree = parser.program();
+  TOPParser::ProgramContext *tree = parser.program();
 
   LOG_S(1) << "Building AST";
 

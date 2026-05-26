@@ -2,7 +2,7 @@
 
 #include "Error.h"
 
-/*! \brief Class for tipc parse errors.
+/*! \brief Class for topc parse errors.
  *
  * Errors in lexing or parsing generate instances of this type.
  * \sa Error

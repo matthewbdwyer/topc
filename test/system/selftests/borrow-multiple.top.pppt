@@ -1,0 +1,31 @@
+addBorrows(a, b) 
+{
+  return (*a + *b);
+}
+
+main() 
+{
+  var x, y, result;
+  x = 3;
+  y = 7;
+  result = addBorrows(&x, &y);
+  if ((result != 10)) 
+    error result;
+  return 0;
+}
+
+Functions : {
+  addBorrows : (⭡int,⭡int) -> int,
+  main : () -> int
+}
+
+Locals for function addBorrows : {
+  a : ⭡int,
+  b : ⭡int
+}
+
+Locals for function main : {
+  result : int,
+  x : int,
+  y : int
+}

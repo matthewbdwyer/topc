@@ -1,0 +1,28 @@
+makeVal(n) 
+{
+  return alloc n;
+}
+
+main() 
+{
+  var p, v;
+  p = makeVal(42);
+  v = *p;
+  if ((v != 42)) 
+    error v;
+  return 0;
+}
+
+Functions : {
+  main : () -> int,
+  makeVal : (α<n@4:8>) -> ⭡α<n@4:8>
+}
+
+Locals for function main : {
+  p : ⭡int,
+  v : int
+}
+
+Locals for function makeVal : {
+  n : α<n@4:8>
+}

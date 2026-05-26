@@ -48,7 +48,7 @@ public:
   /*! \fn print
    *  \brief Print program in a standard form to cout.
    *
-   * \param program the root of an AST for a TIP program.
+   * \param program the root of an AST for a TOP program.
    */
   static void prettyprint(ASTProgram *program, std::ostream &os);
 

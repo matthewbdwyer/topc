@@ -94,30 +94,6 @@ TEST_CASE("Symbol Table: locals params ", "[SymbolTable]") {
   REQUIRE(found != std::string::npos);
 }
 
-TEST_CASE("SymbolTable: fields", "[SymbolTable]") {
-  std::stringstream stream;
-  stream << R"(
-      main(){
-        var rec1, rec2;
-        rec1 = {a:1, b:2, c:3};
-        rec2 = {d:4, e:5, f:6};
-        return 0;
-      }
-    )";
-
-  auto ast = ASTHelper::build_ast(stream);
-
-  std::shared_ptr<SymbolTable> symbols;
-  REQUIRE_NOTHROW(symbols = SymbolTable::build(ast.get()));
-
-  std::stringstream outputStream;
-  symbols->print(outputStream);
-  std::string output = outputStream.str();
-
-  std::size_t found = output.find("Fields : {a, b, c, d, e, f}");
-  REQUIRE(found != std::string::npos);
-}
-
 /******************** symbol errors *******************/
 
 TEST_CASE("Symbol Table: local undeclared", "[SymbolTable]") {
@@ -176,4 +152,59 @@ TEST_CASE("Symbol Table: Unknown Function", "[SymbolTable]") {
   auto ast = ASTHelper::build_ast(stream);
   std::shared_ptr<SymbolTable> symbols = SymbolTable::build(ast.get());
   REQUIRE(nullptr == symbols->getFunction("foo"));
+}
+
+// ============================================================
+// Phase 5: sum type / constructor lookup
+// ============================================================
+
+TEST_CASE("Symbol Table: resolveConstructorName", "[SymbolTable]") {
+  std::stringstream stream;
+  stream << R"(
+    type Option = Some(x) | None;
+    main() { return 0; }
+  )";
+  auto ast = ASTHelper::build_ast(stream);
+  std::shared_ptr<SymbolTable> symbols;
+  REQUIRE_NOTHROW(symbols = SymbolTable::build(ast.get()));
+  REQUIRE(symbols->getConstructor("Some") != nullptr);
+  REQUIRE(symbols->getConstructor("None") != nullptr);
+  REQUIRE(symbols->getConstructor("Foo") == nullptr);
+}
+
+TEST_CASE("Symbol Table: resolveTypeName", "[SymbolTable]") {
+  std::stringstream stream;
+  stream << R"(
+    type Option = Some(x) | None;
+    type Result = Ok(v) | Err(e);
+    main() { return 0; }
+  )";
+  auto ast = ASTHelper::build_ast(stream);
+  std::shared_ptr<SymbolTable> symbols;
+  REQUIRE_NOTHROW(symbols = SymbolTable::build(ast.get()));
+  REQUIRE(symbols->getSumType("Option") != nullptr);
+  REQUIRE(symbols->getSumType("Result") != nullptr);
+  REQUIRE(symbols->getSumType("Foo") == nullptr);
+  // getSumTypes() returns all names
+  auto names = symbols->getSumTypes();
+  REQUIRE(names.size() == 2);
+}
+
+TEST_CASE("Symbol Table: case arm bindings scoped", "[SymbolTable]") {
+  // Binding variable 'v' from a case arm must not be visible after the arm body.
+  // Two sequential arms can reuse the same binding name without a symbol error.
+  std::stringstream stream;
+  stream << R"(
+    type Option = Some(x) | None;
+    main() {
+      var o;
+      case o of {
+        Some(v) -> output v;
+        None    -> output 0;
+      }
+      return 0;
+    }
+  )";
+  auto ast = ASTHelper::build_ast(stream);
+  REQUIRE_NOTHROW(SymbolTable::build(ast.get()));
 }

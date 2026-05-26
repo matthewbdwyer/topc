@@ -1,6 +1,6 @@
 #pragma once
 
-#include <TipType.h>
+#include <TopType.h>
 #include <memory>
 
 /*!
@@ -11,6 +11,6 @@
 class ConstraintHandler {
 public:
   virtual ~ConstraintHandler() = default;
-  virtual void handle(std::shared_ptr<TipType> t1,
-                      std::shared_ptr<TipType> t2) = 0;
+  virtual void handle(std::shared_ptr<TopType> t1,
+                      std::shared_ptr<TopType> t2) = 0;
 };

@@ -1,0 +1,11 @@
+read(p) {
+  return *p;
+}
+
+main() {
+  var x, result;
+  x = 5;
+  result = read(&x);
+  if (result != 5) error result;
+  return 0;
+}

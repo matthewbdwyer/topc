@@ -7,16 +7,16 @@
 #include <string>
 
 // Forward-declare all AST node types to avoid pulling in AST headers.
-class ASTAccessExpr;
 class ASTAllocExpr;
 class ASTAssignStmt;
 class ASTBinaryExpr;
 class ASTBlockStmt;
+class ASTCaseStmt;
 class ASTDeclNode;
 class ASTDeclStmt;
 class ASTDeRefExpr;
+ class ASTDestroyStmt;
 class ASTErrorStmt;
-class ASTFieldExpr;
 class ASTFunAppExpr;
 class ASTFunction;
 class ASTIfStmt;
@@ -26,12 +26,13 @@ class ASTNullExpr;
 class ASTNumberExpr;
 class ASTOutputStmt;
 class ASTProgram;
-class ASTRecordExpr;
-class ASTRefExpr;
+class ASTBorrowExpr;
 class ASTReturnStmt;
+class ASTSumCtorExpr;
 class ASTVariableExpr;
 class ASTWhileStmt;
 class SemanticAnalysis;
+class TopType;
 
 /*! \class CodeGenVisitor
  *  \brief Walks an AST and emits LLVM IR into a CodeGenContext.
@@ -51,7 +52,7 @@ public:
    */
   void setContext(CodeGenContext *ctx) { ctx_ = ctx; }
 
-  /*! \brief Top-level entry point: compile an entire TIP program.
+  /*! \brief Top-level entry point: compile an entire TOP program.
    *
    *  Initialises the CodeGenContext, visits every function, verifies the
    *  module, and returns it.
@@ -74,11 +75,9 @@ public:
   llvm::Value *generate(ASTFunAppExpr   *node);
   llvm::Value *generate(ASTAllocExpr    *node);
   llvm::Value *generate(ASTNullExpr     *node);
-  llvm::Value *generate(ASTRefExpr      *node);
+  llvm::Value *generate(ASTBorrowExpr     *node);
   llvm::Value *generate(ASTDeRefExpr    *node);
-  llvm::Value *generate(ASTRecordExpr   *node);
-  llvm::Value *generate(ASTFieldExpr    *node);
-  llvm::Value *generate(ASTAccessExpr   *node);
+
   llvm::Value *generate(ASTDeclNode     *node);
   llvm::Value *generate(ASTDeclStmt     *node);
   llvm::Value *generate(ASTAssignStmt   *node);
@@ -88,8 +87,21 @@ public:
   llvm::Value *generate(ASTOutputStmt   *node);
   llvm::Value *generate(ASTErrorStmt    *node);
   llvm::Value *generate(ASTReturnStmt   *node);
+  llvm::Value *generate(ASTDestroyStmt  *node);
+  llvm::Value *generate(ASTSumCtorExpr  *node);
+  llvm::Value *generate(ASTCaseStmt     *node);
 
 private:
   // The context is created fresh for each top-level generate() call.
   CodeGenContext *ctx_ = nullptr;
+  // Set during the top-level generate(); used by generate(ASTDestroyStmt*).
+  SemanticAnalysis *semanticAnalysis_ = nullptr;
+
+  /*! \brief Recursively emit free() calls for an owned value.
+   *
+   * \p ptrAsInt  An i64 holding the owning pointer value.
+   * \p topType   The TopType of the owned value (expected to be TopOwningRef).
+   */
+  void emitDestroyValue(llvm::Value *ptrAsInt, TopType *topType,
+                        CodeGenContext &ctx);
 };

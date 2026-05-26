@@ -1,0 +1,19 @@
+#%Module1.0
+## 
+## 
+
+proc ModulesHelp { } {
+   puts stderr "Configure the environment for tipc development."
+}
+ 
+module-whatis "Configure the environment for tipc development.\n"
+
+set HOME $::env(HOME)
+set topdir $HOME/tipc
+
+
+module load $topdir/conf/modulefiles/java/11
+module load clang-llvm-22.1.0
+module load cmake
+setenv TOPCLANG /sw/ubuntu2204/clangllvm/22.1.0/bin/clang
+setenv LLVM_DIR /sw/ubuntu2204/llvm/22.1.0/lib/cmake

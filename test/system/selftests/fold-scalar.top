@@ -1,0 +1,15 @@
+// fold-scalar.top: higher-order fold, auto-generalized (no poly keyword needed)
+fold(op, base, x) {
+  return op(base, x);
+}
+
+add(a, b) { return a + b; }
+mul(a, b) { return a * b; }
+
+main() {
+  var s, p;
+  s = fold(add, 0, 5);
+  p = fold(mul, 1, 5);
+  if (s + p != 10) error s + p;
+  return 0;
+}

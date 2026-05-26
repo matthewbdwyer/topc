@@ -1,0 +1,52 @@
+fold(op, base, x) 
+{
+  return op(base, x);
+}
+
+add(a, b) 
+{
+  return (a + b);
+}
+
+mul(a, b) 
+{
+  return (a * b);
+}
+
+main() 
+{
+  var s, p;
+  s = fold(add, 0, 5);
+  p = fold(mul, 1, 5);
+  if (((s + p) != 10)) 
+    error (s + p);
+  return 0;
+}
+
+Functions : {
+  add : (int,int) -> int,
+  fold : ((α<base@2:9>,α<x@2:15>) -> α<op(base, x)@3:9>,α<base@2:9>,α<x@2:15>) -> α<op(base, x)@3:9>,
+  main : () -> int,
+  mul : (int,int) -> int
+}
+
+Locals for function add : {
+  a : int,
+  b : int
+}
+
+Locals for function fold : {
+  base : α<base@2:9>,
+  op : (α<base@2:9>,α<x@2:15>) -> α<op(base, x)@3:9>,
+  x : α<x@2:15>
+}
+
+Locals for function main : {
+  p : int,
+  s : int
+}
+
+Locals for function mul : {
+  a : int,
+  b : int
+}

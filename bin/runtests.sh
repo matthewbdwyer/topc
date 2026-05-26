@@ -47,15 +47,20 @@ assert_unit_test_dir() {
 }
 
 run_system_tests() {
-  # Change to RTLIB_DIR directory
-  cd "${RTLIB_DIR}" || exit 1
-  if ! ./build.sh; then
-    echo "error: could not build the runtime library"
-    exit 1
+  # Build the runtime library through CMake so dependency tracking works.
+  # Falls back to the legacy build.sh if the build directory is absent.
+  if [ -d "${ROOT_DIR}/build" ]; then
+    cmake --build "${ROOT_DIR}/build" --target top_rtlib -j"$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)"
+  else
+    cd "${RTLIB_DIR}" || exit 1
+    if ! ./build.sh; then
+      echo "error: could not build the runtime library"
+      exit 1
+    fi
   fi
 
   echo "running the system test suite"
-  if ! "${SYSTEM_TEST_DIR}/run.sh"; then
+  if ! RTLIB="${ROOT_DIR}/build/rtlib" python3 "${SYSTEM_TEST_DIR}/run.py" ${SYSTEM_TEST_ARGS:-}; then
     echo "error while running system tests"
     exit 1
   fi

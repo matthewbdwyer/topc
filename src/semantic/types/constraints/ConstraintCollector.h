@@ -20,8 +20,8 @@
  */
 class ConstraintCollector : public ConstraintHandler {
 public:
-  void handle(std::shared_ptr<TipType> t1,
-              std::shared_ptr<TipType> t2) override;
+  void handle(std::shared_ptr<TopType> t1,
+              std::shared_ptr<TopType> t2) override;
   std::vector<TypeConstraint> &getCollectedConstraints();
 
 private:

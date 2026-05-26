@@ -4,26 +4,28 @@ target_sources(
   PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/TypeInference.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/TypeInference.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipAlpha.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipAlpha.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipCons.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipCons.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipFunction.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipFunction.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipInt.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipInt.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipMu.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipMu.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipRecord.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipRecord.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipAbsentField.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipAbsentField.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipRef.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipRef.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipType.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipVar.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipVar.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipTypeVisitor.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopAlpha.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopAlpha.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopCons.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopCons.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopFunction.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopFunction.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopInt.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopInt.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopMu.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopMu.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopRef.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopRef.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopOwningRef.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopOwningRef.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopBorrowRef.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopBorrowRef.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopSumType.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopSumType.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopType.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopVar.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopVar.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopTypeVisitor.h
     ${CMAKE_CURRENT_SOURCE_DIR}/constraints/ConstraintCollector.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/constraints/ConstraintCollector.h
     ${CMAKE_CURRENT_SOURCE_DIR}/constraints/ConstraintHandler.h
@@ -41,8 +43,6 @@ target_sources(
     ${CMAKE_CURRENT_SOURCE_DIR}/constraints/PolyTypeConstraintCollectVisitor.h
     ${CMAKE_CURRENT_SOURCE_DIR}/constraints/PolyTypeConstraintVisitor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/constraints/PolyTypeConstraintVisitor.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/constraints/AbsentFieldChecker.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/constraints/AbsentFieldChecker.h
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/UnificationError.h
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/TypeVars.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/TypeVars.h
@@ -52,10 +52,10 @@ target_sources(
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/FreshAlphaCopier.h
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/Substituter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/Substituter.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/solver/TipTermAdapter.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/solver/TipTermAdapter.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/TipTypeClosure.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/TipTypeClosure.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/solver/TopTermAdapter.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/solver/TopTermAdapter.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/TopTypeClosure.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/TopTypeClosure.h
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/Unifier.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/Unifier.h)
 target_include_directories(

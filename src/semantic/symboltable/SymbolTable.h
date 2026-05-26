@@ -10,22 +10,25 @@
  *
  * The symbol table maps names of identifiers to declaration nodes.
  * There is a global map of for function names and a local map for
- * each function.  In addition it records the set of field names used
- * in the program.  Errors are reported by raising a SemanticError exception.
+ * each function.  Errors are reported by raising a SemanticError exception.
  * \sa SemanticError
  */
 class SymbolTable {
   std::map<std::string, std::pair<ASTDeclNode *, bool>> functionNames;
   std::map<ASTDeclNode *, std::map<std::string, ASTDeclNode *>> localNames;
-  std::vector<std::string> fieldNames;
+  // TOP extensions: sum types and constructors
+  std::map<std::string, ASTSumTypeDecl *> typeNames;
+  std::map<std::string, ASTSumVariant *> constructorNames;
 
 public:
   SymbolTable(
       std::map<std::string, std::pair<ASTDeclNode *, bool>> fMap,
       std::map<ASTDeclNode *, std::map<std::string, ASTDeclNode *>> lMap,
-      std::vector<std::string> fSet)
+      std::map<std::string, ASTSumTypeDecl *> tMap = {},
+      std::map<std::string, ASTSumVariant *> cMap = {})
       : functionNames(std::move(fMap)), localNames(std::move(lMap)),
-        fieldNames(std::move(fSet)) {}
+        typeNames(std::move(tMap)),
+        constructorNames(std::move(cMap)) {}
 
   /*! \brief Return the declaration node for a given function name.
    * \param s The Function name
@@ -38,6 +41,11 @@ public:
    * declared polymorphic
    */
   bool getPoly(std::string s);
+
+  /*! \brief Mark a function as polymorphic (called by auto-generalization).
+   * \param s The function name
+   */
+  void setPoly(std::string s);
 
   /*! \brief Return the declaration nodes for functions in the program.
    */
@@ -55,9 +63,27 @@ public:
    */
   std::vector<ASTDeclNode *> getLocals(ASTDeclNode *f);
 
-  /*! \brief Returns the record field names referenced in the program.
+  /*! \brief Return the declaration node for a sum type by name.
+   * \param name The type name (must start with uppercase).
+   * \return The ASTSumTypeDecl, or nullptr if not found.
    */
-  std::vector<std::string> getFields();
+  ASTSumTypeDecl *getSumType(std::string name);
+
+  /*! \brief Return the variant declaration for a constructor tag.
+   * \param tag The constructor name (must start with uppercase).
+   * \return The ASTSumVariant, or nullptr if not found.
+   */
+  ASTSumVariant *getConstructor(std::string tag);
+
+  /*! \brief Return all declared sum type names.
+   */
+  std::vector<std::string> getSumTypes();
+
+  /*! \brief Return the sum type declaration that owns the given constructor tag.
+   * \param tag The constructor name.
+   * \return The ASTSumTypeDecl that declares it, or nullptr if not found.
+   */
+  ASTSumTypeDecl *getConstructorOwner(std::string tag);
 
   /*! \fn build
    *  \brief Perform symbol analysis and construct symbol table.

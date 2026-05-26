@@ -105,9 +105,6 @@ TEST_CASE("ASTPrinterTest: expression printers", "[ASTNodePrint]") {
         var x, y, z;
         x = y + 0;
         y = input;
-        z = {next:null, val:42};
-        y = z.val;
-        x = (*z).next;
         x = &z;
         z = -3;
         z = (42);
@@ -120,9 +117,6 @@ TEST_CASE("ASTPrinterTest: expression printers", "[ASTNodePrint]") {
 
   std::vector<std::string> expected{"(y+0)",
                                     "input",
-                                    "{next:null,val:42}",
-                                    "(z.val)",
-                                    "((*z).next)",
                                     "&z",
                                     "-3",
                                     "42",

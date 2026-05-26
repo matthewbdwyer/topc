@@ -1,0 +1,10 @@
+f(p) {
+  return *p;
+}
+
+main() {
+  var x, p;
+  x = 5;
+  p = &x;
+  return 0;
+}

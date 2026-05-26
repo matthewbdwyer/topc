@@ -1,3 +1,6 @@
+# macOS
+.DS_Store
+
 # Java
 *.class
 
@@ -44,10 +47,6 @@ cmake-build-debug
 
 # Lcov
 gen/
-
-html/
-latex/
-xml/
 *.info
 
 # reports

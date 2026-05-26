@@ -1,18 +1,18 @@
 #include "TypeVars.h"
 
-TipVarSet TypeVars::collect(TipType *t) {
+TopVarSet TypeVars::collect(TopType *t) {
   TypeVars visitor;
   t->accept(&visitor);
   return visitor.getVars();
 }
 
-void TypeVars::endVisit(TipMu *element) { vars.erase(element->getV()); }
+void TypeVars::endVisit(TopMu *element) { vars.erase(element->getV()); }
 
-void TypeVars::endVisit(TipVar *element) {
-  vars.insert(std::make_shared<TipVar>(element->getNode()));
+void TypeVars::endVisit(TopVar *element) {
+  vars.insert(std::make_shared<TopVar>(element->getNode()));
 }
 
-void TypeVars::endVisit(TipAlpha *element) {
+void TypeVars::endVisit(TopAlpha *element) {
   vars.insert(
-      std::make_shared<TipAlpha>(element->getNode(), element->getContext(), element->getName()));
+      std::make_shared<TopAlpha>(element->getNode(), element->getContext(), element->getName()));
 }

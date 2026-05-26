@@ -1,0 +1,48 @@
+addone(x) 
+{
+  return (x + 1);
+}
+
+square(x) 
+{
+  return (x * x);
+}
+
+identity(f) 
+{
+  return f;
+}
+
+main() 
+{
+  var n;
+  n = 7;
+  if ((8 != identity(addone)(n))) 
+    error identity(addone)(n);
+  if ((49 != identity(square)(n))) 
+    error identity(square)(n);
+  return 0;
+}
+
+Functions : {
+  addone : (int) -> int,
+  identity : (α<f@9:9>) -> α<f@9:9>,
+  main : () -> int,
+  square : (int) -> int
+}
+
+Locals for function addone : {
+  x : int
+}
+
+Locals for function identity : {
+  f : α<f@9:9>
+}
+
+Locals for function main : {
+  n : int
+}
+
+Locals for function square : {
+  x : int
+}

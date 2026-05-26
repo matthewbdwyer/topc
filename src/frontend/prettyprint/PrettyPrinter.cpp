@@ -34,7 +34,9 @@ std::string joinWithDelim(std::vector<std::string> &visitResults,
 }
 
 void PrettyPrinter::endVisit(ASTProgram *element) {
-  os << joinWithDelim(visitResults, "\n", element->getFunctions().size(), 1);
+  int total = static_cast<int>(element->getTypedecls().size()) +
+              static_cast<int>(element->getFunctions().size());
+  os << joinWithDelim(visitResults, "\n", total, 1);
   os.flush();
 }
 
@@ -125,24 +127,6 @@ void PrettyPrinter::endVisit(ASTDeRefExpr *element) {
 
 void PrettyPrinter::endVisit(ASTNullExpr *element) {
   visitResults.push_back("null");
-}
-
-void PrettyPrinter::endVisit(ASTFieldExpr *element) {
-  std::string init = visitResults.back();
-  visitResults.pop_back();
-  visitResults.push_back(element->getField() + ":" + init);
-}
-
-void PrettyPrinter::endVisit(ASTRecordExpr *element) {
-  visitResults.push_back(
-      "{" + joinWithDelim(visitResults, ", ", element->getFields().size(), 1) +
-      "}");
-}
-
-void PrettyPrinter::endVisit(ASTAccessExpr *element) {
-  std::string accessString = visitResults.back();
-  visitResults.pop_back();
-  visitResults.push_back(accessString + '.' + element->getField());
 }
 
 void PrettyPrinter::endVisit(ASTDeclNode *element) {
@@ -249,3 +233,76 @@ void PrettyPrinter::endVisit(ASTReturnStmt *element) {
 std::string PrettyPrinter::indent() const {
   return std::string(indentLevel * indentSize, indentChar);
 }
+
+// TOP/SOP pretty-printer implementations
+
+void PrettyPrinter::endVisit(ASTSumCtorExpr *element) {
+  if (element->getArgs().empty()) {
+    visitResults.push_back(element->getTag());
+  } else {
+    std::string argsStr =
+        joinWithDelim(visitResults, ", ", element->getArgs().size(), 1);
+    visitResults.push_back(element->getTag() + "(" + argsStr + ")");
+  }
+}
+
+void PrettyPrinter::endVisit(ASTSumVariant *element) {
+  if (element->getParams().empty()) {
+    visitResults.push_back(element->getTag());
+  } else {
+    std::string paramsStr =
+        joinWithDelim(visitResults, ", ", element->getParams().size(), 1);
+    visitResults.push_back(element->getTag() + "(" + paramsStr + ")");
+  }
+}
+
+void PrettyPrinter::endVisit(ASTSumTypeDecl *element) {
+  std::string variantsStr =
+      joinWithDelim(visitResults, " | ", element->getVariants().size(), 1);
+  visitResults.push_back("type " + element->getName() + " = " + variantsStr +
+                         ";");
+}
+
+bool PrettyPrinter::visit(ASTCaseStmt *element) {
+  indentLevel++;
+  return true;
+}
+
+void PrettyPrinter::endVisit(ASTCaseStmt *element) {
+  indentLevel--;
+  // arms are on top of the stack; scrutinee is below them
+  std::string armsStr =
+      joinWithDelim(visitResults, "\n", element->getArms().size(), 1);
+  std::string scrutStr = visitResults.back();
+  visitResults.pop_back();
+  visitResults.push_back(indent() + "case " + scrutStr + " of {\n" + armsStr +
+                         "\n" + indent() + "}");
+}
+
+void PrettyPrinter::endVisit(ASTCaseArm *element) {
+  std::string bodyStr = visitResults.back();
+  visitResults.pop_back();
+  // strip leading whitespace so the body is inline after "->"
+  bodyStr.erase(0, bodyStr.find_first_not_of(" \t"));
+  std::string bindingsStr;
+  if (!element->getBindings().empty()) {
+    bindingsStr =
+        "(" +
+        joinWithDelim(visitResults, ", ", element->getBindings().size(), 1) +
+        ")";
+  }
+  visitResults.push_back(indent() + element->getTag() + bindingsStr + " -> " +
+                         bodyStr);
+}
+
+// ASTDestroyStmt is a synthetic leaf inserted by DestructionPass.
+// It is skipped in pretty-printed output (not part of source syntax).
+bool PrettyPrinter::visit(ASTDestroyStmt *element) {
+  return false; // no children to visit
+}
+
+void PrettyPrinter::endVisit(ASTDestroyStmt *element) {
+  // Push a placeholder so endVisit(ASTFunction) pops the right number of results.
+  visitResults.push_back(indent() + "/* destroy " + element->getVar()->getName() + " */");
+}
+

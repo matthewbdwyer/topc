@@ -64,7 +64,7 @@ bootstrap_ubuntu_dependencies() {
 
 bootstrap_ubuntu_env() {
   echo export LLVM_DIR="$(llvm-config-$LLVM_VERSION --prefix)/lib/cmake" >> ~/.bashrc
-  echo export TIPCLANG="$(llvm-config-$LLVM_VERSION --bindir)/clang" >> ~/.bashrc
+  echo export TOPCLANG="$(llvm-config-$LLVM_VERSION --bindir)/clang" >> ~/.bashrc
   echo export CC="$(llvm-config-$LLVM_VERSION --bindir)/clang" >> ~/.bashrc
   echo export CXX="$(llvm-config-$LLVM_VERSION --bindir)/clang++" >> ~/.bashrc
 }
@@ -91,7 +91,7 @@ bootstrap_mac_env() {
   case $SHELL in
     */zsh)
       echo "export LLVM_DIR=$(brew --prefix llvm@$LLVM_VERSION)/lib/cmake" >> ~/.zshrc
-      echo "export TIPCLANG=$(brew --prefix llvm@$LLVM_VERSION)/bin/clang" >> ~/.zshrc
+      echo "export TOPCLANG=$(brew --prefix llvm@$LLVM_VERSION)/bin/clang" >> ~/.zshrc
       echo "export CC=$(brew --prefix llvm@$LLVM_VERSION)/bin/clang" >> ~/.zshrc
       echo "export CXX=$(brew --prefix llvm@$LLVM_VERSION)/bin/clang++" >> ~/.zshrc
       cat ~/.zshrc
@@ -99,7 +99,7 @@ bootstrap_mac_env() {
     */bash)
       # The macOS github runner does not include zsh.
       echo "export LLVM_DIR=$(brew --prefix llvm@$LLVM_VERSION)/lib/cmake" >> ~/.bashrc
-      echo "export TIPCLANG=$(brew --prefix llvm@$LLVM_VERSION)/bin/clang" >> ~/.bashrc
+      echo "export TOPCLANG=$(brew --prefix llvm@$LLVM_VERSION)/bin/clang" >> ~/.bashrc
       echo "export CC=$(brew --prefix llvm@$LLVM_VERSION)/bin/clang" >> ~/.bashrc
       echo "export CXX=$(brew --prefix llvm@$LLVM_VERSION)/bin/clang++" >> ~/.bashrc
       cat ~/.bashrc

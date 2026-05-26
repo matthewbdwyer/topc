@@ -31,7 +31,7 @@ void TermUnifier::solve() {
  *   otherwise      → throw TermUnificationError
  *
  * No occurs check is performed.  Cyclic bindings are resolved by
- * TipTermClosure::close() using the TipMu constructor.
+ * TopTermClosure::close() using the TopMu constructor.
  */
 void TermUnifier::unify(std::shared_ptr<Term> t1, std::shared_ptr<Term> t2) {
   t1 = unionFind.find(t1);

@@ -1,19 +1,19 @@
 #pragma once
 
-#include "TipTypeVisitor.h"
+#include "TopTypeVisitor.h"
 
 /*! \brief Produces a type with designated variable substitutions.
  */
-class Substituter : public TipTypeVisitor {
-  TipVar *target;
-  std::shared_ptr<TipType> substitution;
+class Substituter : public TopTypeVisitor {
+  TopVar *target;
+  std::shared_ptr<TopType> substitution;
 
 protected:
-  std::vector<std::shared_ptr<TipType>> visitedTypes;
+  std::vector<std::shared_ptr<TopType>> visitedTypes;
   Substituter() = default;
 
 public:
-  Substituter(TipVar *t, std::shared_ptr<TipType> s)
+  Substituter(TopVar *t, std::shared_ptr<TopType> s)
       : target(t), substitution(s) {}
 
   /*! \brief Substitute for instances of variable in a target type.
@@ -29,17 +29,18 @@ public:
    * \param s The subtitution.
    * \return An equivalent type with no occurrences of the target variable.
    */
-  static std::shared_ptr<TipType> substitute(TipType *t, TipVar *v,
-                                             std::shared_ptr<TipType> s);
+  static std::shared_ptr<TopType> substitute(TopType *t, TopVar *v,
+                                             std::shared_ptr<TopType> s);
 
-  std::shared_ptr<TipType> getResult();
+  std::shared_ptr<TopType> getResult();
 
-  virtual void endVisit(TipAlpha *element) override;
-  virtual void endVisit(TipFunction *element) override;
-  virtual void endVisit(TipInt *element) override;
-  virtual void endVisit(TipMu *element) override;
-  virtual void endVisit(TipRecord *element) override;
-  virtual void endVisit(TipAbsentField *element) override;
-  virtual void endVisit(TipRef *element) override;
-  virtual void endVisit(TipVar *element) override;
+  virtual void endVisit(TopAlpha *element) override;
+  virtual void endVisit(TopFunction *element) override;
+  virtual void endVisit(TopInt *element) override;
+  virtual void endVisit(TopMu *element) override;
+  virtual void endVisit(TopRef *element) override;
+  virtual void endVisit(TopOwningRef *element) override;
+  virtual void endVisit(TopBorrowRef *element) override;
+  virtual void endVisit(TopSumType *element) override;
+  virtual void endVisit(TopVar *element) override;
 };

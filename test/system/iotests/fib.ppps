@@ -20,6 +20,5 @@ main(n)
   return fib(n);
 }
 Functions : {fib, main}
-Fields : {}
 Locals for function fib : {f1, f2, i, n, temp}
 Locals for function main : {n}

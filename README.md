@@ -1,121 +1,184 @@
-<!--
-[![Build Status](https://github.com/matthewbdwyer/tipc/actions/workflows/build-and-test.yml/badge.svg?branch=main)](https://github.com/matthewbdwyer/tipc/actions/workflows/build-and-test.yml)
-[![codecov.io](https://codecov.io/gh/matthewbdwyer/tipc/coverage.svg?branch=main&flag=codecoverage)](https://codecov.io/gh/matthewbdwyer/tipc?branch=main)
-[![codecov.io](https://img.shields.io/endpoint?logo=codecov&logoColor=blue&url=https%3A%2F%2Fmatthewbdwyer.github.io%2Ftipc%2Fdoccoverage.json)](https://codecov.io/gh/matthewbdwyer/tipc?branch=main)
--->
-
-tipc
+topc
 =========
-A compiler from TIP to llvm bitcode
+A compiler from TOP to LLVM bitcode
 
 
-## TIP Language, Interpreter, and Analyzers
+## Heritage
 
-TIP is a "Tiny Imperative Programming" language developed by Anders M&#248;ller and Michael I. Schwartzbach for the [Static Program Analysis](https://cs.au.dk/~amoeller/spa/ "Static Program Analysis") lecture notes that they developed for graduate instruction at Aarhus University.
+TOP extends [TIP](https://cs.au.dk/~amoeller/spa/ "Static Program Analysis") (Tiny Imperative Programming), the pedagogical language designed by Anders M&#248;ller and Michael I. Schwartzbach for their _Static Program Analysis_ lecture notes.  The original TIP compiler, [`tipc`](https://github.com/matthewbdwyer/tipc), compiles TIP programs to LLVM bitcode; `topc` builds on that foundation, adding sum types, a static ownership type system, and a borrow mechanism for controlled aliasing.
 
-Accompanying those notes is a [Scala implementation](https://github.com/cs-au-dk/TIP/) that provides a number of static analysis implementations and interpreter-based evaluators.
 
-This project implements `tipc` which compiles TIP programs into LLVM bitcode.  Linking that bitcode with the [runtime library](./rtlib) routines and standard libraries will produce an executable.
+## TOP Language Quick Reference
+
+### TIP: The Core
+
+TIP programs consist of functions.  Each function declares its locals in a single `var` statement, then performs assignments, `while` loops, `if`/`else`, `output` (print to stdout), `error` (runtime abort), and ends with a `return`.  The heap allocation expression `alloc expr` allocates a cell holding the initial value.  Function values are first-class: a function name evaluates to a pointer that can be called through a variable.  Comparison operators are `>`, `==`, and `!=`.
+
+```
+fib(n) {
+  var f1, f2, i, temp;
+  f1 = 1;  f2 = 1;  i = n;
+  while (i > 1) {
+    temp = f1 + f2;  f1 = f2;  f2 = temp;  i = i - 1;
+  }
+  return f2;
+}
+
+main(n) { return fib(n); }
+```
+
+### Sum Types
+
+TOP adds algebraic sum types with a file-level `type` declaration and pattern-matching `case` statements.  Constructors may be nullary (`None`) or carry a single payload (`Some(x)`).
+
+```
+type Color = Red | Green | Blue;
+
+luminance(c) {
+  var v;
+  case c of {
+    Red   -> v = 299;
+    Green -> v = 587;
+    Blue  -> v = 114;
+  }
+  return v;
+}
+
+main() {
+  if (luminance(Green) != 587) error 1;
+  return 0;
+}
+```
+
+### Ownership
+
+`alloc expr` produces a value of the owned pointer type `own&T`.  The compiler tracks ownership statically: when an owned value goes out of scope at a function return, a _destruction pass_ automatically inserts the corresponding `free`.
+
+```
+main() {
+  var p;
+  p = alloc 42;
+  // destruction pass inserts free(p) before return — no explicit deallocation needed
+  return *p;
+}
+```
+
+Ownership is linear: assigning an owned pointer _moves_ it; the original binding becomes inaccessible.  The `--asan` flag instruments the generated IR with AddressSanitizer so that correct automatic deallocation can be verified at runtime.
+
+### Borrows
+
+A borrow `&expr` creates a non-owning reference to a heap cell.  Borrows may **only** appear as immediate function call arguments — they cannot be stored in variables or returned.  Inside the callee, `*p` reads through the reference and `*p = v` writes through it without transferring ownership.
+
+```
+increment(p) {
+  *p = *p + 1;
+  return 0;
+}
+
+main() {
+  var x, dummy;
+  x = 10;
+  dummy = increment(&x);
+  if (x != 11) error x;
+  return 0;
+}
+```
+
+Attempting to store a borrow in a variable is rejected at compile time:
+
+```
+main() {
+  var x, p;
+  x = 5;
+  p = &x;   // error: borrow expression must be an immediate function argument
+  return 0;
+}
+```
+
+### Notable Constraints
+
+| Feature | Constraint |
+|---------|------------|
+| Comparisons | Only `>`, `==`, `!=` — no `<`, `<=`, `>=` |
+| `return` | Must be the final statement in a function body — no early return |
+| Borrows | `&expr` is only valid as a direct function call argument |
+| Call statements | Every call result must be assigned — there are no void call statements |
+
+
+## Teaching Goals
+
+`topc` is a teaching and research compiler designed to make the construction of a typed, memory-safe language concrete and approachable.  The implementation layers a sequence of static analyses on top of a standard compiler pipeline — parser → AST → type inference → semantic checks → code generation — with each phase building on the results of the previous:
+
+1. **Type inference** resolves the types of all expressions and functions using Hindley-Milner-style unification, extended to handle sum types, owned pointers, and borrow references.
+2. **Ownership classification** labels every pointer-typed value as `Own` or `Copy` based on its inferred type, providing the foundation for safe allocation tracking.
+3. **Borrow checking** enforces that borrow expressions are used only as immediate call arguments, preventing dangling-reference patterns without a full lifetime system.
+4. **Destruction pass** uses the ownership information to insert `destroy` calls before each function return, automatically freeing any owned values still live at that point.
+
+Together these analyses realize TOP's memory-safety guarantees within a compiler small enough to read in full.  The test suite (435 unit tests, 156 system tests) is structured to be readable alongside the corresponding analysis code.
+
 
 ## Dependencies
 
-`tipc` is implemented in C++17 and depends on a number of tools and packages, e.g., [ANTLR4](https://www.antlr.org), [Catch2](https://github.com/catchorg/Catch2), [CMake](https://cmake.org/), [Doxygen](https://www.doxygen.nl/), [loguru](https://github.com/emilk/loguru), [Java](https://www.java.com), [LLVM](https://www.llvm.org) (LLVM 22+ required).  To simplify dependency management the project provides a [bootstrap](bin/bootstrap.sh) script to install all of the required dependencies on linux ubuntu and mac platforms and configure shell variables used by the build/test scripts; if you are using `portal.cs.virginia.edu` to build then you can replace this script with running `module load <pathto>/tipc/conf/modulefiles/tipc/F26`, where `<pathto>` is the path to where you have installed `tipc`.
+`topc` is implemented in C++17 and depends on: [ANTLR4](https://www.antlr.org), [Catch2](https://github.com/catchorg/Catch2), [CMake](https://cmake.org/), [Doxygen](https://www.doxygen.nl/), [loguru](https://github.com/emilk/loguru), [Java](https://www.java.com), and [LLVM](https://www.llvm.org) (LLVM 22+ required).
 
-## Building tipc
+To simplify dependency management the project provides a [bootstrap](bin/bootstrap.sh) script that installs all required dependencies on Ubuntu and macOS and configures the shell variables (`LLVM_DIR`, `TOPCLANG`) used by the build and test scripts:
 
-The project uses [GitHub Actions](https://docs.github.com/en/actions) for building and testing and [CodeCov](https://codecov.io) for reporting code and documentation coverage.  The [build-and-test.yml](.github/workflows/build-and-test.yml) file provides details of this process.  If you would prefer to build and test manually then read on.
-
-After cloning this repository you can build the compiler by moving to into the top-level directory and issuing these commands:
-  1. `./bin/bootstrap.sh`
-  2. `. ~/.bashrc` (or `. ~/.zshrc` on macOS zsh)
-  3. `mkdir build`
-  4. `cd build`
-  5. `cmake ..`
-  6. `make`
-
-The build process will download an up to date version of ANTLR4 if needed, build the C++ target for ANTLR4, and then build all of `tipc` including its substantial body of unit tests.  This may take some time - to speed it up use multiple threads in the `make` command, e.g., `make -j6`.
-
-You may see some warnings, e.g., CMake policy warnings, due to some of the packages we use in the project.  As those projects are updated, to avoid CMake feature deprecation, these will go away.
-
-When finished the `tipc` executable will be located in `build/src/`.  You can copy it to a more convenient location if you like, but a number of scripts in the project expect it to be in this location so don't move it.
-
-The project includes more than 300 unit tests grouped into several executables. The project also includes more than 90 system tests. These are TIP programs that have built in test oracles that check for the expected results. For convenience, there is a `runtests.sh` script provided in the `bin` directory.  You can run this script to invoke the entire collection of tests. See the `README` in the bin directory for more information.  
-
-All of the tests should pass.
-
-## Maintenance Upgrade Notes
-
-This release focuses on dependency updates and internal architectural cleanup.
-
-- LLVM 22+ is required.
-- Keep `TIPCLANG` on the same LLVM major version as the LLVM used by CMake (for example, on macOS Homebrew: `/opt/homebrew/opt/llvm/bin/clang`).
-- `bin/runtests.sh` now cleans stale `*.gcda` files before tests by default to avoid merge/corruption warnings. Set `TIPC_KEEP_COVERAGE=1` to skip this cleanup when preserving coverage artifacts is intentional.
-
-### Ubuntu Linux
-
-Our continuous integration process builds on current Ubuntu LTS images, so recent Ubuntu versions are well-supported. We do not support other linux distributions, but we know that people in the past have ported `tipc` to different distributions.
-
-### Mac OS
-
-Our continuous integration process builds on current macOS images, so modern macOS versions are well-supported. `tipc` builds on both Intel and Apple Silicon systems.
-
-### Windows Subsystem for Linux
-
-If you are using a Windows machine, tipc can be built in the Windows Subsystem for Linux (WSL). [Here](https://learn.microsoft.com/windows/wsl/install) are instructions to install WSL and upgrade to WSL2. It is highly recommended to upgrade to WSL2. Once installed, you should install a recent Ubuntu release in WSL. Once finished, you can open a virtual instance of Ubuntu and follow
-the instructions above to build tipc. 
-
-You may receive an error saying "No CMAKE_CXX_COMPILER could be found" when running `cmake ..`. If this is the case, you should install g++ with the command: `sudo apt-get install g++`.
-
-## Using tipc
-
-The `tipc` compiler has a limited set of options available through the `--help` flag.
 ```
-OVERVIEW: tipc - a TIP to llvm compiler
+./bin/bootstrap.sh
+. ~/.zshrc      # or . ~/.bashrc on Linux
+```
 
-USAGE: tipc [options] <tip source file>
+`TOPCLANG` must be the `clang` binary from the same LLVM installation used by CMake — for example, on macOS with Homebrew: `/opt/homebrew/opt/llvm/bin/clang`.
+
+
+## Building topc
+
+After cloning the repository and running bootstrap:
+
+```
+mkdir build
+cd build
+cmake ..
+cmake --build . -j$(nproc)
+```
+
+The build downloads and compiles ANTLR4's C++ runtime if needed, builds the runtime library (`build/rtlib/top_rtlib.bc`), and compiles `topc` together with its unit tests.  The `topc` executable lands in `build/src/`.
+
+You may see CMake policy warnings from third-party packages; these are harmless and will disappear as those packages are updated.
+
+
+## Using topc
+
+```
+OVERVIEW: topc - a TOP to llvm compiler
+
+USAGE: topc [options] <top source file>
 
 OPTIONS:
 
-Generic Options:
-
-  --help                 - Display available options (--help-hidden for more)
-  --help-list            - Display list of available options (--help-list-hidden for more)
-  --version              - Display the version of this program
-
-tipc Options:
-Options for controlling the TIP compilation process.
-
+  --asan                         - instrument generated IR with AddressSanitizer
   --asm                          - emit human-readable LLVM assembly language
   --do                           - disable bitcode optimization
   --log=<logfile>                - log all messages to logfile (enables --verbose 3)
-  -o=<outputfile>                - write output to <outputfile>
+  -o <outputfile>                - write output to <outputfile>
   --pa=<AST output file>         - print AST to a file in dot syntax
   --pcg=<call graph output file> - print call graph to a file in dot syntax
-  --pi                           - perform polymorphic type inference
   --pp                           - pretty print
   --ps                           - print symbols
   --pt                           - print symbols with types (supercedes --ps)
-  --verbose=<int>                - enable log messages (Levels 1-3) 
-                                    Level 1 - Basic logging for every phase.
-                                    Level 2 - Level 1 and type constraints being unified.
-                                    Level 3 - Level 2 and union-find solving steps.
+  --verbose=<int>                - enable log messages (Levels 1-3)
 ```
-By default it will accept a `.tip` file, parse it, perform a series of semantic analyses to determine if it is a legal TIP program, generate LLVM bitcode, and emit a `.bc` file which is a binary encoding of the bitcodes.  You can see a human readable version of the bitcodes by running `llvm-dis` on the `.bc` file.
 
-To produce an executable version of a TIP program, the `.bc` file must be linked with the bitcode for [tip_rtlib.c](rtlib/tip_rtlib.c).  Running the `build.sh` script in the [rtlib](rtlib) directory once will create that library bitcode file.
+By default `topc` accepts a `.top` file, runs the full analysis pipeline, generates LLVM bitcode, and emits a `.bc` file.  Linking the bitcode with the runtime library produces an executable.  The [build.sh](bin/build.sh) script handles the compile and link steps in one command:
 
-The link step is performed using `clang` which will include additional libraries needed by [tip_rtlib.c](rtlib/tip_rtlib.c).  
-
-For convenience, we provide a script [build.sh](bin/build.sh) that will compile the tip program and perform the link step.  The script can be used within this git repository, or if you define the shell variable `TIPDIR` to the path to the root of the repository you can run it from any location as follows:
 ```
-$ cd
-$ more hello.tip
+$ cat hello.top
 main() { return 42; }
-$ $HOME/tipc/bin/build.sh hello.tip
+$ $TOPDIR/bin/build.sh hello.top
 $ ./hello
 Program output: 42
-$ $HOME/tipc/bin/build.sh -pp -pt hello.tip
-main() 
+$ $TOPDIR/bin/build.sh -pp -pt hello.top
+main()
 {
   return 42;
 }
@@ -129,201 +192,105 @@ Locals for function main : {
 }
 ```
 
-## Working with tipc
+Set `TOPDIR` to the repository root, or run `build.sh` from within the repository (it falls back to `git rev-parse --show-toplevel`).
 
-The instructions above, and the scripts described below, make it possible to develop from the command line.  This gives you lots of control, but it means you will miss the benefit of modern IDEs.   Below we describe how to set up the CLion IDE for use with the project.
 
-### Command line
+## Working with topc
 
-During development you need only run build steps 1 through 5 a single time, unless you modify some `CMakeLists.txt` file.  Just run `make` in the build directory to rebuild after making changes to the source.
+### Command Line
 
-If you do need to add a source file then you will have to edit the appropriate `CMakeLists.txt` file to add it.  In this case, you should:
-  - `cd build`
-  - `rm CMakeCache.txt`
-  - `cmake ..`
+During development only the initial build steps need to run once (unless a `CMakeLists.txt` file changes).  Thereafter, run `cmake --build build` from the repository root to rebuild only what changed.
 
-which will regenerate the makefiles that you can then run, by typing `make`, to build.
+If you add a source file, edit the relevant `CMakeLists.txt`, then regenerate:
 
-Note that the `tipg4` directory has a standalone ANTLR4 grammar.  It's README describes how to build it in isolation and run it using the ANTLR4 jar file.
-
-### The bin directory
-To facilitate development of `tipc` we have collected a number of helper scripts into the `bin` directory of the project. Among them are scripts to run the entire test bed (`runtests.sh`), to run a code coverage analysis (`gencov.sh`), and to generate the project documentation (`gendocs.sh`).  Please see the `README` in the bin directory for example usages.  
-
-By default, `runtests.sh` cleans stale `*.gcda` files before running tests to avoid `gcov` merge warnings. If you intentionally want to preserve coverage artifacts across runs, set `TIPC_KEEP_COVERAGE=1`.
-
-### CLion
-
-[CLion](https://www.jetbrains.com/clion/) is C++ IDE that can be used to develop and build tipc. CLion can be installed with the JetBrains suite of tools, or as a standalone tool [here](https://www.jetbrains.com/help/clion/installation-guide.html#standalone). Once installed, you can start a 30 day trial license or, as a student, you can get a free educational license [here](https://www.jetbrains.com/community/education/#students).
-
-These instructions are with respect to CLion 2023.1.3, but older or new versions work similarly - though the UI may be a bit different.
-
-If you are building for the first time with CLion, follow the first two steps of the installation process to install any needed tipc dependencies. 
-
-From the `File` menu select `New` and then `Project from Version Control`.  You can type in the URL for this github repository and then hit the `Clone` button.   The scripts described above assume a directory structure, but a little bit of setup will synchronize your CLion project with those assumptions and allow for easy development using both CLion and scripts, when needed.
-
-From the `CLion` menu select `Build, Execution, Deployment` and then `CMake`.  You want to change the `Build directory` to `build` and then define an `Environment` variable.   When you ran the `bootstrap.sh` script it defined shell variables such as `LLVM_DIR` and `TIPCLANG` in your shell profile (`.bashrc` or `.zshrc`).  Copy those definitions into the `Environment` field under `Cache variables`.  Your `Settings` should look as follows:
-
-![CLion CMake Settings](docs/assets/clion/clion_settings_for_tipc.png)
-
-Now you can click `Apply` and then `OK` to complete the setup.
-
-The project can now be built or rebuilt by clicking the "Build" button in the toolbar.
-
-CLion has great debugging support as well as test coverage support for the Catch2 tests included in the project.  You will rarely need to use the commandline scripts, but if you do just move to the repository root and you can execute them there to:
- 1. resolve `gcov` merge errors by running `cleancov.sh`
- 2. run system tests with `runtests.sh`
- 3. generate documentation with `gendocs.sh`
-
-CLion also has some nice plugins.  For example, there is an [ANTLR v4](https://plugins.jetbrains.com/plugin/7358-antlr-v4) plugin that allows you to more easily develop extensions to the grammar for TIP.  Installation is easy, just click on the `Install to CLion ...` button on the web-page.  Then right click on any rule and select `Test Rule ...` and two frames pop up at the bottom of the UI: the left frame allows you to type in fragments of input and the right frame shows the resulting parse tree.
-
-### Log Messages
-When working on the tipc compiler, it may be helpful to enable logging messages when testing your changes on programs. We have inserted logging messages using loguru. These can be turned using the flag `--verbose [x]` where x is a number between 1-3. These messages get more verbose as you increase x. The first setting shows when symbols are added to the symbol table and when type constraints are generated for the type solver. The second setting shows the previous information and type constraints being unified. The third setting shows types being search for and added into the type graph. When adding to theses features, you can add logging messages by adding a line `LOG_S(x)` where x is an integer to describe the level of log verbosity you want. You can use the existing levels or make new levels.
-
-## Code Style
-tipc follows [llvm coding
-standards](https://llvm.org/docs/CodingStandards.html#llvm-coding-standards).
-`clang-format` is used to apply the llvm style rules. The following command can
-be used to apply the llvm style across the tipc `src` directory. 
-```bash
-find src -iname *.h -o -iname *.cpp | xargs clang-format -style=llvm -i
+```
+cd build
+rm CMakeCache.txt
+cmake ..
+cmake --build . -j$(nproc)
 ```
 
-Using [pre-commit](https://pre-commit.com/) we can enforce styling before each
-commit. This is encouraged to keep a uniform style across the codebase. Install
-pre-commit by following the
-[instructions](https://pre-commit.com/#installation) in their documentation.
-Then, install the tipc hooks by running,
+The `tipg4` directory contains a standalone ANTLR4 grammar; its README describes how to build and run it in isolation with the ANTLR4 jar.
+
+### The bin directory
+
+| Script | Purpose |
+|--------|---------|
+| `bin/bootstrap.sh` | Install dependencies and configure the shell environment |
+| `bin/build.sh` | Compile and link a single TOP program |
+| `bin/runtests.sh` | Run the full unit and system test suite |
+| `bin/gencov.sh` | Generate a code-coverage report |
+| `bin/gendocs.sh` | Generate Doxygen documentation |
+
+Run `./bin/runtests.sh -h` for options.  By default `runtests.sh` cleans stale `*.gcda` files before running tests to avoid `gcov` merge warnings; set `TIPC_KEEP_COVERAGE=1` to preserve coverage artifacts across runs.
+
+### Log Messages
+
+The `--verbose [1-3]` flag enables loguru log messages at increasing detail:
+
+- **1** — phase boundaries, symbol table insertions, and type constraint generation
+- **2** — level 1 plus type constraints as they are unified
+- **3** — level 2 plus union-find solving steps
+
+New messages can be added with `LOG_S(level)` at any point in the source.
+
+
+## Code Style
+
+`topc` follows [LLVM coding standards](https://llvm.org/docs/CodingStandards.html).  Apply the style across `src/`:
+
+```bash
+find src -iname '*.h' -o -iname '*.cpp' | xargs clang-format -style=llvm -i
+```
+
+Using [pre-commit](https://pre-commit.com/) enforces style before each commit:
+
 ```bash
 pre-commit install
 ```
 
-Now, `c++` and `cmake` formatting will be checked before each commit. 
 
 ## Documentation
 
-The TIP grammar, [tipg4](./tipg4/TIP.g4), is implemented using ANTLR4.  This grammar is free of any semantic actions, though it does use ANTLR4 rule features which allow for control over the tree visitors that form key parts of the compiler.  This allows the structure of the grammar to remain relatively clean, i.e., no grammar factoring or stratification needed.  
+The TOP grammar, [topg4/TOP.g4](./topg4/TOP.g4), is implemented using ANTLR4 and is free of semantic actions; ANTLR4 rule features control the tree visitors that form key parts of the compiler, keeping the grammar relatively clean without factoring or stratification.
 
-The `tipc` compiler has a pretty classic design.  It is comprised of four phases:
- * [frontend](./src/frontend) takes care of parsing, constructing an AST representation, and pretty printing
- * [semantic analysis](./src/semantic) that performs assignability, symbol, and type checking
- * [code generation](./src/codegen) that produces LLVM bitcode from an AST and emits a binary
- * [optimization](./src/optimizer) that runs a few LLVM optimization passes to improve the bitcode
+The `topc` compiler follows a classic pipeline:
 
-Doxygen [documentation](https://matthewbdwyer.github.io/tipc) for the project is 
-available for the project.  The documentation is a work in progress 
-and will improve over time.
+ * [frontend](./src/frontend) — parsing, AST construction, pretty printing
+ * [semantic analysis](./src/semantic) — assignability, symbol, type inference, ownership classification, borrow checking, and the destruction pass
+ * [code generation](./src/codegen) — LLVM bitcode emission from the AST
+ * [optimization](./src/optimizer) — standard LLVM optimization passes
 
-The `tipc` driver program only produces a bitcode file, `.bc`. You need to link it
-with the [runtime library](./rtlib/tip_rtlib.c) which defines the processing of command
-line arguments, which is non-trivial for TIP, establish necessary runtime structures, 
-and implement IO routines. A [script](./bin/build.sh) is available to link binaries 
-compiled by `tipc` with the runtime library.
+The `topc` driver produces a `.bc` bitcode file.  Linking it with the [runtime library](./rtlib/top_rtlib.c) (built automatically by CMake as `build/rtlib/top_rtlib.bc`) produces an executable.  Use [bin/build.sh](./bin/build.sh) to perform both steps in one command.
 
-## Goals and Plans
+### API Documentation
 
-The goal of this project is to provide a starting point for project work in an undergraduate compilers course.  As such it similar to lots of other compiler projects, but there are some differences.
+API documentation is generated by [Doxygen](https://www.doxygen.nl) from inline source comments.  To build it, first ensure the project has been configured with CMake (see [Getting Started](#getting-started)), then run:
 
-First and foremost, the TIP language includes a number of rich features, e.g., high-order functions, and type inference, and the `tipc` compiler targets LLVM - a key component of a production compiler infrastructure.  These choices are intentional and while they create some challenges the project is intended to help demystify complex language features, e.g., parametric polymorphism, by illustrating how they can be realized.
+```
+bin/gendocs.sh
+```
 
-Second, the project attempts to use modern software development practices, e.g. Doxygen for in-code documentation, unit testing with Catch2, continuous integration with GitHub Actions, and code coverage with `lcov`.  
-
-Third, the project intentionally makes heavy use of the [Visitor pattern](https://en.wikipedia.org/wiki/Visitor_pattern) which is quite appropriate in the context of a compiler.  Our use of it is intended to demonstrate how this type of abstract design element in a system can yield conceptual simplicity and savings in development.   The project currently uses 6 visitors that extend [ASTVisitor](./src/frontend/ast/ASTVisitor.h) and another visitor from ANTLR4.
-
-Finally, the project is implemented in C++17 using modern features.  For example, all memory allocation uses smart pointers, we use unique pointers where possible and shared pointers as well, to realize the [RAII](https://en.wikipedia.org/wiki/Resource_acquisition_is_initialization) pattern.  Again this presents some challenges, but addressing them is illustrated in the `tipc` code base and hopefully they provide a good example for students.  
-
-The project is a work-in-progress in the sense that we are planning to perform corrective maintenance, as needed, as well as perfective maintenance.  For the latter, we expect to make a new release of the project in early August every year.  This release will focus on improving the use of modern C++
-and to incorporate better design principles, patterns, and practices.
-We welcome issue reports and pull-requests along these lines.
+The generated HTML is written to `build/docs/html/`.  Open `build/docs/html/index.html` in a browser to browse the documentation.  If the Python package [coverxygen](https://pypi.org/project/coverxygen/) is installed, the script also appends a documentation-coverage summary to the generated HTML.
 
 ## Differences from TIP and Limitations
 
-Other than issues related to the efficiency of the code that it generates, the `tipc` compiler has two limitations.
+`topc` implements a variant of TIP semantics in a few ways.
 
-`tipc` supports a variant of the TIP language semantics in a few ways.  It implements the `!=` operator which allows us to conveniently write self-contained system tests and it implements the [C operator precedence rules](https://en.cppreference.com/w/c/language/operator_precedence), whereas the original TIP uses a few different rules.  This surfaces in the interplay between pointer dereference and field access.  An expression `*r.f` is interpreted as `*(r.f)` according to the C precedence rules and as `(*r).f` according to the [TIP Scala](https://github.com/cs-au-dk/TIP) implementation.  If in doubt, add parentheses to express your meaning.
+The comparison operators are `>`, `==`, and `!=`.  `tipc` added `!=` for convenience in self-contained tests; `topc` preserves that choice.
 
-By default `tipc` implements the unification-based monomorphic type inference algorithm used in the [Scala implementation](https://github.com/cs-au-dk/TIP/).  `tipc` also supports a form of polymorphic type inference using the `--pi` option.  To use polymorphic type inference programmers can add the `poly` keyword to a function declaration, but `tipc` will only perform polymorphic type inference for such functions if they are non-recursive.
+`topc` follows [C operator precedence rules](https://en.cppreference.com/w/c/language/operator_precedence).  Add parentheses to make intent explicit.
 
-There is also a difference in type inference related to records.  The type system that ensures that any expression appearing in the record position of a field access expression is in fact a record, but it does not infer precise record typing.  Instead the strategy used is to define an *uber* record that consists of all of the fields referenced across the program. Code generation for records will allocate a global record and then explicitly initialize fields present in a record expression. If the record is being created via an `alloc` expression, the fields that aren't explicitly set will be set to a default value 0, as we allocate memory using the C function `calloc`. If the record is being created without explicitly allocating memory for it, the fields that aren't explicitly set will not be given any value, but may still be referenced. This can lead to some unexpected behavior.  Consider this TIP program:
-```
-main() { var r; r = {g:1}; return access(r); }
-access(r) { return r.f; }
-```
-The record expression, `{g:1}`, forces the global record to contain a field `g`, and the access expression `r.f`, forces the presence of field `f`. Because `r` is not being allocated using an `alloc` expression, access will return whatever value was in memory at the location of `r.f`. 
-One might prefer that this program yield a type error, but that would require a more sophisticated type system.  We chose not to implement that to manage the complexity of what is primarily a pedagogical project. If instead, r is allocated using `alloc` like the following:
-```
-main() { var r; r = alloc {g:1}; return access(r); }
-access(r) { return r.f; }
-```
-The record expression default initializes `f` to `0` and this is the value that is accessed and returned from the call to `access` and then from `main`.  
+Polymorphic type inference is always on: all non-recursive functions are auto-generalised so call sites instantiate fresh type variables.
 
-Second, TIP allows memory allocation, yet its runtime system does not include a garbage collector.  
-The TIP program [recordLeak.tip](test/system/leak/recordLeak.tip), shown below, leaks memory because the `alloc` constructor causes the record to be allocated on the heap:
-```
-// recordLeak.tip
-foo(x,y,z){
-    var rec;
-    rec = alloc {l: x, m: y, n: z};
-    return (*rec).m;
-}
+**Anonymous records replaced by algebraic sum types.**  TIP supports anonymous record expressions `{field: expr, ...}` and field access `expr.field`.  TOP removes this syntax entirely and replaces structured data with algebraic sum types.  The motivation is soundness under unification-based type inference: TIP's record type system uses an *uber-record* strategy — a single global record type is inferred that contains every field name mentioned anywhere in the program.  Fields absent from a given record expression are zero-initialised on heap allocation and undefined otherwise.  This makes it impossible to detect field-name typos at compile time, conflates structurally distinct record uses, and produces misleading inferred types.  Algebraic sum types avoid all of these problems.  Each `type` declaration introduces a distinct named type; every constructor is closed over exactly the fields it declares; the type checker rejects unknown constructors and missing cases in `case` statements.  Programs that previously used records to model variant data — option types, linked-list nodes, tree nodes — are expressed more precisely with sum types: the compiler enforces exhaustive case coverage, constructor payloads are typed individually, and there is no sharing of field names across unrelated types.
 
-main(){
-    var i, j, a;
-    a = 0;
-    i = 0;
-    j = 0;
-    while (1000000000 > i) { 
-      while (1000000000 > j) { 
-        a = a + foo(3,2,4);
-        j = j + 1;
-      }
-      i = i + 1;
-    }
-    return 0;
-}
-```
-This is a valid TIP program which can be compiled into an executable and whose memory usage can be observed using:
-```
-/path/to/tipc/bin/build.sh --do test/system/leak/recordLeak.tip
-./recordLeak & top
-```
-You can then kill top using `Ctrl+C` and then kill `./recordLeak` with `fg` and `Ctrl+C`. It's important that you disable the optimizer with the `--do` flag. Otherwise, the optimizer would be smart enough to simply return the `y` parameter's value. If we remove the alloc from `foo`, as we do in [recordNoLeak.tip](test/system/leak/recordNoLeak.tip), then the record is allocated on the call stack and it is reclaimed when the call to `foo` returns:
-```
-// recordNoLeak.tip
-foo(x,y,z){
-    var rec;
-    rec = {l: x, m: y, n: z};
-    return (*rec).m;
-}
+Memory management: unlike TIP, TOP programs that allocate with `alloc` are not responsible for manually freeing memory.  The destruction pass inserts `free` automatically for every owned pointer before the function returns, so allocation-heavy programs do not leak.  Run with `--asan` to verify this guarantee at runtime.
 
-main(){
-    var i, j, a;
-    a = 0;
-    i = 0;
-    j = 0;
-    while (1000000000 > i) { 
-      while (1000000000 > j) { 
-        a = a + foo(3,2,4);
-        j = j + 1;
-      }
-      i = i + 1;
-    }
-    return 0;
-}
-```
-We can find that this program will not create a memory leak because rec will be allocated on the stack instead of the heap as the alloc would.  
-
-Incorporating a garbage collector is a possible future extension to the runtime library.
 
 ## Resources
-To fully understand this project quite a bit of background is required.
-We collect a number of resources that we think can be helpful in that regard.
 
 ### C++ Resources
-If you find yourself unfamiliar with certain aspects of the C++ programming
-language we encourage you to explore the *Back To Basics* videos that have
-been presented at [CppCon](https://cppcon.org/). Provided below are links
-to a number of these videos, as well as to other resources that are relevant 
-to this project.
 
 #### Move Semantics
 + [Move Semantics (part 1 of 2)](https://youtu.be/St0MNEU5b0o)
@@ -331,7 +298,7 @@ to this project.
 
 #### Value Categories
 + [Understanding Value Categories](https://youtu.be/XS2JddPq7GQ)
-+ [“New” Value Terminology](https://www.stroustrup.com/terminology.pdf)
++ ["New" Value Terminology](https://www.stroustrup.com/terminology.pdf)
 
 #### Smart pointers
 + [Smart Pointers](https://youtu.be/xGDLkt-jBJ4)
@@ -347,22 +314,14 @@ to this project.
 
 ### LLVM Resources
 
-To understand this code, and perhaps extend it, you will want to become familiar with the [core LLVM classes](http://llvm.org/docs/ProgrammersManual.html#the-core-llvm-class-hierarchy-reference).  It can be difficult to absorb all of the information in this type of documentation just by reading it.  A goal-directed strategy where you move back and forth between reading code and reading this documentation seems to work well for many people.
+To understand and extend code generation, familiarise yourself with the [core LLVM class hierarchy](http://llvm.org/docs/ProgrammersManual.html#the-core-llvm-class-hierarchy-reference).  The [LLVM tutorial](https://llvm.org/docs/tutorial/) is a good starting point; `topc` uses idioms and strategies from it.
 
-If you are familiar with the [LLVM tutorial](https://llvm.org/docs/tutorial/) you will see its influence on this compiler which leverages idioms, strategies, and code fragments from the tutorial.  The LLVM tutorials are a great starting point for understanding the APIs in the context of compiling.
-
-There is lots of great advice about using LLVM available:
+Useful references:
   * https://www.cs.cornell.edu/~asampson/blog/llvm.html
-  * the [LLVM Programmer's Manual](http://llvm.org/docs/ProgrammersManual.html) is a key resource
-  * someone once told me to just use a search engine to find the LLVM APIs and its a standard use case for me, e.g., I don't remember where the docs are I just search for `llvm irbuilder`
-  * LLVM has some nuances that take a bit to understand.  For instance, the [GEP](https://llvm.org/docs/GetElementPtr.html) instruction, which `tipc` uses quite a bit given that it emits calls through a function table.
-  * LLVM15+ have implemented the concept of "Opaque Pointers", this removes all the typed pointer implementations and associated functions.
-    * [LLVM Docs on OpaquePointers](https://llvm.org/docs/OpaquePointers.html) talks about this in reasonable detail.
-    * [Here](docs/OpaquePointers.md) is a Quick summary of the change and how that affects tipc.
+  * [LLVM Programmer's Manual](http://llvm.org/docs/ProgrammersManual.html)
+  * [GEP instruction](https://llvm.org/docs/GetElementPtr.html) — used in `topc` for function-table dispatch
+  * [Opaque Pointers](https://llvm.org/docs/OpaquePointers.html) — required since LLVM 15; see also [docs/OpaquePointers.md](docs/OpaquePointers.md)
+
 ### Git Resources
 + [Pro Git Book](https://git-scm.com/book/en/v2)
 + [Git For Ages 4 And Up](https://www.youtube.com/watch?v=1ffBJ4sVUb4)
-
-### CLion Resources
-* [Using Git in CLion](https://www.jetbrains.com/help/clion/using-git-integration.html)
-* [Using CLion with WSL](https://www.jetbrains.com/help/clion/how-to-use-wsl-development-environment-in-clion.html#wsl-tooclhain)

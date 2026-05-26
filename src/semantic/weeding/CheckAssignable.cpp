@@ -12,16 +12,6 @@ namespace {
 bool isAssignable(ASTExpr *e) {
   if (dynamic_cast<ASTVariableExpr *>(e))
     return true;
-  if (dynamic_cast<ASTAccessExpr *>(e)) {
-    ASTAccessExpr *access = dynamic_cast<ASTAccessExpr *>(e);
-    if (dynamic_cast<ASTVariableExpr *>(access->getRecord())) {
-      return true;
-    } else if (dynamic_cast<ASTDeRefExpr *>(access->getRecord())) {
-      return true;
-    } else {
-      return false;
-    }
-  }
   return false;
 }
 
@@ -39,13 +29,7 @@ void CheckAssignable::endVisit(ASTAssignStmt *element) {
 
   std::ostringstream oss;
   oss << "Assignment error on line " << element->getLine() << ": ";
-  if (dynamic_cast<ASTAccessExpr *>(element->getLHS())) {
-    ASTAccessExpr *access = dynamic_cast<ASTAccessExpr *>(element->getLHS());
-    oss << *access->getRecord()
-        << " is an expression, and not a variable corresponding to a record\n";
-  } else {
-    oss << *element->getLHS() << " not an l-value\n";
-  }
+  oss << *element->getLHS() << " not an l-value\n";
   throw SemanticError(oss.str());
 }
 

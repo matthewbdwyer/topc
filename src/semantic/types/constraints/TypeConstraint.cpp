@@ -2,8 +2,8 @@
 
 #include "iostream"
 
-TypeConstraint::TypeConstraint(std::shared_ptr<TipType> l,
-                               std::shared_ptr<TipType> r)
+TypeConstraint::TypeConstraint(std::shared_ptr<TopType> l,
+                               std::shared_ptr<TopType> r)
     : lhs(l), rhs(r){};
 
 /**

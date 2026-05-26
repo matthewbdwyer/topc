@@ -135,17 +135,6 @@ TEST_CASE(
   REQUIRE_THROWS_AS(visitor.dispatch(&deRefExpr), InternalError);
 }
 
-TEST_CASE(
-    "CodegenFunction: ASTAccessExpr throws InternalError on nonexistent field",
-    "[CodegenFunctions]") {
-  ASTAccessExpr accessExpr(std::make_shared<nullcodegen::MockASTExpr>(),
-                           "foobar");
-  CodeGenContext ctx;
-  CodeGenVisitor visitor;
-  visitor.setContext(&ctx);
-  REQUIRE_THROWS_AS(visitor.dispatch(&accessExpr), InternalError);
-}
-
 TEST_CASE("CodegenFunction: ASTFunAppExpr throws InternalError on FUN codegen nullptr",
           "[CodegenFunctions]") {
   std::vector<std::shared_ptr<ASTExpr>> actuals;

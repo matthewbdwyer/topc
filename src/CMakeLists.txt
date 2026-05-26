@@ -1,6 +1,6 @@
 # compiler binary target
-add_executable(tipc)
-target_sources(tipc PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/tipc.cpp)
+add_executable(topc)
+target_sources(topc PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/topc.cpp)
 
 # Build the phase specific libraries
 add_subdirectory(error)
@@ -10,7 +10,7 @@ add_subdirectory(codegen)
 add_subdirectory(optimizer)
 
 target_link_libraries(
-  tipc
+  topc
   PRIVATE error
           frontend
           semantic
@@ -21,7 +21,7 @@ target_link_libraries(
           coverage_config
           loguru)
 target_include_directories(
-  tipc
+  topc
   PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/error
           ${CMAKE_CURRENT_SOURCE_DIR}/frontend
           ${CMAKE_CURRENT_SOURCE_DIR}/frontend/ast
@@ -39,3 +39,5 @@ target_include_directories(
           ${CMAKE_CURRENT_SOURCE_DIR}/semantic/weeding
           ${CMAKE_CURRENT_SOURCE_DIR}/codegen
           ${CMAKE_CURRENT_SOURCE_DIR}/optimizer)
+
+

@@ -1,6 +1,6 @@
 #include "TypeConstraint.h"
-#include "TipFunction.h"
-#include "TipInt.h"
+#include "TopFunction.h"
+#include "TopInt.h"
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_string.hpp>
@@ -10,10 +10,10 @@
 
 TEST_CASE("TypeConstraint: Constraints are compared term-wise",
           "[TypeConstraint]") {
-  std::vector<std::shared_ptr<TipType>> args;
-  args.push_back(std::make_shared<TipInt>());
+  std::vector<std::shared_ptr<TopType>> args;
+  args.push_back(std::make_shared<TopInt>());
   auto function =
-      std::make_shared<TipFunction>(args, std::make_shared<TipInt>());
+      std::make_shared<TopFunction>(args, std::make_shared<TopInt>());
 
   TypeConstraint constraint(function, function);
   TypeConstraint constraint2(function, function);
@@ -22,10 +22,10 @@ TEST_CASE("TypeConstraint: Constraints are compared term-wise",
 }
 
 TEST_CASE("TypeConstraint: Test output", "[TypeConstraint]") {
-  std::vector<std::shared_ptr<TipType>> args;
-  args.push_back(std::make_shared<TipInt>());
+  std::vector<std::shared_ptr<TopType>> args;
+  args.push_back(std::make_shared<TopInt>());
   auto function =
-      std::make_shared<TipFunction>(args, std::make_shared<TipInt>());
+      std::make_shared<TopFunction>(args, std::make_shared<TopInt>());
   TypeConstraint constraint(function, function);
 
   std::stringstream sstream;

@@ -39,9 +39,6 @@ public:
   virtual void endVisit(ASTRefExpr *element) override;
   virtual void endVisit(ASTDeRefExpr *element) override;
   virtual void endVisit(ASTNullExpr *element) override;
-  virtual void endVisit(ASTFieldExpr *element) override;
-  virtual void endVisit(ASTRecordExpr *element) override;
-  virtual void endVisit(ASTAccessExpr *element) override;
   virtual void endVisit(ASTDeclNode *element) override;
   virtual void endVisit(ASTDeclStmt *element) override;
   virtual void endVisit(ASTAssignStmt *element) override;
@@ -54,6 +51,16 @@ public:
   virtual void endVisit(ASTOutputStmt *element) override;
   virtual void endVisit(ASTReturnStmt *element) override;
   virtual void endVisit(ASTErrorStmt *element) override;
+  // TOP/SOP extension nodes
+  virtual void endVisit(ASTSumCtorExpr *element) override;
+  virtual void endVisit(ASTSumVariant *element) override;
+  virtual void endVisit(ASTSumTypeDecl *element) override;
+  virtual bool visit(ASTCaseStmt *element) override;
+  virtual void endVisit(ASTCaseStmt *element) override;
+  virtual void endVisit(ASTCaseArm *element) override;
+  // Synthetic node inserted by DestructionPass — printed as a destroy statement.
+  virtual bool visit(ASTDestroyStmt *element) override;
+  virtual void endVisit(ASTDestroyStmt *element) override;
 
 private:
   std::string indent() const;

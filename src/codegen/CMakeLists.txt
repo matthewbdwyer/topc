@@ -27,7 +27,7 @@ target_link_libraries(codegen PRIVATE ${llvm_libs} semantic error
                                       coverage_config loguru)
 # set C++ definition build flag
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-    add_definitions(-DTIPC_DEBUG)
+    add_definitions(-DTOPC_DEBUG)
 else ()
-    add_definitions(-DTIPC_RELEASE)
+    add_definitions(-DTOPC_RELEASE)
 endif ()

@@ -1,0 +1,24 @@
+type Option = Some(x) | None;
+
+wrap(n) {
+  var r;
+  r = alloc 0;
+  return r;
+}
+
+unwrapOr(opt, def) {
+  var result;
+  result = def;
+  case opt of {
+    Some(v) -> result = v;
+    None -> result = def;
+  }
+  return result;
+}
+
+main() {
+  var x;
+  x = unwrapOr(None, 42);
+  output x;
+  return 0;
+}

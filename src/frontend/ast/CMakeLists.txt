@@ -7,8 +7,6 @@ target_sources(
           ${CMAKE_CURRENT_SOURCE_DIR}/SyntaxTree.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/SyntaxTree.h
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/AST.h
-          ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTAccessExpr.cpp
-          ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTAccessExpr.h
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTAllocExpr.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTAllocExpr.h
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTAssignStmt.cpp
@@ -17,8 +15,15 @@ target_sources(
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTBinaryExpr.h
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTBlockStmt.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTBlockStmt.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTBorrowExpr.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTCaseArm.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTCaseArm.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTCaseStmt.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTCaseStmt.h
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTDeRefExpr.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTDeRefExpr.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTDestroyStmt.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTDestroyStmt.h
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTDeclNode.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTDeclNode.h
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTDeclStmt.cpp
@@ -26,8 +31,6 @@ target_sources(
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTErrorStmt.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTErrorStmt.h
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTExpr.h
-          ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTFieldExpr.cpp
-          ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTFieldExpr.h
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTFunAppExpr.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTFunAppExpr.h
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTFunction.cpp
@@ -45,13 +48,17 @@ target_sources(
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTOutputStmt.h
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTProgram.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTProgram.h
-          ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTRecordExpr.cpp
-          ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTRecordExpr.h
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTRefExpr.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTRefExpr.h
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTReturnStmt.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTReturnStmt.h
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTStmt.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTSumTypeDecl.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTSumTypeDecl.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTSumVariant.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTSumVariant.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTSumCtorExpr.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTSumCtorExpr.h
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTVariableExpr.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTVariableExpr.h
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTWhileStmt.cpp
@@ -62,7 +69,7 @@ target_sources(
           ${CMAKE_SOURCE_DIR}/externals/PicoSHA2/picosha2.h)
 target_include_directories(
   ast
-  PRIVATE ${ANTLR_TIPGrammar_OUTPUT_DIR}
+  PRIVATE ${ANTLR_TOPGrammar_OUTPUT_DIR}
           ${CMAKE_CURRENT_SOURCE_DIR}
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes
           ${CMAKE_SOURCE_DIR}/externals/PicoSHA2

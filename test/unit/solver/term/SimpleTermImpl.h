@@ -1,4 +1,4 @@
-// SimpleTermImpl.h — no TIP includes, used only by standalone solver tests
+// SimpleTermImpl.h — no TOP includes, used only by standalone solver tests
 #pragma once
 #include "TermInterface.h"
 #include <memory>

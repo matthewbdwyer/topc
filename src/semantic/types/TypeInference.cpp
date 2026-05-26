@@ -1,6 +1,6 @@
 #include <cassert>
+#include <unordered_set>
 #include "TypeInference.h"
-#include "AbsentFieldChecker.h"
 #include "PolyTypeConstraintCollectVisitor.h"
 #include "Unifier.h"
 #include "TypeConstraint.h"
@@ -40,18 +40,25 @@ void topoVisit(CallGraph *cg, ASTFunction *f) {
 
 /* Determine whether there is a call chain from function f to g.
  * To determine if a function is recursive call with f==g.
+ * Uses a visited set to avoid infinite recursion on cyclic call graphs.
  */
-bool mayIndirectlyCall(CallGraph *cg, ASTFunction *f, ASTFunction *g) {
-  bool result = false;
-  auto callees = cg->getCallees(f);
-  for (auto c : callees) {
-    if (c == g) {
+static bool mayIndirectlyCallHelper(CallGraph *cg, ASTFunction *f,
+                                    ASTFunction *g,
+                                    std::unordered_set<ASTFunction *> &visited) {
+  if (!visited.insert(f).second)
+    return false; // already explored from f
+  for (auto c : cg->getCallees(f)) {
+    if (c == g)
       return true;
-    } else {
-      result = result || mayIndirectlyCall(cg, c, g);
-    }
+    if (mayIndirectlyCallHelper(cg, c, g, visited))
+      return true;
   }
-  return result;
+  return false;
+}
+
+bool mayIndirectlyCall(CallGraph *cg, ASTFunction *f, ASTFunction *g) {
+  std::unordered_set<ASTFunction *> visited;
+  return mayIndirectlyCallHelper(cg, f, g, visited);
 }
 
 // Topologically sort the set of functions based on the call graph.
@@ -129,6 +136,14 @@ std::shared_ptr<TypeInference> runPoly(ASTProgram *ast, SymbolTable *symbols,
    * in topological order for the call graph.
    */
   auto nonRecursiveFuncs = topoSortNonRecursive(cg);
+
+  /* Auto-generalize: mark every non-recursive singleton-SCC function as
+   * polymorphic so that call sites instantiate fresh type variables.
+   * This replaces the explicit `poly` keyword (Phase 7).
+   */
+  for (auto f : nonRecursiveFuncs)
+    symbols->setPoly(f->getName());
+
   for (auto f : nonRecursiveFuncs) {
     LOG_S(1) << "Generating Polymorphic Type Constraints for " << *f;
 
@@ -159,8 +174,6 @@ std::shared_ptr<TypeInference> runPoly(ASTProgram *ast, SymbolTable *symbols,
    */
   unifier->solve();
 
-  AbsentFieldChecker::check(ast, unifier.get());
-
   return std::make_shared<TypeInference>(symbols, unifier);
 }
 
@@ -178,8 +191,6 @@ std::shared_ptr<TypeInference> runMono(ASTProgram *ast, SymbolTable *symbols) {
   auto unifier = std::make_shared<Unifier>(visitor.getCollectedConstraints());
   unifier->solve();
 
-  AbsentFieldChecker::check(ast, unifier.get());
-
   return std::make_shared<TypeInference>(symbols, unifier);
 }
 
@@ -188,14 +199,14 @@ std::shared_ptr<TypeInference> runMono(ASTProgram *ast, SymbolTable *symbols) {
  * unifier instance.  The unifier then records the inferred type results that
  * can be subsequently queried.
  */
-std::shared_ptr<TypeInference> TypeInference::run(ASTProgram *ast, bool doPoly,
+std::shared_ptr<TypeInference> TypeInference::run(ASTProgram *ast,
                                                   CallGraph *cg,
                                                   SymbolTable *symbols) {
-  return (doPoly) ? runPoly(ast, symbols, cg) : runMono(ast, symbols);
+  return runPoly(ast, symbols, cg);
 }
 
-std::shared_ptr<TipType> TypeInference::getInferredType(ASTDeclNode *node) {
-  auto var = std::make_shared<TipVar>(node);
+std::shared_ptr<TopType> TypeInference::getInferredType(ASTDeclNode *node) {
+  auto var = std::make_shared<TopVar>(node);
   return unifier->inferred(var);
 };
 

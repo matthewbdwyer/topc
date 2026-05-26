@@ -12,7 +12,7 @@
 static std::shared_ptr<llvm::Module> compile(const std::string &src) {
   std::stringstream ss(src);
   auto ast = ASTHelper::build_ast(ss);
-  auto analysis = SemanticAnalysis::analyze(ast.get(), false);
+  auto analysis = SemanticAnalysis::analyze(ast.get());
   return CodeGenerator::generate(ast.get(), analysis.get(), "test_prog");
 }
 
@@ -39,8 +39,8 @@ TEST_CASE("CodegenIsolation: single compilation produces a valid module",
           "[CodegenIsolation]") {
   auto mod = compile(progA);
   REQUIRE(mod != nullptr);
-  // TIP `main` is compiled to `_tip_main` in LLVM; `f` keeps its own name.
-  REQUIRE(mod->getFunction("_tip_main") != nullptr);
+  // TOP `main` is compiled to `_top_main` in LLVM; `f` keeps its own name.
+  REQUIRE(mod->getFunction("_top_main") != nullptr);
   REQUIRE(mod->getFunction("f")         != nullptr);
 }
 
@@ -55,8 +55,8 @@ TEST_CASE("CodegenIsolation: second compilation after first produces correct mod
   auto modB = compile(progB);
   REQUIRE(modB != nullptr);
 
-  // B should contain _tip_main but not f.
-  REQUIRE(modB->getFunction("_tip_main") != nullptr);
+  // B should contain _top_main but not f.
+  REQUIRE(modB->getFunction("_top_main") != nullptr);
   REQUIRE(modB->getFunction("f")         == nullptr);
 }
 
@@ -69,8 +69,8 @@ TEST_CASE("CodegenIsolation: same program compiled twice produces equivalent mod
   REQUIRE(mod2 != nullptr);
 
   // Both modules should have main and the label numbering should be consistent.
-  REQUIRE(mod1->getFunction("_tip_main") != nullptr);
-  REQUIRE(mod2->getFunction("_tip_main") != nullptr);
+  REQUIRE(mod1->getFunction("_top_main") != nullptr);
+  REQUIRE(mod2->getFunction("_top_main") != nullptr);
 
   // Dump both to string and compare. If any global state bleeds between
   // compilations (e.g., label counters not reset), the IR text will differ.

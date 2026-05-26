@@ -1,7 +1,7 @@
 #include "SymbolTable.h"
-#include "FieldNameCollector.h"
 #include "FunctionNameCollector.h"
 #include "LocalNameCollector.h"
+#include "TypeNameCollector.h"
 
 #include <sstream>
 
@@ -11,8 +11,8 @@ std::shared_ptr<SymbolTable> SymbolTable::build(ASTProgram *p) {
   LOG_S(1) << "Building symbol table";
   auto fMap = FunctionNameCollector::build(p);
   auto lMap = LocalNameCollector::build(p, fMap);
-  auto fSet = FieldNameCollector::build(p);
-  return std::make_shared<SymbolTable>(fMap, lMap, fSet);
+  auto [tMap, cMap] = TypeNameCollector::build(p);
+  return std::make_shared<SymbolTable>(fMap, lMap, tMap, cMap);
 }
 
 ASTDeclNode *SymbolTable::getFunction(std::string s) {
@@ -29,6 +29,13 @@ bool SymbolTable::getPoly(std::string s) {
     return false;
   }
   return func->second.second;
+}
+
+void SymbolTable::setPoly(std::string s) {
+  auto func = functionNames.find(s);
+  if (func != functionNames.end()) {
+    func->second.second = true;
+  }
 }
 
 std::vector<ASTDeclNode *> SymbolTable::getFunctions() {
@@ -57,7 +64,32 @@ std::vector<ASTDeclNode *> SymbolTable::getLocals(ASTDeclNode *f) {
   return localDecls;
 }
 
-std::vector<std::string> SymbolTable::getFields() { return fieldNames; }
+ASTSumTypeDecl *SymbolTable::getSumType(std::string name) {
+  auto it = typeNames.find(name);
+  return it == typeNames.end() ? nullptr : it->second;
+}
+
+ASTSumVariant *SymbolTable::getConstructor(std::string tag) {
+  auto it = constructorNames.find(tag);
+  return it == constructorNames.end() ? nullptr : it->second;
+}
+
+std::vector<std::string> SymbolTable::getSumTypes() {
+  std::vector<std::string> names;
+  for (auto &p : typeNames)
+    names.push_back(p.first);
+  return names;
+}
+
+ASTSumTypeDecl *SymbolTable::getConstructorOwner(std::string tag) {
+  for (auto &p : typeNames) {
+    for (auto *v : p.second->getVariants()) {
+      if (v->getTag() == tag)
+        return p.second;
+    }
+  }
+  return nullptr;
+}
 
 void SymbolTable::print(std::ostream &s) {
   s << "Functions : {";
@@ -69,18 +101,6 @@ void SymbolTable::print(std::ostream &s) {
       continue;
     }
     s << ", " + e.first;
-  }
-  s << "}\n";
-
-  s << "Fields : {";
-  skip = true;
-  for (auto n : fieldNames) {
-    if (skip) {
-      skip = false;
-      s << n;
-      continue;
-    }
-    s << ", " + n;
   }
   s << "}\n";
 

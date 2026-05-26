@@ -3,7 +3,7 @@
 #include "ASTVisitor.h"
 #include "ConstraintHandler.h"
 #include "SymbolTable.h"
-#include "TipType.h"
+#include "TopType.h"
 #include <memory>
 #include <set>
 #include <stack>
@@ -39,7 +39,6 @@ public:
                         std::shared_ptr<ConstraintHandler> handler);
 
   bool visit(ASTFunction *element) override;
-  void endVisit(ASTAccessExpr *element) override;
   void endVisit(ASTAllocExpr *element) override;
   void endVisit(ASTAssignStmt *element) override;
   void endVisit(ASTBinaryExpr *element) override;
@@ -52,15 +51,20 @@ public:
   void endVisit(ASTNullExpr *element) override;
   void endVisit(ASTNumberExpr *element) override;
   void endVisit(ASTOutputStmt *element) override;
-  void endVisit(ASTRecordExpr *element) override;
   void endVisit(ASTRefExpr *element) override;
   void endVisit(ASTWhileStmt *element) override;
+
+  // TOP extensions
+  bool visit(ASTSumTypeDecl *element) override;
+  void endVisit(ASTSumCtorExpr *element) override;
+  void endVisit(ASTCaseStmt *element) override;
 
 protected:
   std::shared_ptr<ConstraintHandler> constraintHandler;
   SymbolTable *symbolTable;
-  std::shared_ptr<TipType> astToVar(ASTNode *n);
+  std::shared_ptr<TopType> astToVar(ASTNode *n);
 
 private:
+  bool isTopProgram; ///< true when the program contains sum type declarations
   std::stack<ASTDeclNode *> scope;
 };

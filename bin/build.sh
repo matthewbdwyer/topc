@@ -1,33 +1,33 @@
 #!/bin/bash
 set -e
 
-# Set ROOT_DIR to TIPDIR or the top-level Git directory if TIPDIR is not set
-ROOT_DIR=${TIPDIR:-$(git rev-parse --show-toplevel)}
-TIPC="${ROOT_DIR}/build/src/tipc"
+# Set ROOT_DIR to TOPDIR or the top-level Git directory if TOPDIR is not set
+ROOT_DIR=${TOPDIR:-$(git rev-parse --show-toplevel)}
+TOPC="${ROOT_DIR}/build/src/topc"
 RTLIB="${ROOT_DIR}/rtlib"
 
-# Check if TIPCLANG environment variable is set
-if [ -z "${TIPCLANG}" ]; then
-  echo "error: TIPCLANG env var must be set"
+# Check if TOPCLANG environment variable is set
+if [ -z "${TOPCLANG}" ]; then
+  echo "error: TOPCLANG env var must be set"
   exit 1
 fi
 
 # Check if the tipc executable exists
-if [ ! -f "${TIPC}" ]; then
+if [ ! -f "${TOPC}" ]; then
   echo "error: tipc was not found"
   exit 1
 fi
 
-# Check if the tip_rtlib.bc file exists
-if [ ! -f "${RTLIB}/tip_rtlib.bc" ]; then
-  echo "error: tip_rtlib.bc was not found"
+# Check if the top_rtlib.bc file exists
+if [ ! -f "${RTLIB}/top_rtlib.bc" ]; then
+  echo "error: top_rtlib.bc was not found"
   exit 1
 fi
 
 set -- "$@"
 
 # Execute tipc with the provided arguments
-${TIPC} "$@"
+${TOPC} "$@"
 
 # Only perform link step if bitcode has been generated
 case "$*" in
@@ -36,6 +36,6 @@ case "$*" in
     ;;
   *)
     # Perform the linking step
-    ${TIPCLANG} -w "${@:$#}.bc" "${RTLIB}/tip_rtlib.bc" -o "$(basename "${@:$#}" .tip)"
+    ${TOPCLANG} -w "${@:$#}.bc" "${RTLIB}/top_rtlib.bc" -o "$(basename "${@:$#}" .tip)"
     ;;
 esac

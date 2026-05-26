@@ -61,7 +61,7 @@ _example usage:_
 ## build.sh
 Compiles and links a single TIP program.  
 
-The script accepts all of the tipc command line arguments.  The script can be run as is from within the git repository or, if you set the shell variable TIPDIR, you can run it from any directory.
+The script accepts all of the tipc command line arguments.  The script can be run as is from within the git repository or, if you set the shell variable TOPDIR, you can run it from any directory.
 
 _example usage:_
 ```bash

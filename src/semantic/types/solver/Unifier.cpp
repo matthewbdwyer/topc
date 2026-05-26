@@ -1,31 +1,31 @@
 #include "Unifier.h"
 
-#include "TipAlpha.h"
-#include "TipCons.h"
-#include "TipMu.h"
+#include "TopAlpha.h"
+#include "TopCons.h"
+#include "TopMu.h"
 #include "UnificationError.h"
 
 // ---------------------------------------------------------------------------
 // helpers
 // ---------------------------------------------------------------------------
 
-bool Unifier::isCons(std::shared_ptr<TipType> type) {
-  return std::dynamic_pointer_cast<TipCons>(type) != nullptr;
+bool Unifier::isCons(std::shared_ptr<TopType> type) {
+  return std::dynamic_pointer_cast<TopCons>(type) != nullptr;
 }
 
-bool Unifier::isMu(std::shared_ptr<TipType> type) {
-  return std::dynamic_pointer_cast<TipMu>(type) != nullptr;
+bool Unifier::isMu(std::shared_ptr<TopType> type) {
+  return std::dynamic_pointer_cast<TopMu>(type) != nullptr;
 }
 
-bool Unifier::isVar(std::shared_ptr<TipType> type) {
-  return std::dynamic_pointer_cast<TipVar>(type) != nullptr;
+bool Unifier::isVar(std::shared_ptr<TopType> type) {
+  return std::dynamic_pointer_cast<TopVar>(type) != nullptr;
 }
 
-bool Unifier::isAlpha(std::shared_ptr<TipType> type) {
-  return std::dynamic_pointer_cast<TipAlpha>(type) != nullptr;
+bool Unifier::isAlpha(std::shared_ptr<TopType> type) {
+  return std::dynamic_pointer_cast<TopAlpha>(type) != nullptr;
 }
 
-bool Unifier::isProperType(std::shared_ptr<TipType> type) {
+bool Unifier::isProperType(std::shared_ptr<TopType> type) {
   return isCons(type) || isMu(type) || isAlpha(type);
 }
 
@@ -37,8 +37,8 @@ Unifier::Unifier() = default;
 
 Unifier::Unifier(std::vector<TypeConstraint> constraints) {
   for (auto const &c : constraints) {
-    termUnifier.addConstraint(TipTermAdapter::wrap(c.lhs),
-                              TipTermAdapter::wrap(c.rhs));
+    termUnifier.addConstraint(TopTermAdapter::wrap(c.lhs),
+                              TopTermAdapter::wrap(c.rhs));
   }
 }
 
@@ -48,8 +48,8 @@ Unifier::Unifier(std::vector<TypeConstraint> constraints) {
 
 void Unifier::add(std::vector<TypeConstraint> constraints) {
   for (auto const &c : constraints) {
-    termUnifier.addConstraint(TipTermAdapter::wrap(c.lhs),
-                              TipTermAdapter::wrap(c.rhs));
+    termUnifier.addConstraint(TopTermAdapter::wrap(c.lhs),
+                              TopTermAdapter::wrap(c.rhs));
   }
 }
 
@@ -70,10 +70,10 @@ void Unifier::solve() {
  * Translates TermUnificationError → UnificationError so callers that catch
  * UnificationError continue to work without changes.
  */
-void Unifier::unify(std::shared_ptr<TipType> t1,
-                    std::shared_ptr<TipType> t2) {
-  termUnifier.addConstraint(TipTermAdapter::wrap(t1),
-                            TipTermAdapter::wrap(t2));
+void Unifier::unify(std::shared_ptr<TopType> t1,
+                    std::shared_ptr<TopType> t2) {
+  termUnifier.addConstraint(TopTermAdapter::wrap(t1),
+                            TopTermAdapter::wrap(t2));
   try {
     termUnifier.solve();
   } catch (const TermUnificationError &e) {
@@ -85,6 +85,6 @@ void Unifier::unify(std::shared_ptr<TipType> t1,
 // Inference
 // ---------------------------------------------------------------------------
 
-std::shared_ptr<TipType> Unifier::inferred(std::shared_ptr<TipType> t) {
-  return TipTypeClosure(termUnifier).close(t);
+std::shared_ptr<TopType> Unifier::inferred(std::shared_ptr<TopType> t) {
+  return TopTypeClosure(termUnifier).close(t);
 }

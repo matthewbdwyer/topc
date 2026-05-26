@@ -1,0 +1,8 @@
+main() {
+  var x, y;
+  x = alloc 42;
+  y = alloc 17;
+  if (*x != 42) error *x;
+  if (*y != 17) error *y;
+  return 0;
+}

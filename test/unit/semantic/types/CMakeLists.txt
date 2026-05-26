@@ -3,17 +3,17 @@ add_executable(typeinference_unit_tests
 target_sources(
   typeinference_unit_tests
   PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipAlphaTest.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipConsTest.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipFunctionTest.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipIntTest.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipMuTest.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipRecordTest.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipAbsentFieldTest.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipRefTest.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipVarTest.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipVarSetTest.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TipTypeTermTest.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopAlphaTest.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopConsTest.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopFunctionTest.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopIntTest.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopMuTest.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopRecordTest.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopAbsentFieldTest.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopRefTest.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopVarTest.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopVarSetTest.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopTypeTermTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/concrete/SubstituterTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/concrete/CopierTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TypeVarsTest.cpp
@@ -21,10 +21,11 @@ target_sources(
     ${CMAKE_CURRENT_SOURCE_DIR}/constraints/PolyTypeConstraintCollectTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/constraints/TypeConstraintTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/constraints/AbsentFieldCheckerTest.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/constraints/Phase6TypeTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/TermUnionFindTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/TermUnifierTest.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/solver/TipTermClosureTest.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/solver/TipTermAdapterTest.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/solver/TopTermClosureTest.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/solver/TopTermAdapterTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/UnifierTest.cpp)
 target_link_libraries(
   typeinference_unit_tests
@@ -39,7 +40,7 @@ target_link_libraries(
           optimizer
           error
           test_helpers
-          tipc_test_includes
+          topc_test_includes
           coverage_config
           Catch2::Catch2WithMain)
 include(Catch)

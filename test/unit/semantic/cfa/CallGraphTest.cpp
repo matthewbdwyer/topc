@@ -334,7 +334,7 @@ TEST_CASE("CallGraph: test SemanticAnalysis",
     )";
 
   auto ast = ASTHelper::build_ast(program);
-  auto analysisResults = SemanticAnalysis::analyze(ast.get(), false);
+  auto analysisResults = SemanticAnalysis::analyze(ast.get());
   auto callGraph = analysisResults.get()->getCallGraph();
   REQUIRE(callGraph->getVertices().size() == 3); // size should be 2
 }
@@ -360,7 +360,7 @@ TEST_CASE("CallGraph: test print method",
    */
 
   auto ast = ASTHelper::build_ast(program);
-  auto analysisResults = SemanticAnalysis::analyze(ast.get(), false);
+  auto analysisResults = SemanticAnalysis::analyze(ast.get());
   auto callGraph = analysisResults.get()->getCallGraph();
 
   std::stringstream outputStream;
@@ -382,4 +382,52 @@ TEST_CASE("CallGraph: test print method",
   REQUIRE(found != std::string::npos);
   found = output.find("a1 -> a0;");
   REQUIRE(found != std::string::npos);
+}
+
+TEST_CASE("Phase7: singleton non-recursive function is auto-generalized",
+          "[CallGraph]") {
+  std::stringstream program;
+  program << R"(
+    ident(p) {
+      return p;
+    }
+    main() {
+      return 0;
+    }
+  )";
+
+  auto ast = ASTHelper::build_ast(program);
+  auto sa = SemanticAnalysis::analyze(ast.get());
+  auto *sym = sa->getSymbolTable();
+
+  // ident is a singleton non-recursive SCC -> should be auto-generalized
+  REQUIRE(sym->getPoly("ident") == true);
+  // main calls ident (transitively non-recursive) -> also auto-generalized
+  REQUIRE(sym->getPoly("main") == true);
+}
+
+TEST_CASE("Phase7: recursive function is NOT auto-generalized",
+          "[CallGraph]") {
+  std::stringstream program;
+  program << R"(
+    recSum(n) {
+      var r;
+      if (n == 0) {
+        r = 0;
+      } else {
+        r = n + recSum(n - 1);
+      }
+      return r;
+    }
+    main() {
+      return 0;
+    }
+  )";
+
+  auto ast = ASTHelper::build_ast(program);
+  auto sa = SemanticAnalysis::analyze(ast.get());
+  auto *sym = sa->getSymbolTable();
+
+  // recSum is recursive -> must NOT be auto-generalized
+  REQUIRE(sym->getPoly("recSum") == false);
 }

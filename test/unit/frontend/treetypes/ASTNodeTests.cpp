@@ -4,27 +4,6 @@
 
 #include <iostream>
 
-TEST_CASE("ASTAccessExprTest: Test methods of AST subtype.",
-          "[ASTNodes]") {
-  std::stringstream stream;
-  stream << R"(
-      foo() {
-         return {f : 0}.f;
-      }
-    )";
-
-  auto ast = ASTHelper::build_ast(stream);
-  auto expr = ASTHelper::find_node<ASTAccessExpr>(ast);
-
-  std::stringstream o1;
-  o1 << expr->getField();
-  REQUIRE(o1.str() == "f");
-
-  std::stringstream o2;
-  o2 << *expr->getRecord();
-  REQUIRE(o2.str() == "{f:0}");
-}
-
 TEST_CASE("ASTAllocExprTest: Test methods of AST subtype.",
           "[ASTNodes]") {
     std::stringstream stream;
@@ -178,27 +157,6 @@ TEST_CASE("ASTErrorStmtTest: Test methods of AST subtype.",
     std::stringstream o1;
     o1 << *stmt->getArg();
     REQUIRE(o1.str() == "(13-1)");
-}
-
-TEST_CASE("ASTFieldExprTest: Test methods of AST subtype.",
-          "[ASTNodes]") {
-    std::stringstream stream;
-    stream << R"(
-      foo() {
-         return {f : 13};
-      }
-    )";
-
-    auto ast = ASTHelper::build_ast(stream);
-    auto expr = ASTHelper::find_node<ASTFieldExpr>(ast);
-
-    std::stringstream o1;
-    o1 << expr->getField();
-    REQUIRE(o1.str() == "f");
-
-    std::stringstream o2;
-    o2 << *expr->getInitializer();
-    REQUIRE(o2.str() == "13");
 }
 
 TEST_CASE("ASTFunAppExprTest: Test methods of AST subtype.",
@@ -359,21 +317,6 @@ TEST_CASE("ASTOutputStmtTest: Test methods of AST subtype.",
     REQUIRE(o1.str() == "17");
 }
 
-TEST_CASE("ASTRecordExprTest: Test methods of AST subtype.",
-          "[ASTNodes]") {
-    std::stringstream stream;
-    stream << R"(
-      foo() {
-         return {f : 0, g : 1, h : 2};
-      }
-    )";
-
-    auto ast = ASTHelper::build_ast(stream);
-    auto expr = ASTHelper::find_node<ASTRecordExpr>(ast);
-
-    REQUIRE(expr->getFields().size() == 3);
-}
-
 TEST_CASE("ASTRefExprTest: Test methods of AST subtype.",
           "[ASTNodes]") {
     std::stringstream stream;
@@ -433,7 +376,7 @@ TEST_CASE("ASTWhileStmtTest: Test methods of AST subtype.",
          while (x > 0) {
             x = x - 1;
          }
-         return {f : 0}.f;
+         return x;
       }
     )";
 

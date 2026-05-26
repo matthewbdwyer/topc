@@ -2,7 +2,7 @@
 
 #include "Error.h"
 
-/*! \brief Class for tipc internal errors.
+/*! \brief Class for topc internal errors.
  *
  * Errors that are not related to the expected processing of a program.
  * \sa Error

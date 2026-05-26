@@ -1,0 +1,33 @@
+setField(p) 
+{
+  *p = 13;
+  return 0;
+}
+
+main() 
+{
+  var r, result;
+  r = {f1:0, f2:2, f3:4};
+  result = setField(&r.f2);
+  if ((r.f1 != 0)) 
+    error r.f1;
+  if ((r.f2 != 13)) 
+    error r.f2;
+  if ((r.f3 != 4)) 
+    error r.f3;
+  return 0;
+}
+
+Functions : {
+  main : () -> int,
+  setField : (⭡int) -> int
+}
+
+Locals for function main : {
+  r : {f1:int,f2:int,f3:int},
+  result : int
+}
+
+Locals for function setField : {
+  p : ⭡int
+}

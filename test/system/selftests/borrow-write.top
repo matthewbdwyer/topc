@@ -1,0 +1,12 @@
+setVal(p, v) {
+  *p = v;
+  return 0;
+}
+
+main() {
+  var x, dummy;
+  x = 5;
+  dummy = setVal(&x, 99);
+  if (x != 99) error x;
+  return 0;
+}

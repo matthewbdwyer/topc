@@ -1,0 +1,18 @@
+main() 
+{
+  var r, v;
+  r = {payload:alloc 99, tag:1};
+  v = *r.payload;
+  if ((v != 99)) 
+    error v;
+  return 0;
+}
+
+Functions : {
+  main : () -> int
+}
+
+Locals for function main : {
+  r : {payload:⭡int,tag:int},
+  v : int
+}

@@ -1,0 +1,11 @@
+// Double-level indirection via alloc: y holds an owned pointer to an owned int.
+main() {
+  var x1, x2, y;
+  x1 = alloc 42;
+  x2 = alloc 13;
+  y = alloc x1;
+  if (**y != 42) error **y;
+  *y = x2;
+  if (**y != 13) error **y;
+  return 0;
+}

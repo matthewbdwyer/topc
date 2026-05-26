@@ -9,7 +9,15 @@ add_subdirectory(cfa)
 add_library(semantic)
 target_sources(
   semantic PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/SemanticAnalysis.h
-                   ${CMAKE_CURRENT_SOURCE_DIR}/SemanticAnalysis.cpp)
+                   ${CMAKE_CURRENT_SOURCE_DIR}/SemanticAnalysis.cpp
+                   ${CMAKE_CURRENT_SOURCE_DIR}/BorrowChecker.h
+                   ${CMAKE_CURRENT_SOURCE_DIR}/BorrowChecker.cpp
+                   ${CMAKE_CURRENT_SOURCE_DIR}/DestructionPass.h
+                   ${CMAKE_CURRENT_SOURCE_DIR}/DestructionPass.cpp
+                   ${CMAKE_CURRENT_SOURCE_DIR}/OwnershipClassifier.h
+                   ${CMAKE_CURRENT_SOURCE_DIR}/OwnershipClassifier.cpp
+                   ${CMAKE_CURRENT_SOURCE_DIR}/MoveAnalysis.h
+                   ${CMAKE_CURRENT_SOURCE_DIR}/MoveAnalysis.cpp)
 target_include_directories(
   semantic
   PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
