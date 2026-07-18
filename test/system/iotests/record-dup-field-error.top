@@ -1,0 +1,6 @@
+// Expected: compile fails with "duplicate field" diagnostic
+main() {
+  var r;
+  r = {a:1, a:2};
+  return 0;
+}

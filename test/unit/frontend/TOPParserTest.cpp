@@ -137,6 +137,31 @@ TEST_CASE("TOP Parser: input", "[TOP Parser]") {
   REQUIRE(ParserHelper::is_parsable(stream));
 }
 
+TEST_CASE("TOP Parser: nested returns in control flow", "[TOP Parser]") {
+  std::stringstream stream;
+  stream << R"(
+      type Opt = Some(val) | None;
+
+      main() {
+        var o, x;
+        o = Some(1);
+        if (x) {
+          return x;
+        }
+        case o of {
+          Some(v) -> return v;
+          None -> x = 0;
+        }
+        while (x) {
+          return x;
+        }
+        return x;
+      }
+    )";
+
+  REQUIRE(ParserHelper::is_parsable(stream));
+}
+
 /* These tests checks for operator precedence. */
 TEST_CASE("TOP Parser: mul higher precedence than add", "[TOP Parser]") {
   std::stringstream stream;
@@ -150,6 +175,28 @@ TEST_CASE("TOP Parser: fun app higher precedence than deref", "[TOP Parser]") {
   std::stringstream stream;
   stream << R"(main() { var p; return *p(); })";
   std::string expected = "(expr * (expr (expr p) ( )))";
+  std::string tree = ParserHelper::parsetree(stream);
+  REQUIRE(tree.find(expected) != std::string::npos);
+}
+
+TEST_CASE("TOP Parser: records", "[TOP Parser]") {
+  std::stringstream stream;
+  stream << R"(
+      main() {
+        var r, x;
+        r = {a:1, b:x};
+        x = r.a;
+        return x;
+      }
+    )";
+
+  REQUIRE(ParserHelper::is_parsable(stream));
+}
+
+TEST_CASE("TOP Parser: field access higher precedence than deref", "[TOP Parser]") {
+  std::stringstream stream;
+  stream << R"(main() { var n; return *n.p; })";
+  std::string expected = "(expr * (expr (expr n) . p))";
   std::string tree = ParserHelper::parsetree(stream);
   REQUIRE(tree.find(expected) != std::string::npos);
 }
@@ -390,5 +437,5 @@ TEST_CASE("TOP Parser: Parsing exceptions are thrown", "[TOP Parser]") {
     )";
 
   REQUIRE_THROWS_WITH(FrontEnd::parse(stream),
-                         Catch::Matchers::ContainsSubstring("missing ';'"));
+                         Catch::Matchers::ContainsSubstring("no viable alternative"));
 }

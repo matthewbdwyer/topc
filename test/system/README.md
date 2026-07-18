@@ -1,6 +1,6 @@
 # System Tests
 
-System tests compile TIP programs with `tipc`, link them against the runtime
+System tests compile TOP programs with `topc`, link them against the runtime
 library, execute them, and compare output or exit codes against golden
 reference files.
 
@@ -9,20 +9,20 @@ reference files.
 From the repository root:
 
 ```bash
-TIPCLANG=/path/to/clang ./bin/runtests.sh -s
+TOPCLANG=/path/to/clang ./bin/runtests.sh -s
 ```
 
 Or directly (from any directory):
 
 ```bash
-TIPCLANG=/path/to/clang ./test/system/run.sh
+TOPCLANG=/path/to/clang python3 ./test/system/run.py
 ```
 
-`TIPCLANG` must point to the clang binary used to link `.bc` bitcode with the
-runtime library (e.g. `/opt/homebrew/opt/llvm@17/bin/clang`).
+`TOPCLANG` must point to the clang binary used to link `.bc` bitcode with the
+runtime library (e.g. `/opt/homebrew/opt/llvm/bin/clang`).
 
-The runtime library (`rtlib/tip_rtlib.bc`) is built automatically by
-`bin/runtests.sh`. When running `run.sh` directly, build it first:
+The runtime library (`rtlib/top_rtlib.bc`) is built automatically by
+`bin/runtests.sh`. When running `run.py` directly, build it first:
 
 ```bash
 cd rtlib && ./build.sh
@@ -38,8 +38,12 @@ Every program is run twice: once normally and once with the `-do` dead-code
 elimination pass.
 
 Golden reference files:
-- `*.tip.pppt` — expected output of `tipc -pp -pt` (pretty-print with types)
-- `*.tip.dot`  — expected AST visualizer output (`tipc --pa`)
+- `*.top.pppt` — expected output of `topc --psource --ptype`
+- `*.top.ast.txt` — expected ASCII AST output (`topc --past=ascii`)
+- `*.top.pc.type` — expected type+constraint output (`topc --ptype --constraint`)
+- `*.top.pc.cg` — expected call-graph constraints (`topc --pcallgraph --constraint`)
+- `*.top.pc.ownership` — expected ownership/move constraints (`topc --pownership --constraint`)
+- `*.top.pc.borrow` — expected borrow constraints (`topc --pborrow --constraint`)
 
 ### `iotests/`
 
@@ -48,21 +52,21 @@ Expected output is stored in `*.expected` files named
 `<program>-<input>.expected`.
 
 Golden reference files:
-- `fib.ppps`   — expected output of `tipc -pp -ps fib.tip`
-- `fib.tip.ll` — expected human-readable LLVM IR (`tipc --asm`)
-- `fib.tip.dot` — expected call graph dot output (`tipc --pcg`)
-- `linkedlist.tip.dot` — expected AST visualizer output
-- `main.tip.ll` — expected default assembly output
+- `fib.ppps`   — expected output of `topc --psource --psym fib.top`
+- `fib.top.ll` — expected human-readable LLVM IR (`topc --asm`)
+- `fib.top.callgraph.dot` — expected call graph dot output (`topc --pcallgraph`)
+- `linkedlist.top.dot` — expected AST visualizer output
+- `main.top.ll` — expected default assembly output
 - `unwritable`  — zero-byte file kept non-writable; used to test the
   "failed to open output file" error path. **Do not delete or chmod this file.**
 
-`*error.tip` files are TIP programs expected to produce a non-zero exit from
-`tipc` (e.g. programs with type errors). The test verifies that `tipc` rejects
+`*error.top` files are TOP programs expected to produce a non-zero exit from
+`topc` (e.g. programs with type errors). The test verifies that `topc` rejects
 them.
 
 ### `polytests/`
 
-TIP programs that exercise the polymorphic type inference (`--pi`) extension.
+TOP programs that exercise the polymorphic type inference extension.
 Each is compiled and run similarly to `selftests`, and the pretty-printed type
 output is diffed against a `*.pppt` golden reference.
 
@@ -78,18 +82,31 @@ When a deliberate change to compiler output is made, regenerate the affected
 reference files:
 
 ```bash
-# Pretty-print with types for a selftest
-tipc -pp -pt test/system/selftests/<name>.tip > test/system/selftests/<name>.tip.pppt
+# Source + inferred types for a selftest
+topc --psource --ptype test/system/selftests/<name>.top > test/system/selftests/<name>.top.pppt
+
+# Type constraints
+topc --ptype --constraint test/system/selftests/<name>.top > test/system/selftests/<name>.top.pc.type
+
+# Call-graph constraints
+topc --pcallgraph --constraint test/system/selftests/<name>.top > test/system/selftests/<name>.top.pc.cg
+
+# Ownership / move constraints
+topc --pownership --constraint test/system/selftests/<name>.top > test/system/selftests/<name>.top.pc.ownership
+
+# Borrow constraints
+topc --pborrow --constraint test/system/selftests/<name>.top > test/system/selftests/<name>.top.pc.borrow
 
 # Assembly output
-tipc --asm test/system/iotests/fib.tip -o test/system/iotests/fib.tip.ll
+topc --asm test/system/iotests/fib.top -o test/system/iotests/fib.top.ll
 
 # Call graph
-tipc --pcg=test/system/iotests/fib.tip.dot test/system/iotests/fib.tip
+topc --pcallgraph --output-dir test/system/iotests test/system/iotests/fib.top
 
 # AST visualizer
-tipc --pa=test/system/iotests/linkedlist.tip.dot test/system/iotests/linkedlist.tip
-tipc --pa=test/system/selftests/ptr4.tip.dot test/system/selftests/ptr4.tip
+topc --past --output-dir test/system/iotests test/system/iotests/linkedlist.top
+topc --past --output-dir test/system/selftests test/system/selftests/ptr4.top
+topc --past=ascii --output-dir test/system/selftests test/system/selftests/ptr4.top
 ```
 
 Commit the updated reference files alongside the compiler change.

@@ -1,13 +1,20 @@
 #include "TypeConstraintVisitor.h"
 #include "ASTCaseStmt.h"
+#include "ASTCtorPattern.h"
+#include "ASTPattern.h"
+#include "ASTRecordPattern.h"
 #include "ASTSumCtorExpr.h"
 #include "ASTSumTypeDecl.h"
 #include "ASTSumVariant.h"
+#include "ASTVarPattern.h"
+#include "ASTWildcardPattern.h"
+#include "TopAbsentField.h"
 #include "TopAlpha.h"
 #include "TopBorrowRef.h"
 #include "TopFunction.h"
 #include "TopInt.h"
 #include "TopOwningRef.h"
+#include "TopRecord.h"
 #include "TopRef.h"
 #include "TopSumType.h"
 #include "TopVar.h"
@@ -261,6 +268,46 @@ void TypeConstraintVisitor::endVisit(ASTOutputStmt *element) {
                             std::make_shared<TopInt>());
 }
 
+void TypeConstraintVisitor::endVisit(ASTRecordExpr *element) {
+  auto allFields = symbolTable->getFields();
+  auto fieldNames = element->getFieldNames();
+  auto fieldValues = element->getFieldValues();
+  std::vector<std::shared_ptr<TopType>> fieldTypes;
+
+  for (const auto &field : allFields) {
+    bool matched = false;
+    for (std::size_t i = 0; i < fieldNames.size(); i++) {
+      if (field == fieldNames[i]) {
+        fieldTypes.push_back(astToVar(fieldValues[i]));
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) {
+      fieldTypes.push_back(std::make_shared<TopAbsentField>());
+    }
+  }
+
+  constraintHandler->handle(astToVar(element),
+                            std::make_shared<TopRecord>(fieldTypes, allFields));
+}
+
+void TypeConstraintVisitor::endVisit(ASTFieldAccessExpr *element) {
+  auto allFields = symbolTable->getFields();
+  std::vector<std::shared_ptr<TopType>> fieldTypes;
+  for (const auto &field : allFields) {
+    if (field == element->getField()) {
+      fieldTypes.push_back(astToVar(element));
+    } else {
+      fieldTypes.push_back(std::make_shared<TopAlpha>(element, field));
+    }
+  }
+
+  constraintHandler->handle(
+      astToVar(element->getBase()),
+      std::make_shared<TopRecord>(fieldTypes, allFields));
+}
+
 /*! \brief Type constraints for error statement.
  *
  * Type rules for "error E":
@@ -359,16 +406,108 @@ void TypeConstraintVisitor::endVisit(ASTCaseStmt *element) {
                                             payloads, arities);
   constraintHandler->handle(astToVar(element->getScrutinee()), sumTy);
 
-  // Constrain each arm's binding variables to the corresponding variant params.
+  // Constrain each arm's patterns against the corresponding variant params.
   for (auto *arm : element->getArms()) {
     auto *variant = symbolTable->getConstructor(arm->getTag());
     if (!variant)
       continue;
     auto variantParams = variant->getParams();
-    auto armBindings = arm->getBindings();
-    for (std::size_t i = 0; i < armBindings.size(); i++) {
-      constraintHandler->handle(astToVar(armBindings[i]),
-                                astToVar(variantParams[i]));
+    auto armPatterns   = arm->getPatterns();
+    for (std::size_t i = 0;
+         i < armPatterns.size() && i < variantParams.size(); ++i) {
+      constrainPattern(armPatterns[i], astToVar(variantParams[i]),
+                       variantParams[i]);
     }
+  }
+}
+
+/*! \brief Recursively generate type constraints for a pattern node.
+ *
+ * \param pat       Pattern to constrain.
+ * \param slotType  The TopType that the pattern is matching against.
+ *
+ * Rules:
+ *   - ASTVarPattern(v)              → type(v) = slotType
+ *   - ASTWildcardPattern            → (no constraint)
+ *   - ASTCtorPattern(tag, subPats)  → slotType = SumType(owner), then
+ *                                     recurse for each sub-pattern
+ *   - ASTRecordPattern({f: p, ...}) → each variable field binding typed as
+ *                                     slotType (B1-compatible; full record
+ *                                     field decomposition deferred to B4)
+ */
+void TypeConstraintVisitor::constrainPattern(ASTPattern *pat,
+                                             std::shared_ptr<TopType> slotType,
+                                             ASTNode *anchor) {
+  if (auto *vp = dynamic_cast<ASTVarPattern *>(pat)) {
+    constraintHandler->handle(astToVar(vp->getDecl()), slotType);
+
+  } else if (dynamic_cast<ASTWildcardPattern *>(pat)) {
+    // Wildcard — no constraint needed.
+
+  } else if (auto *cp = dynamic_cast<ASTCtorPattern *>(pat)) {
+    // Nested constructor pattern: constrain the slot to be the inner sum type,
+    // then recurse for each sub-pattern against the inner constructor's params.
+    auto *innerOwner = symbolTable->getConstructorOwner(cp->getTag());
+    if (!innerOwner)
+      return; // unknown ctor; CheckPatternTypes already reported this
+
+    auto *innerVariant = symbolTable->getConstructor(cp->getTag());
+    if (!innerVariant)
+      return;
+
+    // Build TopSumType for the inner owner.
+    std::vector<std::string> ctorNames;
+    std::vector<std::shared_ptr<TopType>> payloads;
+    std::map<std::string, int> arities;
+    for (auto *v : innerOwner->getVariants()) {
+      ctorNames.push_back(v->getTag());
+      arities[v->getTag()] = static_cast<int>(v->getParams().size());
+      for (auto *p : v->getParams())
+        payloads.push_back(astToVar(p));
+    }
+    auto innerSumTy = std::make_shared<TopSumType>(
+        innerOwner->getName(), ctorNames, payloads, arities);
+    constraintHandler->handle(slotType, innerSumTy);
+
+    // Recurse into sub-patterns.
+    auto innerParams = innerVariant->getParams();
+    auto &subPats    = cp->getSubPatternsShared();
+    for (std::size_t j = 0;
+         j < subPats.size() && j < innerParams.size(); ++j) {
+      constrainPattern(subPats[j].get(), astToVar(innerParams[j]),
+                       innerParams[j]);
+    }
+
+  } else if (auto *rp = dynamic_cast<ASTRecordPattern *>(pat)) {
+    // Record pattern: constrain slotType to the record type where each field
+    // mentioned in the pattern contributes its sub-pattern type.  Fields not
+    // mentioned in the pattern are absent (structurally unavailable).
+    auto allFields = symbolTable->getFields();
+
+    // Build a map from field name → sub-pattern for quick lookup.
+    std::map<std::string, ASTPattern *> fieldPats;
+    for (auto &[fname, sp] : rp->getFields())
+      fieldPats[fname] = sp.get();
+
+    // 'anchor' is the ASTDeclNode of the variant param for this record slot;
+    // it serves as the node identity for any fresh TopAlpha type variables.
+
+    std::vector<std::shared_ptr<TopType>> fieldTypes;
+    for (const auto &field : allFields) {
+      auto it = fieldPats.find(field);
+      if (it == fieldPats.end()) {
+        // Field not mentioned in pattern → absent.
+        fieldTypes.push_back(std::make_shared<TopAbsentField>());
+      } else if (auto *vp = dynamic_cast<ASTVarPattern *>(it->second)) {
+        // Variable pattern: field type is the type of the bound variable.
+        fieldTypes.push_back(astToVar(vp->getDecl()));
+      } else {
+        // Wildcard or nested pattern: introduce a fresh type variable.
+        fieldTypes.push_back(std::make_shared<TopAlpha>(anchor, field));
+      }
+    }
+
+    constraintHandler->handle(slotType,
+                              std::make_shared<TopRecord>(fieldTypes, allFields));
   }
 }

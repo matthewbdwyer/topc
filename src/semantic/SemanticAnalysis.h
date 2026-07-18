@@ -6,6 +6,7 @@
 #include "OwnershipClassifier.h"
 #include "SymbolTable.h"
 #include "TypeInference.h"
+#include "cfg/IntraproceduralCFGs.h"
 #include "cfa/CallGraph.h" //call graph builder header
 #include <memory>
 
@@ -19,16 +20,19 @@
  */
 class SemanticAnalysis {
   std::shared_ptr<SymbolTable> symTable;
+  std::shared_ptr<IntraproceduralCFGs> intraproceduralCFGs;
   std::shared_ptr<TypeInference> typeResults;
   std::shared_ptr<CallGraph> callGraph;
   std::shared_ptr<OwnershipClassifier> ownershipClassifier;
 
 public:
   SemanticAnalysis(std::shared_ptr<SymbolTable> s,
+                   std::shared_ptr<IntraproceduralCFGs> cfgs,
                    std::shared_ptr<TypeInference> t,
                    std::shared_ptr<CallGraph> cg,
                    std::shared_ptr<OwnershipClassifier> oc)
-      : symTable(std::move(s)), typeResults(std::move(t)),
+      : symTable(std::move(s)), intraproceduralCFGs(std::move(cfgs)),
+        typeResults(std::move(t)),
         callGraph(std::move(cg)), ownershipClassifier(std::move(oc)) {}
 
   /*! \fn analyze
@@ -47,6 +51,11 @@ public:
    * \sa SymbolTable
    */
   SymbolTable *getSymbolTable();
+
+  /*! \fn getIntraproceduralCFGs
+   *  \brief Returns the source-level intraprocedural CFG result.
+   */
+  IntraproceduralCFGs *getIntraproceduralCFGs();
 
   /*! \fn getTypeResults
    *  \brief Returns the type inference results.

@@ -136,15 +136,11 @@ To simplify dependency management the project provides a [bootstrap](bin/bootstr
 After cloning the repository and running bootstrap:
 
 ```
-mkdir build
-cd build
-cmake ..
-cmake --build . -j$(nproc)
+cmake -S . -B build -G Ninja
+cmake --build build
 ```
 
 The build downloads and compiles ANTLR4's C++ runtime if needed, builds the runtime library (`build/rtlib/top_rtlib.bc`), and compiles `topc` together with its unit tests.  The `topc` executable lands in `build/src/`.
-
-You may see CMake policy warnings from third-party packages; these are harmless and will disappear as those packages are updated.
 
 
 ## Using topc
@@ -158,18 +154,23 @@ OPTIONS:
 
   --asan                         - instrument generated IR with AddressSanitizer
   --asm                          - emit human-readable LLVM assembly language
+  --constraint                   - include constraint/trace details
   --do                           - disable bitcode optimization
   --log=<logfile>                - log all messages to logfile (enables --verbose 3)
   -o <outputfile>                - write output to <outputfile>
-  --pa=<AST output file>         - print AST to a file in dot syntax
-  --pcg=<call graph output file> - print call graph to a file in dot syntax
-  --pp                           - pretty print
-  --ps                           - print symbols
-  --pt                           - print symbols with types (supercedes --ps)
+  --output-dir=<directory>       - output directory for graph artifacts
+  --past[=<dot|ascii>]           - print source AST (default format: dot)
+  --pborrow                      - print borrow validity result
+  --pcallgraph[=<dot|ascii>]     - print call graph result (default format: dot)
+  --pcfg[=<dot|ascii>]           - print source CFG result (default format: dot)
+  --pownership                   - print ownership analysis result
+  --psource                      - print normalized source
+  --psym                         - print symbols and scopes
+  --ptype                        - print inferred types
   --verbose=<int>                - enable log messages (Levels 1-3)
 ```
 
-By default `topc` accepts a `.top` file, runs the full analysis pipeline, generates LLVM bitcode, and emits a `.bc` file.  Linking the bitcode with the runtime library produces an executable.  The [build.sh](bin/build.sh) script handles the compile and link steps in one command:
+By default `topc` accepts a `.top` file, runs the full analysis pipeline, generates LLVM bitcode, and emits a `.bc` file. Inspection-only invocations (for example `--ptype` or `--pcfg`) do not emit `.bc`/`.ll` artifacts unless compile output is also requested via `-o` or `--asm`. Linking the bitcode with the runtime library produces an executable.  The [build.sh](bin/build.sh) script handles the compile and link steps in one command:
 
 ```
 $ cat hello.top
@@ -177,7 +178,7 @@ main() { return 42; }
 $ $TOPDIR/bin/build.sh hello.top
 $ ./hello
 Program output: 42
-$ $TOPDIR/bin/build.sh -pp -pt hello.top
+$ ./build/src/topc --psource --ptype hello.top
 main()
 {
   return 42;

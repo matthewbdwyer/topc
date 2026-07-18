@@ -1,6 +1,8 @@
 add_library(weeding)
 target_sources(weeding PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/CheckAssignable.cpp
                                ${CMAKE_CURRENT_SOURCE_DIR}/CheckAssignable.h
+                               ${CMAKE_CURRENT_SOURCE_DIR}/CheckRecordFields.cpp
+                               ${CMAKE_CURRENT_SOURCE_DIR}/CheckRecordFields.h
                                ${CMAKE_CURRENT_SOURCE_DIR}/CheckBorrowPositions.cpp
                                ${CMAKE_CURRENT_SOURCE_DIR}/CheckBorrowPositions.h
                                ${CMAKE_CURRENT_SOURCE_DIR}/CheckCaseCompleteness.cpp
@@ -8,7 +10,9 @@ target_sources(weeding PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/CheckAssignable.cpp
                                ${CMAKE_CURRENT_SOURCE_DIR}/CheckSumTypeNames.cpp
                                ${CMAKE_CURRENT_SOURCE_DIR}/CheckSumTypeNames.h
                                ${CMAKE_CURRENT_SOURCE_DIR}/CheckConstructorCase.cpp
-                               ${CMAKE_CURRENT_SOURCE_DIR}/CheckConstructorCase.h)
+                               ${CMAKE_CURRENT_SOURCE_DIR}/CheckConstructorCase.h
+                               ${CMAKE_CURRENT_SOURCE_DIR}/CheckPatternTypes.cpp
+                               ${CMAKE_CURRENT_SOURCE_DIR}/CheckPatternTypes.h)
 target_include_directories(
   weeding
   PRIVATE ${CMAKE_SOURCE_DIR}/src/frontend/ast

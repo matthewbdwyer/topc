@@ -1,11 +1,30 @@
 #include "AST.h"
+#include "ASTFieldAccessExpr.h"
+#include "ASTHelper.h"
 #include "ASTNodeHelpers.h"
+#include "ASTRecordExpr.h"
 #include "CodeGenContext.h"
+#include "CodeGenerator.h"
 #include "CodeGenVisitor.h"
 #include "InternalError.h"
 #include "ParserHelper.h"
+#include "SemanticAnalysis.h"
 
 #include <catch2/catch_test_macros.hpp>
+#include <sstream>
+#include <string>
+
+// ---------------------------------------------------------------------------
+// Shared compile helper (also used in CodegenStateIsolationTest.cpp pattern).
+// ---------------------------------------------------------------------------
+namespace {
+std::shared_ptr<llvm::Module> compileModule(const std::string &src) {
+  std::stringstream ss(src);
+  auto ast      = ASTHelper::build_ast(ss);
+  auto analysis = SemanticAnalysis::analyze(ast.get());
+  return CodeGenerator::generate(ast.get(), analysis.get(), "test");
+}
+} // namespace
 
 TEST_CASE("CodegenFunction: ASTDeclNode throws InternalError on codegen",
           "[CodegenFunctions]") {
@@ -145,3 +164,149 @@ TEST_CASE("CodegenFunction: ASTFunAppExpr throws InternalError on FUN codegen nu
   visitor.setContext(&ctx);
   REQUIRE_THROWS_AS(visitor.dispatch(&funAppExpr), InternalError);
 }
+
+TEST_CASE("CodegenFunction: ASTFieldAccessExpr throws InternalError on unknown field",
+          "[CodegenFunctions]") {
+  // ctx.fieldIndex is empty, so "noSuchField" is unknown → InternalError
+  ASTFieldAccessExpr fieldAccess(std::make_shared<ASTInputExpr>(), "noSuchField");
+  CodeGenContext ctx;
+  CodeGenVisitor visitor;
+  visitor.setContext(&ctx);
+  REQUIRE_THROWS_AS(visitor.dispatch(&fieldAccess), InternalError);
+}
+
+TEST_CASE("CodegenFunction: ASTRecordExpr throws InternalError when record layout uninitialized",
+          "[CodegenFunctions]") {
+  // ctx.globalRecordType is null until generate(ASTProgram*) initializes it
+  std::vector<std::pair<std::string, std::shared_ptr<ASTExpr>>> fields;
+  fields.push_back({"x", std::make_shared<ASTNumberExpr>(1)});
+  ASTRecordExpr recordExpr(std::move(fields));
+  CodeGenContext ctx;
+  CodeGenVisitor visitor;
+  visitor.setContext(&ctx);
+  REQUIRE_THROWS_AS(visitor.dispatch(&recordExpr), InternalError);
+}
+
+// ---------------------------------------------------------------------------
+// Phase B4 codegen pattern tests
+// ---------------------------------------------------------------------------
+
+TEST_CASE("CodegenFunctions: wildcard pattern generates no named-value store for _",
+          "[CodegenFunctions][B4]") {
+  // Some(_) pattern: the wildcard should not create a binding named '_'.
+  static const char *src = R"(
+    type MaybeInt = None | Some(val);
+    f(x) {
+      var r; r = 0;
+      case x of {
+        None    -> r = 0;
+        Some(_) -> r = 1;
+      }
+      return r;
+    }
+    main() { return 1 - f(Some(42)); }
+  )";
+  auto mod = compileModule(src);
+  REQUIRE(mod != nullptr);
+
+  // The IR must not contain an alloca named '_' (wildcard should not be bound).
+  std::string ir;
+  llvm::raw_string_ostream oss(ir);
+  mod->print(oss, nullptr);
+  REQUIRE(ir.find("alloca") != std::string::npos); // sanity: allocas exist
+  REQUIRE(ir.find("\"_\"") == std::string::npos);  // no alloca named _
+}
+
+TEST_CASE("CodegenFunctions: record pattern generates getelementptr for each field",
+          "[CodegenFunctions][B4]") {
+  static const char *src = R"(
+    type MaybePoint = Nothing | Just(pt);
+    getX(p) {
+      var r; r = 0;
+      case p of {
+        Nothing            -> r = -1;
+        Just({x: v, y: _}) -> r = v;
+      }
+      return r;
+    }
+    main() {
+      var pt; pt = {x: 3, y: 4};
+      return 1 - getX(Just(pt));
+    }
+  )";
+  auto mod = compileModule(src);
+  REQUIRE(mod != nullptr);
+
+  std::string ir;
+  llvm::raw_string_ostream oss(ir);
+  mod->print(oss, nullptr);
+
+  // Record pattern should emit at least one GEP to extract a field value.
+  REQUIRE(ir.find("getelementptr") != std::string::npos);
+}
+
+TEST_CASE("CodegenFunctions: nested ctor pattern generates inner tag comparison",
+          "[CodegenFunctions][B4]") {
+  static const char *src = R"(
+    type Inner = Lit(n) | Neg(x);
+    type Outer = Empty | Wrap(inner);
+    innerVal(o) {
+      var r; r = 0;
+      case o of {
+        Empty        -> r = -1;
+        Wrap(Lit(x)) -> r = x;
+        Wrap(Neg(y)) -> r = 0 - y;
+      }
+      return r;
+    }
+    main() {
+      var ok; ok = 1;
+      if (innerVal(Empty) != -1)        { ok = 0; }
+      if (innerVal(Wrap(Lit(5))) != 5)  { ok = 0; }
+      if (innerVal(Wrap(Neg(3))) != -3) { ok = 0; }
+      return 1 - ok;
+    }
+  )";
+  auto mod = compileModule(src);
+  REQUIRE(mod != nullptr);
+
+  std::string ir;
+  llvm::raw_string_ostream oss(ir);
+  mod->print(oss, nullptr);
+
+  // Two Wrap arms with different inner ctors → at least two ICmpEQ instructions
+  // (one per inner tag check).
+  std::size_t cmpCount = 0;
+  std::size_t pos = 0;
+  while ((pos = ir.find("icmp eq", pos)) != std::string::npos) {
+    ++cmpCount;
+    pos += 7;
+  }
+  REQUIRE(cmpCount >= 2);
+}
+
+TEST_CASE("CodegenFunctions: wildcard on Own payload compiles and produces call to free",
+          "[CodegenFunctions][B4]") {
+  static const char *src = R"(
+    type MaybeAlloc = Empty | Hold(ref);
+    f(x) {
+      var r; r = 0;
+      case x of {
+        Empty   -> r = 0;
+        Hold(_) -> r = 1;
+      }
+      return r;
+    }
+    main() { return 1 - f(Hold(alloc 5)); }
+  )";
+  auto mod = compileModule(src);
+  REQUIRE(mod != nullptr);
+
+  std::string ir;
+  llvm::raw_string_ostream oss(ir);
+  mod->print(oss, nullptr);
+
+  // The wildcard at an Own position should emit a call to free.
+  REQUIRE(ir.find("@free") != std::string::npos);
+}
+

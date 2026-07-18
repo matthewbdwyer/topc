@@ -6,6 +6,8 @@ target_sources(
     ${CMAKE_CURRENT_SOURCE_DIR}/TypeInference.h
     ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopAlpha.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopAlpha.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopAbsentField.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopAbsentField.h
     ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopCons.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopCons.h
     ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopFunction.cpp
@@ -14,6 +16,8 @@ target_sources(
     ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopInt.h
     ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopMu.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopMu.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopRecord.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopRecord.h
     ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopRef.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopRef.h
     ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopOwningRef.cpp
@@ -43,6 +47,8 @@ target_sources(
     ${CMAKE_CURRENT_SOURCE_DIR}/constraints/PolyTypeConstraintCollectVisitor.h
     ${CMAKE_CURRENT_SOURCE_DIR}/constraints/PolyTypeConstraintVisitor.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/constraints/PolyTypeConstraintVisitor.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/constraints/AbsentFieldChecker.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/constraints/AbsentFieldChecker.h
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/UnificationError.h
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/TypeVars.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/TypeVars.h

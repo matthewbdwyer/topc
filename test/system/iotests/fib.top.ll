@@ -1,5 +1,5 @@
-; ModuleID = 'test/system/iotests/fib.tip'
-source_filename = "test/system/iotests/fib.tip"
+; ModuleID = 'test/system/iotests/fib.top'
+source_filename = "test/system/iotests/fib.top"
 target triple = "arm64-apple-darwin24.6.0"
 
 @_top_ftable = internal constant [2 x ptr] [ptr @fib, ptr @_top_main]
@@ -31,8 +31,8 @@ exit1:                                            ; preds = %header1
 
 define i64 @_top_main() {
 entry:
-  %tipinput0 = load i64, ptr @_top_input_array, align 4
-  %calltmp = call i64 @fib(i64 %tipinput0)
+  %topinput0 = load i64, ptr @_top_input_array, align 4
+  %calltmp = call i64 @fib(i64 %topinput0)
   ret i64 %calltmp
 }
 

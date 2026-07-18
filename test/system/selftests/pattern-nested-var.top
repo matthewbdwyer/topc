@@ -1,0 +1,21 @@
+// Phase B2: Tests correct type inference for a nested constructor variable
+// pattern.  After the B2 type-constraint fix, 'n' is correctly inferred as
+// int (the type of Lit's payload param), not as the Inner sum type.
+// Only the Empty path is exercised at runtime so that the yet-incomplete
+// nested-pattern codegen (B4) is not reached.
+type Inner = Lit(n) | Neg(x);
+type Outer = Empty | Wrap(inner);
+
+getN(o) {
+  var r;
+  r = 0;
+  case o of {
+    Empty        -> r = 0;
+    Wrap(Lit(n)) -> r = n;
+  }
+  return r;
+}
+
+main() {
+  return getN(Empty);
+}

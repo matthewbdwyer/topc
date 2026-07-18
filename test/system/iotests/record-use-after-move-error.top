@@ -1,0 +1,9 @@
+// Expected: compile fails with "used after move" diagnostic
+type Flag = On | Off;
+main() {
+  var r1, r2;
+  r1 = {p: alloc 5, tag: 1};
+  r2 = r1;           // moves r1 (Own record)
+  output r1.tag;     // use of moved r1
+  return 0;
+}

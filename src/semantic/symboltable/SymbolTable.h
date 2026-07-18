@@ -16,6 +16,7 @@
 class SymbolTable {
   std::map<std::string, std::pair<ASTDeclNode *, bool>> functionNames;
   std::map<ASTDeclNode *, std::map<std::string, ASTDeclNode *>> localNames;
+  std::vector<std::string> fieldNames;
   // TOP extensions: sum types and constructors
   std::map<std::string, ASTSumTypeDecl *> typeNames;
   std::map<std::string, ASTSumVariant *> constructorNames;
@@ -24,9 +25,11 @@ public:
   SymbolTable(
       std::map<std::string, std::pair<ASTDeclNode *, bool>> fMap,
       std::map<ASTDeclNode *, std::map<std::string, ASTDeclNode *>> lMap,
+      std::vector<std::string> fSet = {},
       std::map<std::string, ASTSumTypeDecl *> tMap = {},
       std::map<std::string, ASTSumVariant *> cMap = {})
       : functionNames(std::move(fMap)), localNames(std::move(lMap)),
+        fieldNames(std::move(fSet)),
         typeNames(std::move(tMap)),
         constructorNames(std::move(cMap)) {}
 
@@ -62,6 +65,8 @@ public:
    * function. \param f The declaration node of the function.
    */
   std::vector<ASTDeclNode *> getLocals(ASTDeclNode *f);
+
+  std::vector<std::string> getFields();
 
   /*! \brief Return the declaration node for a sum type by name.
    * \param name The type name (must start with uppercase).

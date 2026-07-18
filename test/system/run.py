@@ -5,11 +5,11 @@ Replaces test/system/run.sh with parallel execution and structured output.
 
 Categories
 ----------
-  selftests   compile + link + run (.top)
-  iotests     compile + link + run with argv, diff stdout
-  polytests   compile --pi + run; diff --pp --pt --pi snapshot
-  snapshots   diff -pp -pt output for every selftest
-  driver      flag/error-handling smoke tests
+    selftests   compile + link + run (.top)
+    iotests     compile + link + run with argv, diff stdout
+    polytests   compile + run; diff --psource --ptype snapshot
+    snapshots   diff --psource --ptype output for every selftest
+    driver      flag/error-handling smoke tests
 
 Usage
 -----
@@ -192,7 +192,7 @@ def run_iotest(expected_file: Path, scratch: Path) -> TestResult:
 
 
 # ---------------------------------------------------------------------------
-# Snapshot test (stdout-based: -pp, -pt, -ps, -pi combos)
+# Snapshot test (stdout-based inspection combinations)
 # ---------------------------------------------------------------------------
 
 def run_stdout_snapshot(srcfile: Path, flags: Sequence[str],
@@ -262,7 +262,7 @@ def run_polytest(srcfile: Path, scratch: Path) -> List[TestResult]:
 
     golden = srcfile.with_suffix(srcfile.suffix + ".pppt")
     results.append(run_stdout_snapshot(
-        srcfile, ["--pp", "--pt"], golden, scratch, f"{base}.pppt"))
+        srcfile, ["--psource", "--ptype"], golden, scratch, f"{base}.pppt"))
 
     return results
 
@@ -284,9 +284,9 @@ def run_driver_tests(scratch: Path) -> List[TestResult]:
             results.append(TestResult(name, False,
                                       str(exc), time.monotonic() - t0))
 
-    # -- -pp -ps snapshot -------------------------------------------------------
+    # -- --psource --psym snapshot ---------------------------------------------
     results.append(run_stdout_snapshot(
-        IOTESTS_DIR / "fib.top", ["-pp", "-ps"],
+        IOTESTS_DIR / "fib.top", ["--psource", "--psym"],
         IOTESTS_DIR / "fib.ppps", scratch, "driver.fib.ppps"))
 
     # -- --asm default output file (no -o; writes <src>.ll next to source) ------
@@ -316,17 +316,123 @@ def run_driver_tests(scratch: Path) -> List[TestResult]:
         return None
     check("driver.fib.ll", asm_explicit_output)
 
-    # -- --pcg call graph -------------------------------------------------------
-    def pcg_fib():
-        out = scratch / "fib.top.dot"
-        r = _run([str(TOPC), f"--pcg={out}",
+    # -- --pcallgraph call graph ------------------------------------------------
+    def pcallgraph_fib():
+        out = scratch / "fib.top.callgraph.dot"
+        r = _run([str(TOPC), "--pcallgraph", "--output-dir", str(scratch),
                   str(IOTESTS_DIR / "fib.top"), "-o", str(scratch / "fib.bc")])
         if r.returncode != 0:
-            return f"topc --pcg failed:\n{r.stderr.strip()}"
+            return f"topc --pcallgraph failed:\n{r.stderr.strip()}"
         diff = _diff_text(out.read_text(),
                           (IOTESTS_DIR / "fib.top.dot").read_text(), "fib.top.dot")
         return f"call graph mismatch:\n{diff}" if diff else None
-    check("driver.pcg.fib", pcg_fib)
+    check("driver.pcallgraph.fib", pcallgraph_fib)
+
+    # -- --ptype --constraint smoke -------------------------------------------
+    def pc_type_smoke():
+        r = _run([str(TOPC), "--ptype", "--constraint",
+                  str(SELFTESTS_DIR / "polyfactorial.top")])
+        if r.returncode != 0:
+            return f"topc --ptype --constraint failed:\n{r.stderr.strip()}"
+        if "[type-constraints]" not in r.stdout:
+            return "expected [type-constraints] section in stdout"
+        if "[type-schemes]" not in r.stdout:
+            return "expected [type-schemes] section in stdout"
+        if "[type-instantiations]" not in r.stdout:
+            return "expected [type-instantiations] section in stdout"
+        if "[type-inferred]" not in r.stdout:
+            return "expected [type-inferred] section in stdout"
+        return None
+    check("driver.ptype.constraint", pc_type_smoke)
+
+    # -- --ptype --constraint snapshots ----------------------------------------
+    def pc_type_snapshot(stem: str):
+        src = SELFTESTS_DIR / f"{stem}.top"
+        r = _run([str(TOPC), "--ptype", "--constraint", str(src)])
+        if r.returncode != 0:
+            return f"topc --ptype --constraint failed for {src.name}:\n{r.stderr.strip()}"
+        required = [
+            "[type-constraints]",
+            "[type-schemes]",
+            "[type-instantiations]",
+            "[type-inferred]",
+        ]
+        for section in required:
+            if section not in r.stdout:
+                return f"missing section {section} in --ptype --constraint output"
+        return None
+
+    check("driver.pc_type.exprs", lambda: pc_type_snapshot("exprs"))
+    check("driver.pc_type.ptr4", lambda: pc_type_snapshot("ptr4"))
+    check("driver.pc_type.record", lambda: pc_type_snapshot("record"))
+    check("driver.pc_type.sumtype_basic",
+          lambda: pc_type_snapshot("sumtype-basic"))
+    check("driver.pc_type.polyfun", lambda: pc_type_snapshot("polyfun"))
+
+    # -- --pcallgraph --constraint snapshot ------------------------------------
+    def pc_cg_snapshot(stem: str):
+        src = SELFTESTS_DIR / f"{stem}.top"
+        golden = SELFTESTS_DIR / f"{stem}.top.pc.cg"
+        r = _run([str(TOPC), "--pcallgraph", "--constraint", "--output-dir",
+                  str(scratch), str(src)])
+        if r.returncode != 0:
+            return f"topc --pcallgraph --constraint failed for {src.name}:\n{r.stderr.strip()}"
+        diff = _diff_text(r.stdout, golden.read_text(), golden.name)
+        return f"--pcallgraph --constraint snapshot mismatch:\n{diff}" if diff else None
+
+    check("driver.pc_cg.polyfun", lambda: pc_cg_snapshot("polyfun"))
+
+    # -- --pownership --constraint snapshot ------------------------------------
+    def pc_ownership_snapshot(stem: str):
+        src = SELFTESTS_DIR / f"{stem}.top"
+        r = _run([str(TOPC), "--pownership", "--constraint", str(src)])
+        if r.returncode != 0:
+            return (
+                f"topc --pownership --constraint failed for {src.name}:\n"
+                f"{r.stderr.strip()}"
+            )
+        if "[ownership-constraints]" not in r.stdout:
+            return "missing [ownership-constraints] section"
+        if "[ownership-result]" not in r.stdout:
+            return "missing [ownership-result] section"
+        return None
+
+    check("driver.pc_ownership.move", lambda: pc_ownership_snapshot("moveNoDoubleFree"))
+
+    # -- --pborrow --constraint snapshot ---------------------------------------
+    def pc_borrow_snapshot(stem: str):
+        src = SELFTESTS_DIR / f"{stem}.top"
+        r = _run([str(TOPC), "--pborrow", "--constraint", str(src)])
+        if r.returncode != 0:
+            return f"topc --pborrow --constraint failed for {src.name}:\n{r.stderr.strip()}"
+        if "[borrow-constraints]" not in r.stdout:
+            return "missing [borrow-constraints] section"
+        if "[borrow-result]" not in r.stdout:
+            return "missing [borrow-result] section"
+        return None
+
+    check("driver.pc_borrow.basic", lambda: pc_borrow_snapshot("borrow-basic"))
+
+    # -- --constraint with unsupported view should fail ------------------------
+    def invalid_constraint_usage():
+        r = _run([str(TOPC), "--past", "--constraint",
+                  str(SELFTESTS_DIR / "polyfactorial.top")])
+        if r.returncode == 0:
+            return "expected non-zero exit for unsupported --constraint usage"
+        if "--constraint is unsupported" not in r.stderr:
+            return f"expected unsupported --constraint message; got: {r.stderr!r}"
+        return None
+    check("driver.constraint.invalid_usage", invalid_constraint_usage)
+
+    # -- invalid --past format should fail -------------------------------------
+    def invalid_past_format():
+        r = _run([str(TOPC), "--past=weird", str(SELFTESTS_DIR / "ptr4.top")])
+        if r.returncode == 0:
+            return "expected non-zero exit for invalid --past format"
+        if "invalid --past format" not in r.stderr:
+            return f"expected invalid --past format message; got: {r.stderr!r}"
+        return None
+    check("driver.past.invalid_format", invalid_past_format)
 
     # -- non-existent input should fail -----------------------------------------
     def nonexistent_input():
@@ -336,44 +442,60 @@ def run_driver_tests(scratch: Path) -> List[TestResult]:
         return None
     check("driver.nonexistent_input", nonexistent_input)
 
-    # -- unwritable output: --pa ------------------------------------------------
-    def unwritable_pa():
+    # -- unwritable output: --past ----------------------------------------------
+    def unwritable_past():
         p = IOTESTS_DIR / "unwritable"
         p.chmod(0o444)
-        r = _run([str(TOPC), f"--pa={p}", str(SELFTESTS_DIR / "polyfactorial.top")])
-        if "failed to open" not in r.stderr:
-            return f"expected 'failed to open' in stderr; got: {r.stderr!r}"
+        r = _run([str(TOPC), "--past", "--output-dir", str(p),
+                  str(SELFTESTS_DIR / "polyfactorial.top")])
+        if "failed to create output directory" not in r.stderr:
+            return f"expected output-dir failure in stderr; got: {r.stderr!r}"
         return None
-    check("driver.unwritable_pa", unwritable_pa)
+    check("driver.unwritable_past", unwritable_past)
 
-    # -- unwritable output: --pcg -----------------------------------------------
-    def unwritable_pcg():
+    # -- unwritable output: --pcallgraph ---------------------------------------
+    def unwritable_pcallgraph():
         p = IOTESTS_DIR / "unwritable"
         p.chmod(0o444)
-        r = _run([str(TOPC), f"--pcg={p}", str(SELFTESTS_DIR / "polyfactorial.top")])
-        if "failed to open" not in r.stderr:
-            return f"expected 'failed to open' in stderr; got: {r.stderr!r}"
+        r = _run([str(TOPC), "--pcallgraph", "--output-dir", str(p),
+                  str(SELFTESTS_DIR / "polyfactorial.top")])
+        if "failed to create output directory" not in r.stderr:
+            return f"expected output-dir failure in stderr; got: {r.stderr!r}"
         return None
-    check("driver.unwritable_pcg", unwritable_pcg)
+    check("driver.unwritable_pcallgraph", unwritable_pcallgraph)
 
     # -- logging smoke test -----------------------------------------------------
     def logging_smoke():
-        _run([str(TOPC), "-pt", "-log=/dev/null",
+        _run([str(TOPC), "--ptype", "-log=/dev/null",
               str(SELFTESTS_DIR / "polyfactorial.top")])
         return None  # just must not crash
     check("driver.logging_smoke", logging_smoke)
 
     # -- AST visualizer: ptr4 --------------------------------------------------
-    def pa_ptr4():
-        out = scratch / "ptr4.top.dot"
-        r = _run([str(TOPC), f"--pa={out}", str(SELFTESTS_DIR / "ptr4.top")])
+    def past_ptr4():
+        out = scratch / "ptr4.top.ast.dot"
+        r = _run([str(TOPC), "--past", "--output-dir", str(scratch),
+                  str(SELFTESTS_DIR / "ptr4.top")])
         if r.returncode != 0:
-            return f"topc --pa failed:\n{r.stderr.strip()}"
+            return f"topc --past failed:\n{r.stderr.strip()}"
         diff = _diff_text(out.read_text(),
                           (SELFTESTS_DIR / "ptr4.top.dot").read_text(),
                           "ptr4.top.dot")
         return f"AST dot mismatch:\n{diff}" if diff else None
-    check("driver.pa.ptr4", pa_ptr4)
+    check("driver.past.ptr4", past_ptr4)
+
+    # -- AST visualizer: ptr4 ascii --------------------------------------------
+    def past_ascii_ptr4():
+        out = scratch / "ptr4.top.ast.txt"
+        r = _run([str(TOPC), "--past=ascii", "--output-dir", str(scratch),
+                  str(SELFTESTS_DIR / "ptr4.top")])
+        if r.returncode != 0:
+            return f"topc --past=ascii failed:\n{r.stderr.strip()}"
+        diff = _diff_text(out.read_text(),
+                          (SELFTESTS_DIR / "ptr4.top.ast.txt").read_text(),
+                          "ptr4.top.ast.txt")
+        return f"AST ascii mismatch:\n{diff}" if diff else None
+    check("driver.past_ascii.ptr4", past_ascii_ptr4)
 
     # -- Error-input files must fail to compile --------------------------------
     for err_file in sorted(IOTESTS_DIR.glob("*error.top")):
@@ -473,17 +595,6 @@ def main() -> int:
             d = scratch_root / f"poly_{src.stem}"; d.mkdir()
             for r in run_polytest(src, d):
                 _record(r, all_results, args.verbose)
-
-        # ── Selftest type snapshots (.pppt) ───────────────────────────────
-        for src in sorted(SELFTESTS_DIR.glob("*.top")):
-            golden = src.with_suffix(src.suffix + ".pppt")
-            if not golden.exists():
-                continue
-            d = scratch_root / f"snap_{src.stem}"; d.mkdir(exist_ok=True)
-            _record(
-                run_stdout_snapshot(src, ["-pp", "-pt"], golden, d,
-                                    f"snapshot.{src.stem}.pppt"),
-                all_results, args.verbose)
 
         # ── Driver / argument tests (serial) ──────────────────────────────
         d_drv = scratch_root / "driver"; d_drv.mkdir()

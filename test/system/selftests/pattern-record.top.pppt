@@ -1,0 +1,43 @@
+type MaybePoint = Nothing | Just(pt);
+getX(p) 
+{
+  var r;
+  r = 0;
+  case p of {
+    Nothing -> r = -1;
+    Just({x: v, y: _}) -> r = v;
+  }
+  return r;
+}
+
+main() 
+{
+  var ok, pt;
+  pt = {x:3, y:4};
+  ok = 1;
+  if ((getX(Nothing) != -1)) 
+    {
+      ok = 0;
+    }
+  if ((getX(Just(pt)) != 3)) 
+    {
+      ok = 0;
+    }
+  return (1 - ok);
+}
+
+Functions : {
+  getX : (MaybePoint{Nothing|Just({x:int,y:int})}) -> int,
+  main : () -> int
+}
+
+Locals for function getX : {
+  p : MaybePoint{Nothing|Just({x:int,y:int})},
+  r : int,
+  v : int
+}
+
+Locals for function main : {
+  ok : int,
+  pt : {x:int,y:int}
+}

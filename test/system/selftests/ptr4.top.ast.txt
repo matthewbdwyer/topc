@@ -1,0 +1,37 @@
+start
+  ebf83a0e1600e5b7c92d153526171d73598f069ce60e01e329e9d6c539dee672
+    increment(p) {...}
+      increment
+      p
+      (*p) = ((*p)+1);
+        (*p)
+          p
+        ((*p)+1)
+          (*p)
+            p
+          1
+      return p;
+        p
+    main() {...}
+      main
+      var x;
+        x
+      x = alloc 42;
+        x
+        alloc 42
+          42
+      x = increment(x);
+        x
+        increment(x)
+          increment
+          x
+      if (((*x)!=43)) error (*x);
+        ((*x)!=43)
+          (*x)
+            x
+          43
+        error (*x);
+          (*x)
+            x
+      return 0;
+        0

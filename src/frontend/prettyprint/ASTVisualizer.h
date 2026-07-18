@@ -32,6 +32,12 @@ public:
    */
   void buildGraph(SyntaxTree &tree);
 
+  /*! \brief Construct an ASCII indented tree view of the AST.
+   *
+   * \param tree The root of the AST.
+   */
+  void buildAscii(SyntaxTree &tree);
+
 private:
   std::ostream &os;
   std::stack<ASTNode *> parent;
@@ -41,4 +47,5 @@ private:
   void declare_node(ASTNode *element, std::string label = "");
   void pushn(ASTNode *element, int n);
   void process_node(ASTNode *element);
+  void emitAsciiNode(const SyntaxTree &tree, int depth);
 };

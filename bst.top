@@ -1,0 +1,48 @@
+type Tree = Leaf | Node(val, left, right);
+
+insert(t, v) {
+  var result;
+  result = Leaf;
+  case t of {
+    Leaf -> result = Node(v, Leaf, Leaf);
+    Node(x, l, r) -> {
+      if (v > x) {
+        result = Node(x, l, insert(r, v));
+      } else {
+        if (x > v) {
+          result = Node(x, insert(l, v), r);
+        } else {
+          result = Node(x, l, insert(r, v));
+        }
+      }
+    }
+  }
+  return result;
+}
+
+inorder(t) {
+  var dummy;
+  case t of {
+    Leaf -> { }
+    Node(v, l, r) -> {
+      dummy = inorder(l);
+      output v;
+      dummy = inorder(r);
+    }
+  }
+  return 0;
+}
+
+main() {
+  var t, n, count, dummy;
+  t = Leaf;
+  count = 0;
+  n = input;
+  while (n != 0) {
+    t = insert(t, n);
+    count = count + 1;
+    n = input;
+  }
+  dummy = inorder(t);
+  return count;
+}

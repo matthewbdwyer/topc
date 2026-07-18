@@ -14,7 +14,7 @@ target_link_libraries(
   PRIVATE error
           frontend
           semantic
-          codegen
+          topc_codegen
           optimizer
           antlr4_static
           ${llvm_libs}

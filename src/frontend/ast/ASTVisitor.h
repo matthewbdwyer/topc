@@ -36,8 +36,12 @@ public:
   virtual void endVisit(ASTInputExpr *element) {}
   virtual bool visit(ASTFunAppExpr *element) { return true; }
   virtual void endVisit(ASTFunAppExpr *element) {}
+  virtual bool visit(ASTFieldAccessExpr *element) { return true; }
+  virtual void endVisit(ASTFieldAccessExpr *element) {}
   virtual bool visit(ASTAllocExpr *element) { return true; }
   virtual void endVisit(ASTAllocExpr *element) {}
+  virtual bool visit(ASTRecordExpr *element) { return true; }
+  virtual void endVisit(ASTRecordExpr *element) {}
   virtual bool visit(ASTBorrowExpr *element) { return true; }
   virtual void endVisit(ASTBorrowExpr *element) {}
   virtual bool visit(ASTDeRefExpr *element) { return true; }
@@ -75,4 +79,13 @@ public:
   virtual void endVisit(ASTCaseStmt *element) {}
   virtual bool visit(ASTCaseArm *element) { return true; }
   virtual void endVisit(ASTCaseArm *element) {}
+  // Pattern visitor hooks (used by Phase B2+ passes; default: visit/no-op)
+  virtual bool visit(ASTVarPattern *element) { return true; }
+  virtual void endVisit(ASTVarPattern *element) {}
+  virtual bool visit(ASTWildcardPattern *element) { return true; }
+  virtual void endVisit(ASTWildcardPattern *element) {}
+  virtual bool visit(ASTCtorPattern *element) { return true; }
+  virtual void endVisit(ASTCtorPattern *element) {}
+  virtual bool visit(ASTRecordPattern *element) { return true; }
+  virtual void endVisit(ASTRecordPattern *element) {}
 };

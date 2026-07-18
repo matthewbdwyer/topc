@@ -1,12 +1,20 @@
 #include "CodeGenVisitor.h"
 
 #include "AST.h"
+#include "ASTCaseArm.h"
+#include "ASTCtorPattern.h"
+#include "ASTPattern.h"
+#include "ASTRecordPattern.h"
+#include "ASTSumVariant.h"
+#include "ASTVarPattern.h"
 #include "ASTVisitor.h"
+#include "ASTWildcardPattern.h"
 #include "CodeGenContext.h"
 #include "InternalError.h"
 #include "OwnershipClassifier.h"
 #include "SemanticAnalysis.h"
 #include "TopOwningRef.h"
+#include "TopRecord.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Constants.h"
@@ -191,6 +199,17 @@ CodeGenVisitor::generate(ASTProgram *program,
       ctx.callocFun->getAttributes().addAttributeAtIndex(
           ctx.callocFun->getContext(), 0, llvm::Attribute::NoAlias));
 
+  std::vector<llvm::Type *> memberValues;
+  int fieldIndex = 0;
+  for (const auto &field : semanticAnalysis->getSymbolTable()->getFields()) {
+    memberValues.push_back(llvm::IntegerType::getInt64Ty(ctx.llvmContext));
+    ctx.fieldVector.push_back(field);
+    ctx.fieldIndex[field] = fieldIndex++;
+  }
+  ctx.globalRecordType =
+      llvm::StructType::create(ctx.llvmContext, memberValues, "globalRecord");
+  ctx.pointerToGlobalRecordType = llvm::PointerType::get(ctx.llvmContext, 0);
+
   for (auto const fn : program->getFunctions()) {
     generate(fn);
   }
@@ -253,6 +272,14 @@ llvm::Value *CodeGenVisitor::dispatch(ASTNode *node) {
       return false;
     }
     bool visit(ASTDeRefExpr *n) override {
+      result = codegen_.generate(n);
+      return false;
+    }
+    bool visit(ASTRecordExpr *n) override {
+      result = codegen_.generate(n);
+      return false;
+    }
+    bool visit(ASTFieldAccessExpr *n) override {
       result = codegen_.generate(n);
       return false;
     }
@@ -585,6 +612,89 @@ llvm::Value *CodeGenVisitor::generate(ASTDeRefExpr *node) {
   }
 }
 
+llvm::Value *CodeGenVisitor::generate(ASTRecordExpr *node) {
+  LOG_S(1) << "Generating code for " << *node;
+  auto &ctx = *ctx_;
+
+  if (!ctx.globalRecordType) {
+    throw InternalError("Record codegen called before record layout was initialized");
+  }
+
+  auto fieldNames = node->getFieldNames();
+  auto fieldValues = node->getFieldValues();
+
+  if (ctx.allocFlag) {
+    auto *allocaRecord =
+        ctx.irBuilder.CreateAlloca(ctx.pointerToGlobalRecordType);
+
+    auto sizeOfGlobalRecord = ctx.module->getDataLayout()
+                                  .getStructLayout(ctx.globalRecordType)
+                                  ->getSizeInBytes();
+    std::vector<llvm::Value *> callocArgs = {
+        llvm::ConstantInt::get(llvm::Type::getInt64Ty(ctx.llvmContext), 1),
+        llvm::ConstantInt::get(llvm::Type::getInt64Ty(ctx.llvmContext),
+                               sizeOfGlobalRecord)};
+    auto *calloc =
+        ctx.irBuilder.CreateCall(ctx.callocFun, callocArgs, "callocedPtr");
+
+    ctx.irBuilder.CreateStore(calloc, allocaRecord);
+    auto *loadInst =
+        ctx.irBuilder.CreateLoad(ctx.pointerToGlobalRecordType, allocaRecord);
+
+    for (std::size_t i = 0; i < fieldNames.size(); i++) {
+      auto *gep = ctx.irBuilder.CreateStructGEP(
+          ctx.globalRecordType, loadInst, ctx.fieldIndex[fieldNames[i]],
+          fieldNames[i]);
+      auto *value = dispatch(fieldValues[i]);
+      ctx.irBuilder.CreateStore(value, gep);
+    }
+
+    return ctx.irBuilder.CreatePtrToInt(
+        calloc, llvm::Type::getInt64Ty(ctx.llvmContext), "recordPtr");
+  }
+
+  auto *allocaRecord = ctx.irBuilder.CreateAlloca(ctx.globalRecordType);
+  for (std::size_t i = 0; i < fieldNames.size(); i++) {
+    auto *gep = ctx.irBuilder.CreateStructGEP(
+        allocaRecord->getAllocatedType(), allocaRecord,
+        ctx.fieldIndex[fieldNames[i]], fieldNames[i]);
+    auto *value = dispatch(fieldValues[i]);
+    ctx.irBuilder.CreateStore(value, gep);
+  }
+
+  return ctx.irBuilder.CreatePtrToInt(
+      allocaRecord, llvm::Type::getInt64Ty(ctx.llvmContext), "record");
+}
+
+llvm::Value *CodeGenVisitor::generate(ASTFieldAccessExpr *node) {
+  LOG_S(1) << "Generating code for " << *node;
+  auto &ctx = *ctx_;
+
+  bool isLValue = ctx.lValueGen;
+  if (isLValue) {
+    ctx.lValueGen = false;
+  }
+
+  auto currField = node->getField();
+  if (ctx.fieldIndex.count(currField) == 0) {
+    throw InternalError("This field doesn't exist");
+  }
+
+  auto *recordVal = dispatch(node->getBase());
+  auto *recordAddress =
+      ctx.irBuilder.CreateIntToPtr(recordVal, ctx.pointerToGlobalRecordType);
+
+  auto *gep = ctx.irBuilder.CreateStructGEP(
+      ctx.globalRecordType, recordAddress, ctx.fieldIndex[currField], currField);
+
+  if (isLValue) {
+    return gep;
+  }
+
+  return ctx.irBuilder.CreateLoad(
+      llvm::IntegerType::getInt64Ty(ctx.llvmContext), gep, "fieldAccess");
+}
+
 llvm::Value *CodeGenVisitor::generate(ASTDeclNode *node) {
   throw InternalError("Declarations do not emit code");
 }
@@ -793,6 +903,18 @@ llvm::Value *CodeGenVisitor::generate(ASTReturnStmt *node) {
 // Destruction: free owned heap resources (Phase 11)
 // ---------------------------------------------------------------------------
 
+void CodeGenVisitor::ensureFreeDecl(CodeGenContext &ctx) {
+  if (ctx.freeFun)
+    return;
+  auto *voidTy = llvm::Type::getVoidTy(ctx.llvmContext);
+  auto *ptrTy  = llvm::PointerType::get(ctx.llvmContext, 0);
+  auto *FT     = llvm::FunctionType::get(voidTy, {ptrTy}, false);
+  ctx.freeFun  = llvm::Function::Create(FT, llvm::Function::ExternalLinkage,
+                                        "free", ctx.module.get());
+  ctx.freeFun->addFnAttr(llvm::Attribute::NoUnwind);
+}
+
+
 void CodeGenVisitor::emitDestroyValue(llvm::Value *ptrAsInt, TopType *topType,
                                        CodeGenContext &ctx) {
   auto *owningRef = dynamic_cast<TopOwningRef *>(topType);
@@ -808,6 +930,29 @@ void CodeGenVisitor::emitDestroyValue(llvm::Value *ptrAsInt, TopType *topType,
   // Convert the int64-encoded pointer to an actual pointer.
   auto *ptr = ctx.irBuilder.CreateIntToPtr(ptrAsInt, ptrTy, "destroyPtr");
 
+  auto *pointee = owningRef->getReferencedType().get();
+  if (auto *record = dynamic_cast<TopRecord *>(pointee)) {
+    auto *recordPtrAsInt = ctx.irBuilder.CreateLoad(i64Ty, ptr, "recordPtrVal");
+    auto *recordPtr =
+        ctx.irBuilder.CreateIntToPtr(recordPtrAsInt, ptrTy, "recordStructPtr");
+
+    auto &names = record->getNames();
+    auto &inits = record->getInits();
+    for (std::size_t i = 0; i < names.size(); ++i) {
+      if (OwnershipClassifier::classifyType(inits[i].get()) ==
+          OwnershipClass::Own) {
+        int idx = ctx.fieldIndex.at(names[i]);
+        auto *gep = ctx.irBuilder.CreateStructGEP(
+            ctx.globalRecordType, recordPtr, idx, names[i] + ".fptr");
+        auto *fieldVal =
+            ctx.irBuilder.CreateLoad(i64Ty, gep, names[i] + ".fval");
+        emitDestroyValue(fieldVal, inits[i].get(), ctx);
+      }
+    }
+
+    ctx.irBuilder.CreateCall(ctx.freeFun, {recordPtr});
+  }
+
   // Free the pointer itself.
   ctx.irBuilder.CreateCall(ctx.freeFun, {ptr});
 }
@@ -816,16 +961,7 @@ llvm::Value *CodeGenVisitor::generate(ASTDestroyStmt *node) {
   LOG_S(1) << "Generating code for " << *node;
   auto &ctx = *ctx_;
 
-  // Lazily declare free(ptr) -> void.
-  if (ctx.freeFun == nullptr) {
-    auto *FT = llvm::FunctionType::get(
-        llvm::Type::getVoidTy(ctx.llvmContext),
-        {llvm::PointerType::get(ctx.llvmContext, 0)},
-        false);
-    ctx.freeFun = llvm::Function::Create(
-        FT, llvm::Function::ExternalLinkage, "free", ctx.module.get());
-    ctx.freeFun->addFnAttr(llvm::Attribute::NoUnwind);
-  }
+  ensureFreeDecl(ctx);
 
   ASTDeclNode *decl    = node->getVar();
   std::string varName  = decl->getName();
@@ -848,6 +984,103 @@ llvm::Value *CodeGenVisitor::generate(ASTDestroyStmt *node) {
   emitDestroyValue(ptrAsInt, topType, ctx);
 
   return ctx.irBuilder.CreateCall(ctx.nop);
+}
+
+// ---------------------------------------------------------------------------
+// Pattern matching helper (Phase B4)
+// ---------------------------------------------------------------------------
+
+void CodeGenVisitor::emitPatternMatch(llvm::Value *basePtr, int64_t offset,
+                                       ASTPattern *pat, ASTDeclNode *paramDecl,
+                                       llvm::BasicBlock *failBB,
+                                       llvm::Function *func,
+                                       CodeGenContext &ctx) {
+  auto &builder = ctx.irBuilder;
+  auto *i64Ty   = llvm::Type::getInt64Ty(ctx.llvmContext);
+  auto *ptrTy   = llvm::PointerType::get(ctx.llvmContext, 0);
+
+  // Load the field value at the given offset within basePtr.
+  auto *fieldGEP = builder.CreateInBoundsGEP(
+      i64Ty, basePtr, {llvm::ConstantInt::get(i64Ty, offset)}, "pat.gep");
+  auto *fieldVal = builder.CreateLoad(i64Ty, fieldGEP, "pat.val");
+
+  if (auto *vp = dynamic_cast<ASTVarPattern *>(pat)) {
+    // Variable pattern: bind field value to the variable's stack slot.
+    auto *alloca = CreateEntryBlockAlloca(func, vp->getName(), ctx);
+    builder.CreateStore(fieldVal, alloca);
+    ctx.namedValues[vp->getName()] = alloca;
+
+  } else if (dynamic_cast<ASTWildcardPattern *>(pat)) {
+    // Wildcard: if the payload slot is Own, destroy it (prevents leaks).
+    if (paramDecl) {
+      auto typeShared =
+          semanticAnalysis_->getTypeResults()->getInferredType(paramDecl);
+      if (typeShared &&
+          OwnershipClassifier::classifyType(typeShared.get()) ==
+              OwnershipClass::Own) {
+        ensureFreeDecl(ctx);
+        emitDestroyValue(fieldVal, typeShared.get(), ctx);
+      }
+    }
+
+  } else if (auto *cp = dynamic_cast<ASTCtorPattern *>(pat)) {
+    // Nested constructor pattern: extract inner sum-type pointer, check tag.
+    auto *innerPtr = builder.CreateIntToPtr(fieldVal, ptrTy, "inner.ptr");
+    auto *innerTag = builder.CreateLoad(i64Ty, innerPtr, "inner.tag");
+
+    // Resolve the inner constructor's tag index and parameter list.
+    auto *symTab          = semanticAnalysis_->getSymbolTable();
+    auto *innerOwnerDecl  = symTab->getConstructorOwner(cp->getTag());
+    int   innerTagIdx     = 0;
+    std::vector<ASTDeclNode *> innerParams;
+    if (innerOwnerDecl) {
+      int idx = 0;
+      for (auto *v : innerOwnerDecl->getVariants()) {
+        if (v->getTag() == cp->getTag()) {
+          innerTagIdx  = idx;
+          innerParams  = v->getParams();
+          break;
+        }
+        ++idx;
+      }
+    }
+
+    // Conditional branch: jump to matchBB if the inner tag matches, failBB if not.
+    auto *expected = llvm::ConstantInt::get(i64Ty, innerTagIdx);
+    auto *cond     = builder.CreateICmpEQ(innerTag, expected, "ctor.cmp");
+    auto *matchBB  = llvm::BasicBlock::Create(ctx.llvmContext, "ctor.ok", func);
+    builder.CreateCondBr(cond, matchBB, failBB);
+    builder.SetInsertPoint(matchBB);
+
+    // Recurse: match sub-patterns against the inner struct's payload slots.
+    auto subPats = cp->getSubPatterns();
+    for (std::size_t j = 0; j < subPats.size(); ++j) {
+      ASTDeclNode *subDecl =
+          (j < innerParams.size()) ? innerParams[j] : nullptr;
+      emitPatternMatch(innerPtr, static_cast<int64_t>(j + 1), subPats[j],
+                       subDecl, failBB, func, ctx);
+    }
+
+  } else if (auto *rp = dynamic_cast<ASTRecordPattern *>(pat)) {
+    // Record pattern: the payload is a pointer to the record struct (int64).
+    auto *recordPtr = builder.CreateIntToPtr(fieldVal, ptrTy, "rec.ptr");
+
+    for (auto &[fieldName, fieldPat] : rp->getFields()) {
+      if (!ctx.fieldIndex.count(fieldName))
+        continue;
+      int   idx = ctx.fieldIndex.at(fieldName);
+      auto *gep = builder.CreateStructGEP(ctx.globalRecordType, recordPtr,
+                                          idx, fieldName + ".gptr");
+      auto *fval = builder.CreateLoad(i64Ty, gep, fieldName + ".fval");
+
+      if (auto *fvp = dynamic_cast<ASTVarPattern *>(fieldPat.get())) {
+        auto *alloca = CreateEntryBlockAlloca(func, fvp->getName(), ctx);
+        builder.CreateStore(fval, alloca);
+        ctx.namedValues[fvp->getName()] = alloca;
+      }
+      // Record-field wildcards are Copy; no destruction needed.
+    }
+  }
 }
 
 llvm::Value *CodeGenVisitor::generate(ASTSumCtorExpr *node) {
@@ -915,16 +1148,19 @@ llvm::Value *CodeGenVisitor::generate(ASTCaseStmt *node) {
   // Load the tag (first i64 in the sum-type allocation).
   auto *tagVal = ctx.irBuilder.CreateLoad(i64Ty, scrutPtr, "tag");
 
-  // Build a variant-name → tag-index map from the symbol table.
-  auto arms = node->getArms();
+  // Build a variant-name → tag-index map and variant-name → params map.
+  auto arms    = node->getArms();
   auto *symTab = semanticAnalysis_->getSymbolTable();
   auto *ownerDecl = symTab->getConstructorOwner(arms[0]->getTag());
 
-  std::map<std::string, int> variantIndex;
+  std::map<std::string, int>                    variantIndex;
+  std::map<std::string, std::vector<ASTDeclNode *>> variantParams;
   if (ownerDecl) {
     int idx = 0;
-    for (auto *v : ownerDecl->getVariants())
-      variantIndex[v->getTag()] = idx++;
+    for (auto *v : ownerDecl->getVariants()) {
+      variantIndex[v->getTag()]  = idx++;
+      variantParams[v->getTag()] = v->getParams();
+    }
   }
 
   llvm::Function *TheFunction = ctx.irBuilder.GetInsertBlock()->getParent();
@@ -939,48 +1175,78 @@ llvm::Value *CodeGenVisitor::generate(ASTCaseStmt *node) {
   llvm::BasicBlock *DefaultBB = llvm::BasicBlock::Create(
       ctx.llvmContext, "case.default." + std::to_string(label));
 
-  auto *switchInst =
-      ctx.irBuilder.CreateSwitch(tagVal, DefaultBB, static_cast<unsigned>(arms.size()));
-
-  // Emit one basic block per arm.
+  // Group arms by outer constructor tag, preserving declaration order.
+  std::map<std::string, std::vector<ASTCaseArm *>> groupedArms;
+  std::vector<std::string> tagOrder;
   for (auto *arm : arms) {
-    int tagIdx = 0;
-    auto it = variantIndex.find(arm->getTag());
-    if (it != variantIndex.end())
-      tagIdx = it->second;
+    if (groupedArms.find(arm->getTag()) == groupedArms.end())
+      tagOrder.push_back(arm->getTag());
+    groupedArms[arm->getTag()].push_back(arm);
+  }
 
-    auto *armBB = llvm::BasicBlock::Create(
+  // One LLVM switch case per distinct outer tag.
+  auto *switchInst = ctx.irBuilder.CreateSwitch(
+      tagVal, DefaultBB, static_cast<unsigned>(tagOrder.size()));
+
+  // Emit one chain of arm checks per distinct outer tag.
+  for (const auto &tag : tagOrder) {
+    int tagIdx = variantIndex.count(tag) ? variantIndex.at(tag) : 0;
+    const auto &armGroup = groupedArms.at(tag);
+    const auto &params   = variantParams.count(tag)
+                               ? variantParams.at(tag)
+                               : std::vector<ASTDeclNode *>{};
+
+    // Entry block for this outer tag (the switch target).
+    auto *entryBB = llvm::BasicBlock::Create(
         ctx.llvmContext,
-        "case." + arm->getTag() + "." + std::to_string(label),
+        "case." + tag + "." + std::to_string(label),
         TheFunction);
-    switchInst->addCase(llvm::ConstantInt::get(i64Ty, tagIdx), armBB);
+    switchInst->addCase(llvm::ConstantInt::get(i64Ty, tagIdx), entryBB);
+    ctx.irBuilder.SetInsertPoint(entryBB);
 
-    ctx.irBuilder.SetInsertPoint(armBB);
+    // Emit each arm in the group as a sequential chain.
+    for (std::size_t ai = 0; ai < armGroup.size(); ++ai) {
+      auto *arm = armGroup[ai];
 
-    // Bind arm variables to payload fields and add to namedValues.
-    auto bindings = arm->getBindings();
-    for (std::size_t i = 0; i < bindings.size(); i++) {
-      auto *fieldPtr = ctx.irBuilder.CreateInBoundsGEP(
-          i64Ty, scrutPtr,
-          {llvm::ConstantInt::get(i64Ty, static_cast<int64_t>(i + 1))},
-          "field." + bindings[i]->getName());
-      auto *fieldVal =
-          ctx.irBuilder.CreateLoad(i64Ty, fieldPtr, bindings[i]->getName() + ".v");
-      auto *alloca = CreateEntryBlockAlloca(TheFunction, bindings[i]->getName(), ctx);
-      ctx.irBuilder.CreateStore(fieldVal, alloca);
-      ctx.namedValues[bindings[i]->getName()] = alloca;
+      // failBB: where to go if this arm's nested patterns don't match.
+      // For the last arm in a group the default block is used (unreachable
+      // in well-typed programs after B3 redundancy checks).
+      llvm::BasicBlock *failBB;
+      if (ai + 1 < armGroup.size()) {
+        failBB = llvm::BasicBlock::Create(
+            ctx.llvmContext,
+            "case." + tag + ".arm" + std::to_string(ai + 1) + "." +
+                std::to_string(label));
+      } else {
+        failBB = DefaultBB;
+      }
+
+      // Emit pattern bindings for each payload position of this arm.
+      auto patterns = arm->getPatterns();
+      for (std::size_t pi = 0; pi < patterns.size(); ++pi) {
+        ASTDeclNode *paramDecl =
+            (pi < params.size()) ? params[pi] : nullptr;
+        emitPatternMatch(scrutPtr, static_cast<int64_t>(pi + 1),
+                         patterns[pi], paramDecl, failBB, TheFunction, ctx);
+      }
+
+      // Generate the arm body (all pattern tests passed).
+      dispatch(arm->getBody());
+
+      // Branch to merge unless the body already terminated the block.
+      if (!ctx.irBuilder.GetInsertBlock()->getTerminator())
+        ctx.irBuilder.CreateBr(MergeBB);
+
+      // Remove arm's named bindings so they don't bleed into sibling arms.
+      for (auto *b : arm->getBindings())
+        ctx.namedValues.erase(b->getName());
+
+      // If there is a next arm, its failBB is now the new insert point.
+      if (ai + 1 < armGroup.size()) {
+        TheFunction->insert(TheFunction->end(), failBB);
+        ctx.irBuilder.SetInsertPoint(failBB);
+      }
     }
-
-    // Generate the arm body.
-    dispatch(arm->getBody());
-
-    // Branch to merge unless the arm body already terminated the block.
-    if (!ctx.irBuilder.GetInsertBlock()->getTerminator())
-      ctx.irBuilder.CreateBr(MergeBB);
-
-    // Remove arm bindings so they don't leak into sibling arms.
-    for (auto *b : bindings)
-      ctx.namedValues.erase(b->getName());
   }
 
   // Fill the default block.

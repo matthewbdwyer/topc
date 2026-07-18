@@ -9,7 +9,6 @@ target_sources(
     ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopIntTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopMuTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopRecordTest.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopAbsentFieldTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopRefTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopVarTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TopVarSetTest.cpp
@@ -20,7 +19,6 @@ target_sources(
     ${CMAKE_CURRENT_SOURCE_DIR}/constraints/TypeConstraintCollectTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/constraints/PolyTypeConstraintCollectTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/constraints/TypeConstraintTest.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/constraints/AbsentFieldCheckerTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/constraints/Phase6TypeTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/TermUnionFindTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/solver/TermUnifierTest.cpp
@@ -36,7 +34,7 @@ target_link_libraries(
           symboltable
           frontend
           semantic
-          codegen
+          topc_codegen
           optimizer
           error
           test_helpers

@@ -1,0 +1,83 @@
+
+[type-constraints]
+  [type] - ⟦((x+-7)*4)@12:9⟧ = int
+  [type] - ⟦(-1*h())@18:31⟧ = int
+  [type] - ⟦(-1*h())@18:8⟧ = int
+  [type] - ⟦(g((-1*h()))!=27)@18:6⟧ = int
+  [type] - ⟦(g((-1*h()))!=27)@18:6⟧ = int
+  [type] - ⟦(g(f())!=4)@16:6⟧ = int
+  [type] - ⟦(g(f())!=4)@16:6⟧ = int
+  [type] - ⟦(h()!=-24)@17:6⟧ = int
+  [type] - ⟦(h()!=-24)@17:6⟧ = int
+  [type] - ⟦(x+-7)@12:10⟧ = int
+  [type] - ⟦(x+-7)@12:10⟧ = int
+  [type] - ⟦(x+3)@6:9⟧ = int
+  [type] - ⟦-1@18:31⟧ = int
+  [type] - ⟦-1@18:31⟧ = int
+  [type] - ⟦-1@18:8⟧ = int
+  [type] - ⟦-1@18:8⟧ = int
+  [type] - ⟦-24@17:13⟧ = int
+  [type] - ⟦-7@12:14⟧ = int
+  [type] - ⟦-7@12:14⟧ = int
+  [type] - ⟦0@19:9⟧ = int
+  [type] - ⟦0@19:9⟧ = int
+  [type] - ⟦1@2:9⟧ = int
+  [type] - ⟦27@18:19⟧ = int
+  [type] - ⟦3@6:13⟧ = int
+  [type] - ⟦3@6:13⟧ = int
+  [type] - ⟦4@12:20⟧ = int
+  [type] - ⟦4@12:20⟧ = int
+  [type] - ⟦4@16:16⟧ = int
+  [type] - ⟦f@1:0⟧ = () -> ⟦1@2:9⟧
+  [type] - ⟦f@1:0⟧ = () -> ⟦f()@11:6⟧
+  [type] - ⟦f@1:0⟧ = () -> ⟦f()@16:27⟧
+  [type] - ⟦f@1:0⟧ = () -> ⟦f()@16:8⟧
+  [type] - ⟦g((-1*h()))@18:29⟧ = int
+  [type] - ⟦g((-1*h()))@18:6⟧ = ⟦27@18:19⟧
+  [type] - ⟦g(f())@16:25⟧ = int
+  [type] - ⟦g(f())@16:6⟧ = ⟦4@16:16⟧
+  [type] - ⟦g@5:0⟧ = (⟦(-1*h())@18:31⟧) -> ⟦g((-1*h()))@18:29⟧
+  [type] - ⟦g@5:0⟧ = (⟦(-1*h())@18:8⟧) -> ⟦g((-1*h()))@18:6⟧
+  [type] - ⟦g@5:0⟧ = (⟦f()@16:27⟧) -> ⟦g(f())@16:25⟧
+  [type] - ⟦g@5:0⟧ = (⟦f()@16:8⟧) -> ⟦g(f())@16:6⟧
+  [type] - ⟦g@5:0⟧ = (⟦x@5:2⟧) -> ⟦(x+3)@6:9⟧
+  [type] - ⟦h()@17:24⟧ = int
+  [type] - ⟦h()@17:6⟧ = ⟦-24@17:13⟧
+  [type] - ⟦h()@18:11⟧ = int
+  [type] - ⟦h()@18:34⟧ = int
+  [type] - ⟦h@9:0⟧ = () -> ⟦((x+-7)*4)@12:9⟧
+  [type] - ⟦h@9:0⟧ = () -> ⟦h()@17:24⟧
+  [type] - ⟦h@9:0⟧ = () -> ⟦h()@17:6⟧
+  [type] - ⟦h@9:0⟧ = () -> ⟦h()@18:11⟧
+  [type] - ⟦h@9:0⟧ = () -> ⟦h()@18:34⟧
+  [type] - ⟦main@15:0⟧ = () -> ⟦0@19:9⟧
+  [type] - ⟦x@10:6⟧ = int
+  [type] - ⟦x@10:6⟧ = ⟦f()@11:6⟧
+  [type] - ⟦x@5:2⟧ = int
+
+[type-schemes]
+  [scheme] - f : () -> int
+  [scheme] - g : (int) -> int
+  [scheme] - h : () -> int
+  [scheme] - main : () -> int
+
+[type-instantiations]
+  [inst] 11:6 call f() instantiates f
+  [inst] 16:6 call g(f()) instantiates g
+  [inst] 16:8 call f() instantiates f
+  [inst] 16:25 call g(f()) instantiates g
+  [inst] 16:27 call f() instantiates f
+  [inst] 17:6 call h() instantiates h
+  [inst] 17:24 call h() instantiates h
+  [inst] 18:6 call g((-1*h())) instantiates g
+  [inst] 18:11 call h() instantiates h
+  [inst] 18:29 call g((-1*h())) instantiates g
+  [inst] 18:34 call h() instantiates h
+
+[type-inferred]
+  [inferred] - function f : () -> int
+  [inferred] - function g : (int) -> int
+  [inferred] 5:2 local g.x : int
+  [inferred] - function h : () -> int
+  [inferred] 10:6 local h.x : int
+  [inferred] - function main : () -> int

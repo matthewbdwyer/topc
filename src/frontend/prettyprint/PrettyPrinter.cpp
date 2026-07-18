@@ -1,7 +1,55 @@
 #include "PrettyPrinter.h"
 
+#include "ASTCtorPattern.h"
+#include "ASTRecordPattern.h"
+#include "ASTVarPattern.h"
+#include "ASTWildcardPattern.h"
+
 #include <iostream>
 #include <sstream>
+
+// ---------------------------------------------------------------------------
+// Non-visitor helper: convert a pattern subtree to its source-text string.
+// Used by endVisit(ASTCaseArm*) to reconstruct arm payloads without relying
+// on the visitResults stack (which only has the flat DeclNode strings).
+// ---------------------------------------------------------------------------
+static std::string patternToString(ASTPattern *p) {
+  if (dynamic_cast<ASTWildcardPattern *>(p)) {
+    return "_";
+  }
+  if (auto *vp = dynamic_cast<ASTVarPattern *>(p)) {
+    return vp->getName();
+  }
+  if (auto *cp = dynamic_cast<ASTCtorPattern *>(p)) {
+    std::string s = cp->getTag();
+    auto subs = cp->getSubPatterns();
+    if (!subs.empty()) {
+      s += "(";
+      bool first = true;
+      for (auto *sub : subs) {
+        if (!first)
+          s += ", ";
+        s += patternToString(sub);
+        first = false;
+      }
+      s += ")";
+    }
+    return s;
+  }
+  if (auto *rp = dynamic_cast<ASTRecordPattern *>(p)) {
+    std::string s = "{";
+    bool first = true;
+    for (auto &[field, sub] : rp->getFields()) {
+      if (!first)
+        s += ", ";
+      s += field + ": " + patternToString(sub.get());
+      first = false;
+    }
+    s += "}";
+    return s;
+  }
+  return "?"; // unreachable
+}
 
 void PrettyPrinter::print(ASTProgram *p, std::ostream &os, char c, int n) {
   PrettyPrinter visitor(os, c, n);
@@ -107,10 +155,45 @@ void PrettyPrinter::endVisit(ASTFunAppExpr *element) {
   visitResults.back() += "(" + actualsString + ")";
 }
 
+bool PrettyPrinter::visit(ASTFieldAccessExpr *element) { return true; }
+
+void PrettyPrinter::endVisit(ASTFieldAccessExpr *element) {
+  std::string base = visitResults.back();
+  visitResults.pop_back();
+  visitResults.push_back(base + "." + element->getField());
+}
+
 void PrettyPrinter::endVisit(ASTAllocExpr *element) {
   std::string init = visitResults.back();
   visitResults.pop_back();
   visitResults.push_back("alloc " + init);
+}
+
+bool PrettyPrinter::visit(ASTRecordExpr *element) { return true; }
+
+void PrettyPrinter::endVisit(ASTRecordExpr *element) {
+  auto fieldNames = element->getFieldNames();
+  auto fieldCount = fieldNames.size();
+  std::vector<std::string> fields;
+  fields.reserve(fieldCount);
+
+  for (std::size_t i = 0; i < fieldCount; i++) {
+    std::size_t stackIndex = visitResults.size() - fieldCount + i;
+    fields.push_back(fieldNames[i] + ":" + visitResults[stackIndex]);
+  }
+
+  for (std::size_t i = 0; i < fieldCount; i++) {
+    visitResults.pop_back();
+  }
+
+  std::string rendered = "{";
+  for (std::size_t i = 0; i < fields.size(); i++) {
+    if (i != 0)
+      rendered += ", ";
+    rendered += fields[i];
+  }
+  rendered += "}";
+  visitResults.push_back(rendered);
 }
 
 void PrettyPrinter::endVisit(ASTRefExpr *element) {
@@ -284,12 +367,26 @@ void PrettyPrinter::endVisit(ASTCaseArm *element) {
   visitResults.pop_back();
   // strip leading whitespace so the body is inline after "->"
   bodyStr.erase(0, bodyStr.find_first_not_of(" \t"));
+
+  // Discard the flat DeclNode strings pushed by visiting BINDINGS
+  // (they exist for LocalNameCollector backward compat, not for pretty-print).
+  for (size_t i = 0; i < element->getBindings().size(); i++) {
+    visitResults.pop_back();
+  }
+
+  // Reconstruct the payload string using the actual pattern tree.
   std::string bindingsStr;
-  if (!element->getBindings().empty()) {
-    bindingsStr =
-        "(" +
-        joinWithDelim(visitResults, ", ", element->getBindings().size(), 1) +
-        ")";
+  auto patterns = element->getPatterns();
+  if (!patterns.empty()) {
+    bindingsStr = "(";
+    bool first = true;
+    for (auto *p : patterns) {
+      if (!first)
+        bindingsStr += ", ";
+      bindingsStr += patternToString(p);
+      first = false;
+    }
+    bindingsStr += ")";
   }
   visitResults.push_back(indent() + element->getTag() + bindingsStr + " -> " +
                          bodyStr);

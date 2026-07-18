@@ -109,6 +109,8 @@ TEST_CASE("ASTPrinterTest: expression printers", "[ASTNodePrint]") {
         z = -3;
         z = (42);
         x = alloc null;
+        x = {a:1, b:y};
+        y = x.b;
         y = x + y - z * 3 / 1;
         y = foo(x);
         return 0;
@@ -121,6 +123,8 @@ TEST_CASE("ASTPrinterTest: expression printers", "[ASTNodePrint]") {
                                     "-3",
                                     "42",
                                     "alloc null",
+                                    "{a:1, b:y}",
+                                    "x.b",
                                     "((x+y)-((z*3)/1))",
                                     "foo(x)"};
 

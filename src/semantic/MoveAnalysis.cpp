@@ -16,6 +16,8 @@
 #include <set>
 #include <sstream>
 
+std::vector<MoveAnalysis::MoveTraceEvent> MoveAnalysis::lastTrace;
+
 // ---------------------------------------------------------------------------
 // Constructor: run analysis over every function.
 // ---------------------------------------------------------------------------
@@ -26,6 +28,11 @@ MoveAnalysis::MoveAnalysis(ASTProgram *ast, SymbolTable *sym,
   for (auto *f : ast->getFunctions()) {
     analyzeFunction(f);
   }
+  lastTrace = trace;
+}
+
+const std::vector<MoveAnalysis::MoveTraceEvent> &MoveAnalysis::getLastTrace() {
+  return lastTrace;
 }
 
 // ---------------------------------------------------------------------------
@@ -169,6 +176,8 @@ MoveAnalysis::StateMap MoveAnalysis::analyzeAssign(ASTAssignStmt *stmt,
     }
     // Transfer ownership: mark rhs as Moved.
     state[rhsDecl] = OwnershipState::Moved;
+    trace.push_back({"move", rhsVar->getName(), stmt->getLine(),
+                     "ownership moved from RHS variable"});
   } else {
     // Non-move assignment: check full RHS expression for any use-after-move.
     checkExprForMoved(rhs, state);
@@ -192,6 +201,9 @@ MoveAnalysis::StateMap MoveAnalysis::analyzeAssign(ASTAssignStmt *stmt,
     }
     // LHS becomes Owned.
     state[lhsDecl] = OwnershipState::Owned;
+    trace.push_back({"own", lhsVar->getName(), stmt->getLine(),
+                     rhsIsOwn ? "ownership received via move"
+                              : "ownership established by assignment"});
   }
 
   return state;

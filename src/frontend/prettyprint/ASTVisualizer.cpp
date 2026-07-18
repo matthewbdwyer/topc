@@ -4,6 +4,22 @@
 #include <iostream>
 #include <sstream>
 
+void ASTVisualizer::emitAsciiNode(const SyntaxTree &tree, int depth) {
+  for (int i = 0; i < depth; i++) {
+    os << "  ";
+  }
+  os << *tree.getRoot() << "\n";
+  auto subtrees = const_cast<SyntaxTree &>(tree).getSubtrees();
+  for (auto &sub : subtrees) {
+    emitAsciiNode(sub, depth + 1);
+  }
+}
+
+void ASTVisualizer::buildAscii(SyntaxTree &tree) {
+  os << "start\n";
+  emitAsciiNode(tree, 1);
+}
+
 void ASTVisualizer::buildGraph(SyntaxTree &tree) {
   os << "digraph {"
      << "\n";

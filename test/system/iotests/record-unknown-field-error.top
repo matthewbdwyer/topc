@@ -1,0 +1,7 @@
+// Expected: compile fails with "unknown field" diagnostic
+main() {
+  var r;
+  r = {a:1};
+  output r.z;
+  return 0;
+}

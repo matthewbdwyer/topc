@@ -1,0 +1,21 @@
+// Phase B4: Wildcard at an Own payload position must call free on the value.
+// Hold(alloc 5) allocates a heap integer; matching with Hold(_) discards it.
+// The test returns 1 (success) so the system test harness expects exit code 0
+// (main returns 0 iff ok == 1 → 1 - ok == 0).
+// Running under AddressSanitizer or valgrind would catch a leak if the free
+// were missing, but the functional result is also observable here.
+type MaybeAlloc = Empty | Hold(ref);
+
+f(x) {
+  var r;
+  r = 0;
+  case x of {
+    Empty   -> r = 0;
+    Hold(_) -> r = 1;
+  }
+  return r;
+}
+
+main() {
+  return 1 - f(Hold(alloc 5));
+}

@@ -7,6 +7,7 @@
 #include "TopInt.h"
 #include "TopOwningRef.h"
 #include "TopRef.h"
+#include "TopRecord.h"
 #include "TopSumType.h"
 #include "TopVar.h"
 
@@ -70,6 +71,17 @@ OwnershipClass OwnershipClassifier::classifyType(const TopType *type) {
     auto *sum = dynamic_cast<const TopSumType *>(type);
     for (auto &payload : sum->getArguments()) {
       if (classifyType(payload.get()) == OwnershipClass::Own) {
+        return OwnershipClass::Own;
+      }
+    }
+    return OwnershipClass::Copy;
+  }
+
+  // TopRecord → Own if any field type is Own, else Copy
+  if (dynamic_cast<const TopRecord *>(type) != nullptr) {
+    auto *rec = dynamic_cast<const TopRecord *>(type);
+    for (auto &field : rec->getInits()) {
+      if (classifyType(field.get()) == OwnershipClass::Own) {
         return OwnershipClass::Own;
       }
     }

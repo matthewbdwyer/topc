@@ -21,6 +21,15 @@
 
 class CallGraph {
 
+public:
+  struct CfaConstraintRecord {
+    ASTFunAppExpr *call;
+    std::string callerName;
+    std::set<ASTFunction *> targets;
+  };
+
+private:
+
   std::vector<ASTFunction *> vertices;
   std::vector<std::pair<ASTFunction *, ASTFunction *>> edges;
   int total_edges;
@@ -28,14 +37,17 @@ class CallGraph {
   std::map<ASTFunction *, std::set<ASTFunction *>> callGraph;
   std::map<std::string, ASTFunction *> fromFunNameToASTFuns;
   std::map<ASTFunAppExpr *, std::set<ASTFunction *>> mayCall;
+  std::map<ASTFunAppExpr *, ASTFunction *> callSiteCaller;
 
 public:
   CallGraph(std::map<ASTFunction *, std::set<ASTFunction *>> cGraph,
             std::map<ASTFunAppExpr *, std::set<ASTFunction *>> mc,
+      std::map<ASTFunAppExpr *, ASTFunction *> callerMap,
             std::vector<ASTFunction *> funs,
             std::map<std::string, ASTFunction *> fmap)
       : callGraph(cGraph), mayCall(mc), vertices(funs),
-        total_vertices(vertices.size()), fromFunNameToASTFuns(fmap) {}
+      total_vertices(vertices.size()), fromFunNameToASTFuns(fmap),
+      callSiteCaller(callerMap) {}
 
   /*! \brief Return the shared pointer of the call graph for a given program.
    * \param The AST of the program and symbol table
@@ -63,6 +75,13 @@ public:
    * expr
    */
   std::set<ASTFunction *> getCalledFuns(ASTFunAppExpr *e);
+
+  /*! \brief Returns retained CFA call-site constraints.
+   *
+   * Each record maps one call expression to the set of possible targets
+   * inferred by CFA and includes the caller function name.
+   */
+  std::vector<CfaConstraintRecord> getConstraintRecords();
 
   /*! \brief Returns all the subroutines called by function f. this is an
    * overloaded function \param f The AST Function node, caller is the string

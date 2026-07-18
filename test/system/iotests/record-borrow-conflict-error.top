@@ -1,0 +1,10 @@
+// Expected: compile fails: borrow not used as immediate function argument
+type Flag = On | Off;
+use(x) { return x; }
+main() {
+  var r, b, dummy;
+  r = {val: 42};
+  b = &r.val;
+  dummy = use(b);
+  return 0;
+}

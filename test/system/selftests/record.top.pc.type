@@ -1,0 +1,78 @@
+
+[type-constraints]
+  [type] - ⟦(b-4)@5:8⟧ = int
+  [type] - ⟦(b>0)@4:6⟧ = int
+  [type] - ⟦(b>0)@4:6⟧ = int
+  [type] - ⟦(n*2)@3:6⟧ = int
+  [type] - ⟦(n-3)@12:8⟧ = int
+  [type] - ⟦(n>85)@11:9⟧ = int
+  [type] - ⟦(n>85)@11:9⟧ = int
+  [type] - ⟦(rec.a!=42)@20:6⟧ = int
+  [type] - ⟦(rec.a!=42)@20:6⟧ = int
+  [type] - ⟦(rec.b!=33)@22:6⟧ = int
+  [type] - ⟦(rec.b!=33)@22:6⟧ = int
+  [type] - ⟦(rec.c!=85)@24:6⟧ = int
+  [type] - ⟦(rec.c!=85)@24:6⟧ = int
+  [type] - ⟦0@26:9⟧ = int
+  [type] - ⟦0@26:9⟧ = int
+  [type] - ⟦0@4:10⟧ = int
+  [type] - ⟦0@4:10⟧ = int
+  [type] - ⟦23@19:16⟧ = int
+  [type] - ⟦2@3:10⟧ = int
+  [type] - ⟦2@3:10⟧ = int
+  [type] - ⟦33@19:24⟧ = int
+  [type] - ⟦33@22:15⟧ = int
+  [type] - ⟦3@12:12⟧ = int
+  [type] - ⟦3@12:12⟧ = int
+  [type] - ⟦42@20:15⟧ = int
+  [type] - ⟦4@5:12⟧ = int
+  [type] - ⟦4@5:12⟧ = int
+  [type] - ⟦85@11:13⟧ = int
+  [type] - ⟦85@11:13⟧ = int
+  [type] - ⟦85@24:15⟧ = int
+  [type] - ⟦91@19:35⟧ = int
+  [type] - ⟦b@2:6⟧ = int
+  [type] - ⟦b@2:6⟧ = int
+  [type] - ⟦b@2:6⟧ = ⟦(b-4)@5:8⟧
+  [type] - ⟦b@2:6⟧ = ⟦(n*2)@3:6⟧
+  [type] - ⟦bar@10:0⟧ = (⟦91@19:35⟧) -> ⟦bar(91)@19:31⟧
+  [type] - ⟦bar@10:0⟧ = (⟦n@10:4⟧) -> ⟦n@10:4⟧
+  [type] - ⟦foo@1:0⟧ = (⟦23@19:16⟧) -> ⟦foo(23)@19:12⟧
+  [type] - ⟦foo@1:0⟧ = (⟦n@1:4⟧) -> ⟦b@2:6⟧
+  [type] - ⟦main@17:0⟧ = () -> ⟦0@26:9⟧
+  [type] - ⟦n@10:4⟧ = int
+  [type] - ⟦n@10:4⟧ = int
+  [type] - ⟦n@10:4⟧ = ⟦(n-3)@12:8⟧
+  [type] - ⟦n@1:4⟧ = int
+  [type] - ⟦rec.a@20:6⟧ = ⟦42@20:15⟧
+  [type] - ⟦rec.a@21:10⟧ = int
+  [type] - ⟦rec.b@22:6⟧ = ⟦33@22:15⟧
+  [type] - ⟦rec.b@23:10⟧ = int
+  [type] - ⟦rec.c@24:6⟧ = ⟦85@24:15⟧
+  [type] - ⟦rec.c@25:10⟧ = int
+  [type] - ⟦rec@18:6⟧ = {a:α<rec.b@22:6[a]>,b:⟦rec.b@22:6⟧,c:α<rec.b@22:6[c]>}
+  [type] - ⟦rec@18:6⟧ = {a:α<rec.b@23:10[a]>,b:⟦rec.b@23:10⟧,c:α<rec.b@23:10[c]>}
+  [type] - ⟦rec@18:6⟧ = {a:α<rec.c@24:6[a]>,b:α<rec.c@24:6[b]>,c:⟦rec.c@24:6⟧}
+  [type] - ⟦rec@18:6⟧ = {a:α<rec.c@25:10[a]>,b:α<rec.c@25:10[b]>,c:⟦rec.c@25:10⟧}
+  [type] - ⟦rec@18:6⟧ = {a:⟦rec.a@20:6⟧,b:α<rec.a@20:6[b]>,c:α<rec.a@20:6[c]>}
+  [type] - ⟦rec@18:6⟧ = {a:⟦rec.a@21:10⟧,b:α<rec.a@21:10[b]>,c:α<rec.a@21:10[c]>}
+  [type] - ⟦rec@18:6⟧ = ⟦{a:foo(23), b:33, c:bar(91)}@19:8⟧
+  [type] - ⟦{a:foo(23), b:33, c:bar(91)}@19:8⟧ = {a:⟦foo(23)@19:12⟧,b:⟦33@19:24⟧,c:⟦bar(91)@19:31⟧}
+
+[type-schemes]
+  [scheme] - foo : (int) -> int
+  [scheme] - bar : (int) -> int
+  [scheme] - main : () -> int
+
+[type-instantiations]
+  [inst] 19:12 call foo(23) instantiates foo
+  [inst] 19:31 call bar(91) instantiates bar
+
+[type-inferred]
+  [inferred] - function foo : (int) -> int
+  [inferred] 1:4 local foo.n : int
+  [inferred] 2:6 local foo.b : int
+  [inferred] - function bar : (int) -> int
+  [inferred] 10:4 local bar.n : int
+  [inferred] - function main : () -> int
+  [inferred] 18:6 local main.rec : {a:int,b:int,c:int}

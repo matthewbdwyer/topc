@@ -60,8 +60,13 @@ void FrontEnd::prettyprint(ASTProgram *program, std::ostream &os) {
   PrettyPrinter::print(program, os, ' ', 2);
 }
 
-void FrontEnd::astVisualize(std::shared_ptr<ASTNode> node, std::ostream &os) {
+void FrontEnd::astVisualize(std::shared_ptr<ASTNode> node, std::ostream &os,
+                            const std::string &format) {
   ASTVisualizer visualizer(os);
   SyntaxTree syntaxTree(node);
-  visualizer.buildGraph(syntaxTree);
+  if (format == "ascii") {
+    visualizer.buildAscii(syntaxTree);
+  } else {
+    visualizer.buildGraph(syntaxTree);
+  }
 }

@@ -27,6 +27,7 @@ bool CallGraphBuilder::visit(ASTFunAppExpr *element) {
   }
   mayCall.insert(
       std::pair<ASTFunAppExpr *, std::set<ASTFunction *>>(element, called));
+  callSiteCaller[element] = cfun;
   return true;
 } // LCOV_EXCL_LINE
 
@@ -38,6 +39,10 @@ CallGraphBuilder::getCallGraph() {
 std::map<ASTFunAppExpr *, std::set<ASTFunction *>>
 CallGraphBuilder::getMayCall() {
   return mayCall;
+}
+
+std::map<ASTFunAppExpr *, ASTFunction *> CallGraphBuilder::getCallSiteCaller() {
+  return callSiteCaller;
 }
 
 std::map<std::string, ASTFunction *> CallGraphBuilder::getFunMap() {

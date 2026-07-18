@@ -28,3 +28,30 @@ TEST_CASE("ASTBuilder: bad op string throws error", "[ASTBuilder]") {
 
   REQUIRE_THROWS_AS(tb.visitAdditiveExpr(&context), std::runtime_error);
 }
+
+TEST_CASE("ASTBuilder: builds record and field access nodes", "[ASTBuilder]") {
+  std::stringstream stream;
+  stream << R"(
+    main() {
+      var r, x;
+      r = {a:1, b:x};
+      x = r.a;
+      return x;
+    }
+  )";
+
+  auto ast = ASTHelper::build_ast(stream);
+  auto fun = ast->findFunctionByName("main");
+  REQUIRE(fun != nullptr);
+
+  auto stmts = fun->getStmts();
+  REQUIRE(stmts.size() >= 3);
+
+  auto firstAssign = dynamic_cast<ASTAssignStmt *>(stmts[0]);
+  REQUIRE(firstAssign != nullptr);
+  REQUIRE(dynamic_cast<ASTRecordExpr *>(firstAssign->getRHS()) != nullptr);
+
+  auto secondAssign = dynamic_cast<ASTAssignStmt *>(stmts[1]);
+  REQUIRE(secondAssign != nullptr);
+  REQUIRE(dynamic_cast<ASTFieldAccessExpr *>(secondAssign->getRHS()) != nullptr);
+}

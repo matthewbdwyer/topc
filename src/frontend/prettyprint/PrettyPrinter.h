@@ -35,7 +35,11 @@ public:
   virtual void endVisit(ASTBinaryExpr *element) override;
   virtual void endVisit(ASTInputExpr *element) override;
   virtual void endVisit(ASTFunAppExpr *element) override;
+  virtual bool visit(ASTFieldAccessExpr *element) override;
+  virtual void endVisit(ASTFieldAccessExpr *element) override;
   virtual void endVisit(ASTAllocExpr *element) override;
+  virtual bool visit(ASTRecordExpr *element) override;
+  virtual void endVisit(ASTRecordExpr *element) override;
   virtual void endVisit(ASTRefExpr *element) override;
   virtual void endVisit(ASTDeRefExpr *element) override;
   virtual void endVisit(ASTNullExpr *element) override;

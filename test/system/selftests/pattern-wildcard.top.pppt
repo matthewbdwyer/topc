@@ -1,0 +1,40 @@
+type MaybeInt = None | Some(val);
+isPresent(x) 
+{
+  var r;
+  r = 0;
+  case x of {
+    None -> r = 0;
+    Some(_) -> r = 1;
+  }
+  return r;
+}
+
+main() 
+{
+  var ok;
+  ok = 1;
+  if ((isPresent(None) != 0)) 
+    {
+      ok = 0;
+    }
+  if ((isPresent(Some(42)) != 1)) 
+    {
+      ok = 0;
+    }
+  return (1 - ok);
+}
+
+Functions : {
+  isPresent : (MaybeInt{None|Some(int)}) -> int,
+  main : () -> int
+}
+
+Locals for function isPresent : {
+  r : int,
+  x : MaybeInt{None|Some(int)}
+}
+
+Locals for function main : {
+  ok : int
+}

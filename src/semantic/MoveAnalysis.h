@@ -7,6 +7,7 @@
 
 #include <map>
 #include <string>
+#include <vector>
 
 /*!
  * \class MoveAnalysis
@@ -29,6 +30,13 @@
  */
 class MoveAnalysis {
 public:
+  struct MoveTraceEvent {
+    std::string kind;
+    std::string variable;
+    int line;
+    std::string detail;
+  };
+
   enum class OwnershipState { Owned, Moved };
   using StateMap = std::map<ASTDeclNode *, OwnershipState>;
 
@@ -38,10 +46,15 @@ public:
    */
   MoveAnalysis(ASTProgram *ast, SymbolTable *sym, OwnershipClassifier *oc);
 
+  /*! \brief Returns retained trace events from the most recent run. */
+  static const std::vector<MoveTraceEvent> &getLastTrace();
+
 private:
   SymbolTable *sym;
   OwnershipClassifier *classifier;
   ASTDeclNode *currentFuncDecl; ///< set while analysing a function
+  std::vector<MoveTraceEvent> trace;
+  static std::vector<MoveTraceEvent> lastTrace;
 
   void analyzeFunction(ASTFunction *f);
 

@@ -52,5 +52,6 @@ public:
    */
   static void prettyprint(ASTProgram *program, std::ostream &os);
 
-  static void astVisualize(std::shared_ptr<ASTNode> node, std::ostream &os);
+  static void astVisualize(std::shared_ptr<ASTNode> node, std::ostream &os,
+                           const std::string &format = "dot");
 };

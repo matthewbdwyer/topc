@@ -10,10 +10,12 @@
 
 #include "TopAlpha.h"
 #include "TopBorrowRef.h"
+#include "TopAbsentField.h"
 #include "TopFunction.h"
 #include "TopInt.h"
 #include "TopMu.h"
 #include "TopOwningRef.h"
+#include "TopRecord.h"
 #include "TopRef.h"
 #include "TopSumType.h"
 #include "TopType.h"

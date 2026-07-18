@@ -45,6 +45,7 @@ nameDeclaration : IDENTIFIER ;
 // weeding pass. 
 //
 expr : expr '(' (expr (',' expr)*)? ')' 	#funAppExpr
+    | expr '.' IDENTIFIER                         #fieldAccessExpr
      | '*' expr 				#deRefExpr
      | SUB NUMBER				#negNumber
      | '&' expr					#refExpr
@@ -59,6 +60,7 @@ expr : expr '(' (expr (',' expr)*)? ')' 	#funAppExpr
      | KINPUT					#inputExpr
      | KALLOC expr				#allocExpr
      | KNULL					#nullExpr
+    | '{' IDENTIFIER ':' expr (',' IDENTIFIER ':' expr)* '}'  #recordExpr
      | '(' expr ')'				#parenExpr
 ;
 
@@ -71,6 +73,7 @@ statement : blockStmt
     | outputStmt
     | errorStmt
     | caseStmt
+    | returnStmt
 ;
 
 assignStmt : expr '=' expr ';' ;
@@ -89,7 +92,16 @@ returnStmt : KRETURN expr ';'  ;
 
 // TOP case statement (pattern-match on sum type)
 caseStmt : KCASE expr KOF '{' caseArm+ '}' ;
-caseArm  : CONID ('(' IDENTIFIER (',' IDENTIFIER)* ')')? ARROW statement ;
+caseArm  : CONID ('(' pattern (',' pattern)* ')')? ARROW statement ;
+
+// Patterns appear in case-arm payloads and may be nested.
+pattern
+    : KWILDCARD                                                     // wildcard
+    | CONID '(' pattern (',' pattern)* ')'                          // ctor with payload
+    | CONID                                                         // no-arg ctor
+    | '{' IDENTIFIER ':' pattern (',' IDENTIFIER ':' pattern)* '}'  // record
+    | IDENTIFIER                                                    // variable binding
+    ;
 
 ////////////////////// TOP Lexicon ////////////////////////// 
 
@@ -130,7 +142,11 @@ ARROW   : '->' ;
 // to CONID via the first-match rule.
 CONID : [A-Z][a-zA-Z0-9_]* ;
 
-IDENTIFIER : [a-zA-Z_][a-zA-Z0-9_]* ;
+// KWILDCARD must precede IDENTIFIER: the single underscore `_` is the wildcard
+// pattern and must not be lexed as an IDENTIFIER.
+KWILDCARD : '_' ;
+
+IDENTIFIER : [a-zA-Z][a-zA-Z0-9_]* | '_' [a-zA-Z0-9_]+ ;
 
 // ANTLR4 has a nice mechanism for specifying the characters that should
 // skipped during parsing.  You write "-> skip" after the pattern and

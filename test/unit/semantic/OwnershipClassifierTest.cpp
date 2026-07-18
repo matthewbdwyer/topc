@@ -8,6 +8,7 @@
 #include "TopInt.h"
 #include "TopOwningRef.h"
 #include "TopRef.h"
+#include "TopRecord.h"
 #include "TopSumType.h"
 #include "TopVar.h"
 
@@ -117,4 +118,52 @@ TEST_CASE("OwnershipClassifier: integration — int is Copy, alloc is Own, "
   REQUIRE(classifier->classify(xDecl) == OwnershipClass::Copy);
   // p = alloc x → ⭡int → Own
   REQUIRE(classifier->classify(pDecl) == OwnershipClass::Own);
+}
+
+// ---------------------------------------------------------------------------
+// Unit tests: TopRecord ownership classification
+// ---------------------------------------------------------------------------
+
+TEST_CASE("OwnershipClassifier: all-Copy record is Copy",
+          "[OwnershipClassifier]") {
+  auto intT = std::make_shared<TopInt>();
+  std::vector<std::shared_ptr<TopType>> inits = {intT, intT};
+  std::vector<std::string> names = {"a", "b"};
+  TopRecord rec(inits, names);
+  REQUIRE(OwnershipClassifier::classifyType(&rec) == OwnershipClass::Copy);
+}
+
+TEST_CASE("OwnershipClassifier: record with owning-ref field is Own",
+          "[OwnershipClassifier]") {
+  auto intT  = std::make_shared<TopInt>();
+  auto ownT  = std::make_shared<TopOwningRef>(intT);
+  std::vector<std::shared_ptr<TopType>> inits = {ownT, intT};
+  std::vector<std::string> names = {"p", "tag"};
+  TopRecord rec(inits, names);
+  REQUIRE(OwnershipClassifier::classifyType(&rec) == OwnershipClass::Own);
+}
+
+TEST_CASE("OwnershipClassifier: nested all-Copy record is Copy",
+          "[OwnershipClassifier]") {
+  auto intT  = std::make_shared<TopInt>();
+  std::vector<std::shared_ptr<TopType>> innerInits = {intT};
+  std::vector<std::string> innerNames = {"a"};
+  auto inner = std::make_shared<TopRecord>(innerInits, innerNames);
+  std::vector<std::shared_ptr<TopType>> outerInits = {inner};
+  std::vector<std::string> outerNames = {"x"};
+  TopRecord outer(outerInits, outerNames);
+  REQUIRE(OwnershipClassifier::classifyType(&outer) == OwnershipClass::Copy);
+}
+
+TEST_CASE("OwnershipClassifier: record with nested Own field is Own",
+          "[OwnershipClassifier]") {
+  auto intT  = std::make_shared<TopInt>();
+  auto ownT  = std::make_shared<TopOwningRef>(intT);
+  std::vector<std::shared_ptr<TopType>> innerInits = {ownT};
+  std::vector<std::string> innerNames = {"p"};
+  auto inner = std::make_shared<TopRecord>(innerInits, innerNames);
+  std::vector<std::shared_ptr<TopType>> outerInits = {inner};
+  std::vector<std::string> outerNames = {"x"};
+  TopRecord outer(outerInits, outerNames);
+  REQUIRE(OwnershipClassifier::classifyType(&outer) == OwnershipClass::Own);
 }

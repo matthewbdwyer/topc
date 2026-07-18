@@ -1,0 +1,12 @@
+readField(p) {
+  return *p;
+}
+
+main() {
+  var r, result;
+  r = {val: 42, other: 0};
+  result = readField(&r.val);
+  if (result != 42)
+    error result;
+  return 0;
+}

@@ -1,5 +1,9 @@
 #include "ASTBuilder.h"
 
+#include "ASTCtorPattern.h"
+#include "ASTRecordPattern.h"
+#include "ASTVarPattern.h"
+#include "ASTWildcardPattern.h"
 #include "InternalError.h"
 #include "picosha2.h"
 
@@ -56,6 +60,7 @@ static std::shared_ptr<ASTFunction> visitedFunction = nullptr;
 static std::shared_ptr<ASTSumTypeDecl> visitedTypedecl = nullptr;
 static std::shared_ptr<ASTSumVariant> visitedSumVariant = nullptr;
 static std::shared_ptr<ASTCaseArm> visitedCaseArm = nullptr;
+static std::shared_ptr<ASTPattern> visitedPattern = nullptr;
 
 /**********************************************************************
  * These methods override selected methods in the TOPBaseVisitor.
@@ -274,6 +279,19 @@ Any ASTBuilder::visitFunAppExpr(TOPParser::FunAppExprContext *ctx) {
   return "";
 }
 
+Any ASTBuilder::visitFieldAccessExpr(TOPParser::FieldAccessExprContext *ctx) {
+  visit(ctx->expr());
+  auto base = visitedExpr;
+  std::string field = ctx->IDENTIFIER()->getText();
+  visitedExpr = std::make_shared<ASTFieldAccessExpr>(base, field);
+
+  LOG_S(1) << "Built AST node " << *visitedExpr;
+
+  visitedExpr->setLocation(ctx->getStart()->getLine(),
+                           ctx->getStart()->getCharPositionInLine());
+  return "";
+}
+
 Any ASTBuilder::visitAllocExpr(TOPParser::AllocExprContext *ctx) {
   visit(ctx->expr());
   visitedExpr = std::make_shared<ASTAllocExpr>(visitedExpr);
@@ -285,6 +303,25 @@ Any ASTBuilder::visitAllocExpr(TOPParser::AllocExprContext *ctx) {
                            ctx->getStart()->getCharPositionInLine());
   return "";
 } // LCOV_EXCL_LINE
+
+Any ASTBuilder::visitRecordExpr(TOPParser::RecordExprContext *ctx) {
+  std::vector<std::pair<std::string, std::shared_ptr<ASTExpr>>> fields;
+  auto ids = ctx->IDENTIFIER();
+  auto exprs = ctx->expr();
+
+  for (std::size_t i = 0; i < ids.size(); i++) {
+    visit(exprs[i]);
+    fields.push_back({ids[i]->getText(), visitedExpr});
+  }
+
+  visitedExpr = std::make_shared<ASTRecordExpr>(std::move(fields));
+
+  LOG_S(1) << "Built AST node " << *visitedExpr;
+
+  visitedExpr->setLocation(ctx->getStart()->getLine(),
+                           ctx->getStart()->getCharPositionInLine());
+  return "";
+}
 
 Any ASTBuilder::visitRefExpr(TOPParser::RefExprContext *ctx) {
   visit(ctx->expr());
@@ -495,18 +532,50 @@ Any ASTBuilder::visitSumCtorExprNoArgs(TOPParser::SumCtorExprNoArgsContext *ctx)
   return "";
 } // LCOV_EXCL_LINE
 
-Any ASTBuilder::visitCaseArm(TOPParser::CaseArmContext *ctx) {
-  std::string tag = ctx->CONID()->getText();
-  std::vector<std::shared_ptr<ASTDeclNode>> bindings;
-  for (auto id : ctx->IDENTIFIER()) {
+Any ASTBuilder::visitPattern(TOPParser::PatternContext *ctx) {
+  if (ctx->KWILDCARD()) {
+    // Wildcard pattern: `_`
+    visitedPattern = std::make_shared<ASTWildcardPattern>();
+  } else if (ctx->CONID()) {
+    // Constructor pattern: `None` (no args) or `Inner(x)` (with args)
+    std::vector<std::shared_ptr<ASTPattern>> subs;
+    for (auto sub : ctx->pattern()) {
+      visit(sub);
+      subs.push_back(visitedPattern);
+    }
+    visitedPattern = std::make_shared<ASTCtorPattern>(
+        ctx->CONID()->getText(), std::move(subs));
+  } else if (!ctx->pattern().empty()) {
+    // Record pattern: `{a: x, b: _}` — IDENTIFIER list + pattern list (same count)
+    auto ids = ctx->IDENTIFIER();
+    auto pats = ctx->pattern();
+    std::vector<std::pair<std::string, std::shared_ptr<ASTPattern>>> fields;
+    for (size_t i = 0; i < ids.size(); i++) {
+      visit(pats[i]);
+      fields.emplace_back(ids[i]->getText(), visitedPattern);
+    }
+    visitedPattern = std::make_shared<ASTRecordPattern>(std::move(fields));
+  } else {
+    // Variable pattern: single IDENTIFIER
+    auto id = ctx->IDENTIFIER(0);
     auto decl = std::make_shared<ASTDeclNode>(id->getText());
     decl->setLocation(static_cast<int>(id->getSymbol()->getLine()),
                       static_cast<int>(id->getSymbol()->getCharPositionInLine()));
-    bindings.push_back(decl);
+    visitedPattern = std::make_shared<ASTVarPattern>(decl);
+  }
+  return "";
+}
+
+Any ASTBuilder::visitCaseArm(TOPParser::CaseArmContext *ctx) {
+  std::string tag = ctx->CONID()->getText();
+  std::vector<std::shared_ptr<ASTPattern>> patterns;
+  for (auto patCtx : ctx->pattern()) {
+    visit(patCtx);
+    patterns.push_back(visitedPattern);
   }
   visit(ctx->statement());
   auto body = visitedStmt;
-  visitedCaseArm = std::make_shared<ASTCaseArm>(tag, bindings, body);
+  visitedCaseArm = std::make_shared<ASTCaseArm>(tag, patterns, body);
   LOG_S(1) << "Built AST node " << *visitedCaseArm;
   visitedCaseArm->setLocation(ctx->getStart()->getLine(),
                               ctx->getStart()->getCharPositionInLine());

@@ -13,7 +13,7 @@ target_link_libraries(
           error
           frontend
           semantic
-          codegen
+          topc_codegen
           test_helpers
           topc_test_includes
           coverage_config

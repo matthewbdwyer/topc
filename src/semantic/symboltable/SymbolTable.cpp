@@ -1,4 +1,5 @@
 #include "SymbolTable.h"
+#include "FieldNameCollector.h"
 #include "FunctionNameCollector.h"
 #include "LocalNameCollector.h"
 #include "TypeNameCollector.h"
@@ -11,8 +12,9 @@ std::shared_ptr<SymbolTable> SymbolTable::build(ASTProgram *p) {
   LOG_S(1) << "Building symbol table";
   auto fMap = FunctionNameCollector::build(p);
   auto lMap = LocalNameCollector::build(p, fMap);
+  auto fSet = FieldNameCollector::build(p);
   auto [tMap, cMap] = TypeNameCollector::build(p);
-  return std::make_shared<SymbolTable>(fMap, lMap, tMap, cMap);
+  return std::make_shared<SymbolTable>(fMap, lMap, fSet, tMap, cMap);
 }
 
 ASTDeclNode *SymbolTable::getFunction(std::string s) {
@@ -64,6 +66,8 @@ std::vector<ASTDeclNode *> SymbolTable::getLocals(ASTDeclNode *f) {
   return localDecls;
 }
 
+std::vector<std::string> SymbolTable::getFields() { return fieldNames; }
+
 ASTSumTypeDecl *SymbolTable::getSumType(std::string name) {
   auto it = typeNames.find(name);
   return it == typeNames.end() ? nullptr : it->second;
@@ -101,6 +105,18 @@ void SymbolTable::print(std::ostream &s) {
       continue;
     }
     s << ", " + e.first;
+  }
+  s << "}\n";
+
+  s << "Fields : {";
+  skip = true;
+  for (auto n : fieldNames) {
+    if (skip) {
+      skip = false;
+      s << n;
+      continue;
+    }
+    s << ", " + n;
   }
   s << "}\n";
 

@@ -1,0 +1,10 @@
+
+[cg-constraints]
+  [cfa] 16:13 caller main call identity(addone) -> {identity}
+  [cfa] 16:13 caller main call identity(addone)(n) -> {addone, square}
+  [cfa] 16:40 caller main call identity(addone) -> {identity}
+  [cfa] 16:40 caller main call identity(addone)(n) -> {addone, square}
+  [cfa] 17:14 caller main call identity(square) -> {identity}
+  [cfa] 17:14 caller main call identity(square)(n) -> {addone, square}
+  [cfa] 17:41 caller main call identity(square) -> {identity}
+  [cfa] 17:41 caller main call identity(square)(n) -> {addone, square}

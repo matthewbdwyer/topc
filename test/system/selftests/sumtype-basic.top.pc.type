@@ -1,0 +1,55 @@
+
+[type-constraints]
+  [type] - ⟦(((toInt(North)+toInt(South))+toInt(East))+toInt(West))@19:8⟧ = int
+  [type] - ⟦((toInt(North)+toInt(South))+toInt(East))@19:8⟧ = int
+  [type] - ⟦((toInt(North)+toInt(South))+toInt(East))@19:8⟧ = int
+  [type] - ⟦(sum-10)@21:9⟧ = int
+  [type] - ⟦(sum-10)@21:9⟧ = int
+  [type] - ⟦(toInt(North)+toInt(South))@19:8⟧ = int
+  [type] - ⟦(toInt(North)+toInt(South))@19:8⟧ = int
+  [type] - ⟦0@7:6⟧ = int
+  [type] - ⟦10@21:15⟧ = int
+  [type] - ⟦10@21:15⟧ = int
+  [type] - ⟦1@9:17⟧ = int
+  [type] - ⟦2@10:17⟧ = int
+  [type] - ⟦3@11:17⟧ = int
+  [type] - ⟦4@12:17⟧ = int
+  [type] - ⟦East@19:44⟧ = Direction{North|South|East|West}
+  [type] - ⟦North@19:14⟧ = Direction{North|South|East|West}
+  [type] - ⟦South@19:29⟧ = Direction{North|South|East|West}
+  [type] - ⟦West@19:58⟧ = Direction{North|South|East|West}
+  [type] - ⟦d@5:6⟧ = Direction{North|South|East|West}
+  [type] - ⟦main@17:0⟧ = () -> ⟦(sum-10)@21:9⟧
+  [type] - ⟦n@6:6⟧ = ⟦0@7:6⟧
+  [type] - ⟦n@6:6⟧ = ⟦1@9:17⟧
+  [type] - ⟦n@6:6⟧ = ⟦2@10:17⟧
+  [type] - ⟦n@6:6⟧ = ⟦3@11:17⟧
+  [type] - ⟦n@6:6⟧ = ⟦4@12:17⟧
+  [type] - ⟦sum@18:6⟧ = int
+  [type] - ⟦sum@18:6⟧ = ⟦(((toInt(North)+toInt(South))+toInt(East))+toInt(West))@19:8⟧
+  [type] - ⟦toInt(East)@19:38⟧ = int
+  [type] - ⟦toInt(North)@19:8⟧ = int
+  [type] - ⟦toInt(South)@19:23⟧ = int
+  [type] - ⟦toInt(West)@19:52⟧ = int
+  [type] - ⟦toInt@5:0⟧ = (⟦East@19:44⟧) -> ⟦toInt(East)@19:38⟧
+  [type] - ⟦toInt@5:0⟧ = (⟦North@19:14⟧) -> ⟦toInt(North)@19:8⟧
+  [type] - ⟦toInt@5:0⟧ = (⟦South@19:29⟧) -> ⟦toInt(South)@19:23⟧
+  [type] - ⟦toInt@5:0⟧ = (⟦West@19:58⟧) -> ⟦toInt(West)@19:52⟧
+  [type] - ⟦toInt@5:0⟧ = (⟦d@5:6⟧) -> ⟦n@6:6⟧
+
+[type-schemes]
+  [scheme] - toInt : (Direction{North|South|East|West}) -> int
+  [scheme] - main : () -> int
+
+[type-instantiations]
+  [inst] 19:8 call toInt(North) instantiates toInt
+  [inst] 19:23 call toInt(South) instantiates toInt
+  [inst] 19:38 call toInt(East) instantiates toInt
+  [inst] 19:52 call toInt(West) instantiates toInt
+
+[type-inferred]
+  [inferred] - function toInt : (Direction{North|South|East|West}) -> int
+  [inferred] 5:6 local toInt.d : Direction{North|South|East|West}
+  [inferred] 6:6 local toInt.n : int
+  [inferred] - function main : () -> int
+  [inferred] 18:6 local main.sum : int

@@ -35,6 +35,9 @@ public:
    */
   std::map<ASTFunAppExpr *, std::set<ASTFunction *>> getMayCall();
 
+  /*! \brief Returns the caller function for each call-site expression. */
+  std::map<ASTFunAppExpr *, ASTFunction *> getCallSiteCaller();
+
   /*! \brief Returns the map from a function name to its ASTFunction*,
    * ASTFunction* is then used to fetch further information from the graph such
    * as to fetch the subroutines called by a function, or that call the function
@@ -49,5 +52,6 @@ private:
   CFAnalyzer cfa;
   std::map<ASTFunction *, std::set<ASTFunction *>> graph;
   std::map<ASTFunAppExpr *, std::set<ASTFunction *>> mayCall;
+  std::map<ASTFunAppExpr *, ASTFunction *> callSiteCaller;
   std::map<std::string, ASTFunction *> fromFunNameToASTFun;
 };

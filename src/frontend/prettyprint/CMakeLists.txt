@@ -3,7 +3,7 @@ target_sources(
   prettyprint
   PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/PrettyPrinter.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/PrettyPrinter.h ASTVisualizer.cpp
-          ASTVisualizer.h)
+          ASTVisualizer.h ConstraintRenderer.cpp ConstraintRenderer.h)
 target_include_directories(
   prettyprint
   PRIVATE ${CMAKE_SOURCE_DIR}/src/frontend/ast

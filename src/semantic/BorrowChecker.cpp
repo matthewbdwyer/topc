@@ -9,6 +9,8 @@
 
 #include "loguru.hpp"
 
+std::vector<BorrowChecker::BorrowTraceEvent> BorrowChecker::lastTrace;
+
 // ---------------------------------------------------------------------------
 // visit(ASTFunAppExpr): mark every direct ASTBorrowExpr actual as approved.
 // This runs before the children are visited (pre-order hook), so the borrow
@@ -29,7 +31,13 @@ bool BorrowChecker::visit(ASTFunAppExpr *element) {
 // illegal position.
 // ---------------------------------------------------------------------------
 void BorrowChecker::endVisit(ASTBorrowExpr *element) {
+  std::ostringstream repr;
+  repr << *element;
+
   if (approvedBorrows.find(element) == approvedBorrows.end()) {
+    trace.push_back(
+        {element->getLine(), element->getColumn(), repr.str(), false});
+    lastTrace = trace;
     std::ostringstream oss;
     oss << "Borrow error on line " << element->getLine()
         << ": borrow expression must be an immediate function argument"
@@ -37,6 +45,8 @@ void BorrowChecker::endVisit(ASTBorrowExpr *element) {
            " position is not permitted";
     throw SemanticError(oss.str());
   }
+
+  trace.push_back({element->getLine(), element->getColumn(), repr.str(), true});
 }
 
 // ---------------------------------------------------------------------------
@@ -46,4 +56,10 @@ void BorrowChecker::check(ASTProgram *p) {
   LOG_S(1) << "Checking borrow lifetime validity";
   BorrowChecker checker;
   p->accept(&checker);
+  lastTrace = checker.trace;
+}
+
+const std::vector<BorrowChecker::BorrowTraceEvent> &
+BorrowChecker::getLastTrace() {
+  return lastTrace;
 }

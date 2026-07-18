@@ -1,11 +1,93 @@
 #include "CheckCaseCompleteness.h"
+#include "ASTCtorPattern.h"
+#include "ASTRecordPattern.h"
+#include "ASTVarPattern.h"
+#include "ASTWildcardPattern.h"
 #include "PrettyPrinter.h"
 #include "SemanticError.h"
 
+#include <map>
 #include <set>
 #include <sstream>
+#include <vector>
 
 #include "loguru.hpp"
+
+// ---------------------------------------------------------------------------
+// Pattern analysis helpers
+// ---------------------------------------------------------------------------
+
+bool CheckCaseCompleteness::isIrrefutablePattern(ASTPattern *p) {
+  return dynamic_cast<ASTVarPattern *>(p) != nullptr ||
+         dynamic_cast<ASTWildcardPattern *>(p) != nullptr;
+}
+
+bool CheckCaseCompleteness::allIrrefutablePayload(ASTCaseArm *arm) {
+  for (auto *p : arm->getPatterns())
+    if (!isIrrefutablePattern(p))
+      return false;
+  return true; // vacuously true for 0-arity constructors
+}
+
+bool CheckCaseCompleteness::patternsIdentical(ASTPattern *a, ASTPattern *b) {
+  // Wildcards are always identical to each other.
+  if (dynamic_cast<ASTWildcardPattern *>(a) &&
+      dynamic_cast<ASTWildcardPattern *>(b))
+    return true;
+
+  // Var patterns are identical when they share the same name.
+  auto *va = dynamic_cast<ASTVarPattern *>(a);
+  auto *vb = dynamic_cast<ASTVarPattern *>(b);
+  if (va && vb)
+    return va->getName() == vb->getName();
+
+  // Constructor patterns: same tag and pairwise identical sub-patterns.
+  auto *ca = dynamic_cast<ASTCtorPattern *>(a);
+  auto *cb = dynamic_cast<ASTCtorPattern *>(b);
+  if (ca && cb) {
+    if (ca->getTag() != cb->getTag())
+      return false;
+    auto sa = ca->getSubPatterns();
+    auto sb = cb->getSubPatterns();
+    if (sa.size() != sb.size())
+      return false;
+    for (std::size_t i = 0; i < sa.size(); ++i)
+      if (!patternsIdentical(sa[i], sb[i]))
+        return false;
+    return true;
+  }
+
+  // Record patterns: same field set, pairwise identical sub-patterns.
+  auto *ra = dynamic_cast<ASTRecordPattern *>(a);
+  auto *rb = dynamic_cast<ASTRecordPattern *>(b);
+  if (ra && rb) {
+    auto fa = ra->getFields();
+    auto fb = rb->getFields();
+    if (fa.size() != fb.size())
+      return false;
+    for (std::size_t i = 0; i < fa.size(); ++i) {
+      if (fa[i].first != fb[i].first)
+        return false;
+      if (!patternsIdentical(fa[i].second.get(), fb[i].second.get()))
+        return false;
+    }
+    return true;
+  }
+
+  return false; // different pattern kinds
+}
+
+bool CheckCaseCompleteness::allPatternsIdentical(ASTCaseArm *a,
+                                                  ASTCaseArm *b) {
+  auto pa = a->getPatterns();
+  auto pb = b->getPatterns();
+  if (pa.size() != pb.size())
+    return false;
+  for (std::size_t i = 0; i < pa.size(); ++i)
+    if (!patternsIdentical(pa[i], pb[i]))
+      return false;
+  return true; // vacuously true for 0-arity constructors
+}
 
 bool CheckCaseCompleteness::visit(ASTProgram *element) {
   // Build the constructor arity map from all type declarations.
@@ -20,7 +102,8 @@ bool CheckCaseCompleteness::visit(ASTProgram *element) {
 }
 
 void CheckCaseCompleteness::endVisit(ASTCaseStmt *element) {
-  std::set<std::string> seenTags;
+  // Track all arms seen so far, keyed by constructor tag.
+  std::map<std::string, std::vector<ASTCaseArm *>> seenArms;
 
   for (auto arm : element->getArms()) {
     const std::string &tag = arm->getTag();
@@ -33,9 +116,9 @@ void CheckCaseCompleteness::endVisit(ASTCaseStmt *element) {
       throw SemanticError(oss.str());
     }
 
-    // Rule 2: binding arity matches declaration
+    // Rule 2: pattern arity matches declaration
     int declArity = constructorArity.at(tag);
-    int armArity = static_cast<int>(arm->getBindings().size());
+    int armArity = static_cast<int>(arm->getPatterns().size());
     if (armArity != declArity) {
       std::ostringstream oss;
       oss << "Case error on line " << arm->getLine()
@@ -44,14 +127,24 @@ void CheckCaseCompleteness::endVisit(ASTCaseStmt *element) {
       throw SemanticError(oss.str());
     }
 
-    // Rule 3: no duplicate arm for the same constructor
-    if (seenTags.count(tag)) {
-      std::ostringstream oss;
-      oss << "Case error on line " << arm->getLine()
-          << ": constructor '" << tag << "' appears more than once in case\n";
-      throw SemanticError(oss.str());
+    // Rule 3 (B3): redundancy check for duplicate-constructor arms.
+    // An arm is unreachable if any earlier arm for the same constructor:
+    //   (a) has entirely irrefutable payload patterns, OR
+    //   (b) has syntactically identical payload patterns to the current arm.
+    if (seenArms.count(tag)) {
+      for (auto *prevArm : seenArms.at(tag)) {
+        if (allIrrefutablePayload(prevArm) ||
+            allPatternsIdentical(prevArm, arm)) {
+          std::ostringstream oss;
+          oss << "Case error on line " << arm->getLine()
+              << ": unreachable case arm — constructor '" << tag
+              << "' is already fully covered by an earlier arm\n";
+          throw SemanticError(oss.str());
+        }
+      }
     }
-    seenTags.insert(tag);
+
+    seenArms[tag].push_back(arm);
   }
 
   // Rule 4: all constructors of the scrutinee's sum type must be covered.
@@ -75,9 +168,9 @@ void CheckCaseCompleteness::endVisit(ASTCaseStmt *element) {
       allCtors.insert(tag);
   }
 
-  // Check completeness.
+  // Check exhaustiveness: each constructor must have at least one arm.
   for (const auto &ctor : allCtors) {
-    if (!seenTags.count(ctor)) {
+    if (!seenArms.count(ctor)) {
       std::ostringstream oss;
       oss << "Case error on line " << element->getLine()
           << ": case is not exhaustive — constructor '" << ctor
@@ -87,7 +180,7 @@ void CheckCaseCompleteness::endVisit(ASTCaseStmt *element) {
   }
 
   // Also check that all used tags belong to the same type.
-  for (const auto &tag : seenTags) {
+  for (const auto &[tag, arms] : seenArms) {
     if (constructorType.count(tag) &&
         constructorType.at(tag) != typeName) {
       std::ostringstream oss;

@@ -318,6 +318,49 @@ TEST_CASE("CallGraph: test getEdges",
           edges.end());
 }
 
+TEST_CASE("CallGraph: retained CFA constraint records",
+          "[CallGraph]") {
+  std::stringstream program;
+  program << R"(
+      f() { return 3; }
+      g(x) { return f(); }
+      main() {
+        var y;
+        y = g(7);
+        return 0;
+      }
+    )";
+
+  auto ast = ASTHelper::build_ast(program);
+  auto symTable = SymbolTable::build(ast.get());
+  auto callGraph = CallGraph::build(ast.get(), symTable.get());
+
+  auto records = callGraph->getConstraintRecords();
+  REQUIRE(records.size() == 2);
+
+  bool sawGCall = false;
+  bool sawFCall = false;
+  for (const auto &record : records) {
+    std::stringstream callText;
+    callText << *record.call;
+    if (callText.str().find("g(7)") != std::string::npos) {
+      sawGCall = true;
+      REQUIRE(record.callerName == "main");
+      REQUIRE(record.targets.size() == 1);
+      REQUIRE((*record.targets.begin())->getName() == "g");
+    }
+    if (callText.str().find("f()") != std::string::npos) {
+      sawFCall = true;
+      REQUIRE(record.callerName == "g");
+      REQUIRE(record.targets.size() == 1);
+      REQUIRE((*record.targets.begin())->getName() == "f");
+    }
+  }
+
+  REQUIRE(sawGCall);
+  REQUIRE(sawFCall);
+}
+
 TEST_CASE("CallGraph: test SemanticAnalysis",
           "[CallGraph]") {
   std::stringstream program;

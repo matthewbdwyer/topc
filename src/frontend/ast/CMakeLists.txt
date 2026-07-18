@@ -20,6 +20,8 @@ target_sources(
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTCaseArm.h
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTCaseStmt.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTCaseStmt.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTCtorPattern.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTCtorPattern.h
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTDeRefExpr.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTDeRefExpr.h
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTDestroyStmt.cpp
@@ -31,6 +33,8 @@ target_sources(
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTErrorStmt.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTErrorStmt.h
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTExpr.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTFieldAccessExpr.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTFieldAccessExpr.h
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTFunAppExpr.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTFunAppExpr.h
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTFunction.cpp
@@ -46,8 +50,13 @@ target_sources(
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTNumberExpr.h
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTOutputStmt.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTOutputStmt.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTPattern.h
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTProgram.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTProgram.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTRecordExpr.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTRecordExpr.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTRecordPattern.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTRecordPattern.h
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTRefExpr.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTRefExpr.h
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTReturnStmt.cpp
@@ -61,8 +70,10 @@ target_sources(
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTSumCtorExpr.h
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTVariableExpr.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTVariableExpr.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTVarPattern.h
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTWhileStmt.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTWhileStmt.h
+          ${CMAKE_CURRENT_SOURCE_DIR}/treetypes/ASTWildcardPattern.h
           ${CMAKE_CURRENT_SOURCE_DIR}/ASTVisitor.h
           ${CMAKE_CURRENT_SOURCE_DIR}/ASTBuilder.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/ASTBuilder.h
@@ -76,5 +87,5 @@ target_include_directories(
           ${CMAKE_SOURCE_DIR}/src/error
           ${CMAKE_SOURCE_DIR}/src/frontend/prettyprint
           ${CMAKE_SOURCE_DIR}/src/frontend/iterators)
-target_link_libraries(ast PRIVATE antlr4_static antlrgen codegen iterators
+target_link_libraries(ast PRIVATE antlr4_static antlrgen topc_codegen iterators
                                   coverage_config)

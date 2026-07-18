@@ -10,7 +10,7 @@ target_link_libraries(
           symboltable
           frontend
           semantic
-          codegen
+          topc_codegen
           optimizer
           error
           test_helpers

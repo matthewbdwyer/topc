@@ -184,8 +184,67 @@ TEST_CASE("CheckCaseCompleteness: duplicate arm rejected", "[Weeding]") {
     }
   )";
   auto ast = ASTHelper::build_ast(stream);
+  // True is 0-arity: the first arm is vacuously irrefutable, so the second
+  // True arm is unreachable (B3 Rule 3).
   REQUIRE_THROWS_WITH(CheckCaseCompleteness::check(ast.get()),
-    Catch::Matchers::ContainsSubstring("appears more than once in case"));
+    Catch::Matchers::ContainsSubstring("unreachable case arm"));
+}
+
+TEST_CASE("CheckCaseCompleteness: irrefutable arm shadows later arm", "[Weeding]") {
+  std::stringstream stream;
+  stream << R"(
+    type Opt = None | Some(x);
+    main() {
+      var o;
+      case o of { None -> output 0; Some(v) -> output v; Some(_) -> output -1; }
+      return 0;
+    }
+  )";
+  auto ast = ASTHelper::build_ast(stream);
+  // Some(v) is irrefutable (variable pattern), so Some(_) is unreachable.
+  REQUIRE_THROWS_WITH(CheckCaseCompleteness::check(ast.get()),
+    Catch::Matchers::ContainsSubstring("unreachable case arm"));
+}
+
+TEST_CASE("CheckCaseCompleteness: identical refutable arms rejected", "[Weeding]") {
+  std::stringstream stream;
+  stream << R"(
+    type Inner = Lit(n) | Neg(x);
+    type Outer = Empty | Wrap(inner);
+    main() {
+      var o;
+      case o of {
+        Empty        -> output 0;
+        Wrap(Lit(x)) -> output x;
+        Wrap(Lit(x)) -> output 0;
+      }
+      return 0;
+    }
+  )";
+  auto ast = ASTHelper::build_ast(stream);
+  // Two syntactically identical Wrap(Lit(x)) arms: the second is unreachable.
+  REQUIRE_THROWS_WITH(CheckCaseCompleteness::check(ast.get()),
+    Catch::Matchers::ContainsSubstring("unreachable case arm"));
+}
+
+TEST_CASE("CheckCaseCompleteness: two refutable ctor arms accepted", "[Weeding]") {
+  std::stringstream stream;
+  stream << R"(
+    type Inner = Lit(n) | Neg(x);
+    type Outer = Empty | Wrap(inner);
+    main() {
+      var o;
+      case o of {
+        Empty        -> output 0;
+        Wrap(Lit(x)) -> output x;
+        Wrap(Neg(y)) -> output y;
+      }
+      return 0;
+    }
+  )";
+  auto ast = ASTHelper::build_ast(stream);
+  // Two distinct refutable Wrap arms are allowed — neither shadows the other.
+  REQUIRE_NOTHROW(CheckCaseCompleteness::check(ast.get()));
 }
 
 // ============================================================

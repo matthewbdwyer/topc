@@ -36,6 +36,20 @@ TEST_CASE("Check Assignable: address of var", "[Symbol]") {
   REQUIRE_NOTHROW(CheckAssignable::check(ast.get()));
 }
 
+TEST_CASE("Check Assignable: field lhs", "[Symbol]") {
+  std::stringstream stream;
+  stream << R"(recordlhs() { var r; r = {a:0}; r.a = 1; return 0; })";
+  auto ast = ASTHelper::build_ast(stream);
+  REQUIRE_NOTHROW(CheckAssignable::check(ast.get()));
+}
+
+TEST_CASE("Check Assignable: address of field", "[Symbol]") {
+  std::stringstream stream;
+  stream << R"(recordlhs() { var r, p; r = {a:0}; p = &r.a; return 0; })";
+  auto ast = ASTHelper::build_ast(stream);
+  REQUIRE_NOTHROW(CheckAssignable::check(ast.get()));
+}
+
 /************** the following are expected to fail the check ************/
 
 TEST_CASE("Check Assignable: constant lhs", "[Symbol]") {

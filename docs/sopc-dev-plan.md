@@ -435,6 +435,85 @@ Any well-scoped extension agreed with the instructor.  Must include:
 - A test plan with at least five non-trivial test programs.
 - A complexity estimate relative to Track 1 or 2.
 
+### 15e. Recommended extension menu (for final "choose your own adventure")
+
+The following are recommended because they materially extend expressive power **on top of**
+SOP sequences/slices and are still feasible in a course setting.
+
+#### E1. Row-polymorphic records for reusable sequence helpers
+
+Allow functions that access one field of a record argument to accept any record shape containing that field.
+
+Examples enabled:
+- `getScore(r) { return r.score; }` usable for both `{score:int}` and `{id:int,score:int}`
+- `map(&rows, getScore)` where `rows : Seq(Row)` and `Row` has at least `score`
+
+Why this is a good final extension:
+1. Extends HM-style inference in a meaningful way (row variables / field constraints).
+2. Enables more realistic data pipelines over `Seq(record)` and `Slice(record)`.
+3. Forces careful diagnostics design for "missing field" constraints.
+
+Estimated complexity: high.
+
+#### E2. Full pattern language upgrades (guards / or-patterns / as-patterns)
+
+Extend case patterns beyond the Phase B subset.
+
+Candidate features:
+- Guarded arms: `Ctor(x) if x > 0 -> ...`
+- Or-patterns: `A(x) | B(x) -> ...`
+- As-patterns: `p as whole -> ...`
+
+Why this is a good final extension:
+1. Improves ergonomics for matching sum+product data carried inside sequences.
+2. Connects parser, weeding, exhaustiveness, and codegen in one coherent project.
+3. Highlights tradeoffs between expressiveness and checker complexity.
+
+Estimated complexity: medium-high.
+
+#### E3. Sequence combinator library with static fusion/lowering choices
+
+Add richer combinators (`filter`, `zip`, `enumerate`, `scan`) and optionally
+an optimization pass that fuses common pipelines.
+
+Why this is a good final extension:
+1. Builds directly on SOP sequence/slice semantics.
+2. Makes performance-vs-clarity tradeoffs explicit and measurable.
+3. Keeps most work in language/library + analysis/codegen boundary rather than new core syntax.
+
+Estimated complexity: medium.
+
+#### E4. Mutable slice discipline (`&mut` + slices together)
+
+Support exclusive mutable views into sequence regions (`&mut s[i:j]`) with sound alias checks.
+
+Why this is a good final extension:
+1. Combines Track 1 and Track 2 in a non-trivial way.
+2. Teaches borrow exclusivity beyond simple variable-level checks.
+3. Produces strong systems-programming examples (in-place transforms/sorts).
+
+Estimated complexity: medium-high.
+
+#### E5. Multi-file SOP programs and stdlib linking
+
+Upgrade from single-translation-unit workflows to multi-unit compile/link with SOP stdlib support.
+
+Why this is a good final extension:
+1. Strong compiler-engineering realism (symbols, ABI, link errors).
+2. Lets students ship larger sequence/slice libraries.
+3. Integrates frontend, codegen, runtime, and build tooling.
+
+Estimated complexity: medium.
+
+### 15f. Recommendation for project staffing and grading
+
+For consistent grading quality, require each final extension proposal to include:
+
+1. A clear soundness or correctness claim tied to SOP sequence/slice semantics.
+2. At least two negative tests that demonstrate rejected unsafe/invalid programs.
+3. One performance-oriented test (or complexity argument) when relevant.
+4. A short "what we did not implement" section to bound scope.
+
 ---
 
 ## 7. Example Programs

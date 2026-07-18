@@ -39,6 +39,10 @@ void Substituter::endVisit(TopInt *element) {
   visitedTypes.push_back(std::make_shared<TopInt>());
 }
 
+void Substituter::endVisit(TopAbsentField *element) {
+  visitedTypes.push_back(std::make_shared<TopAbsentField>());
+}
+
 void Substituter::endVisit(TopMu *element) {
   // Two elements in visitedTypes
   auto tType = visitedTypes.back();
@@ -68,6 +72,17 @@ void Substituter::endVisit(TopBorrowRef *element) {
   auto pointedToType = visitedTypes.back();
   visitedTypes.pop_back();
   visitedTypes.push_back(std::make_shared<TopBorrowRef>(pointedToType));
+}
+
+void Substituter::endVisit(TopRecord *element) {
+  std::vector<std::shared_ptr<TopType>> fieldTypes;
+  for (std::size_t i = 0; i < element->getInits().size(); i++) {
+    fieldTypes.push_back(visitedTypes.back());
+    visitedTypes.pop_back();
+  }
+  std::reverse(fieldTypes.begin(), fieldTypes.end());
+  visitedTypes.push_back(
+      std::make_shared<TopRecord>(fieldTypes, element->getNames()));
 }
 
 void Substituter::endVisit(TopSumType *element) {

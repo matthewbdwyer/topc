@@ -5,17 +5,20 @@
 #include <string>
 
 /*! \class CheckCaseCompleteness
- *  \brief Verify case arms are consistent with declared constructor arities.
+ *  \brief Verify case arms are exhaustive and non-redundant.
  *
  * Rules checked:
- *  1. Every constructor name used in a case arm must be declared in a sum type
+ *  1. Every constructor tag used in a case arm must be declared in a sum type
  *     in the same program.
- *  2. The number of binding variables in each arm must equal the arity of the
+ *  2. The number of payload patterns in each arm must equal the arity of the
  *     corresponding constructor declaration.
- *  3. No constructor may appear more than once in the same case statement.
- *
- * Missing arms (incomplete coverage) are also flagged as hard errors because
- * they risk ownership leaks.
+ *  3. If an earlier arm for the same top-level constructor has irrefutable
+ *     payload patterns (wildcards or variable bindings only), any later arm
+ *     for that constructor is unreachable → error.
+ *     Two syntactically identical adjacent arms for the same constructor →
+ *     the second is also unreachable → error.
+ *  4. All constructors of the scrutinee's sum type must appear in at least
+ *     one arm (exhaustiveness).
  */
 class CheckCaseCompleteness : public ASTVisitor {
 public:
@@ -30,4 +33,11 @@ private:
   std::map<std::string, int> constructorArity;
   // constructor tag -> sum type name it belongs to
   std::map<std::string, std::string> constructorType;
+
+  // Pattern analysis helpers (operate on ASTPattern* from ASTCaseArm).
+  static bool isIrrefutablePattern(ASTPattern *p);
+  static bool allIrrefutablePayload(ASTCaseArm *arm);
+  static bool patternsIdentical(ASTPattern *a, ASTPattern *b);
+  static bool allPatternsIdentical(ASTCaseArm *a, ASTCaseArm *b);
 };
+

@@ -1,0 +1,16 @@
+// Expected: compile fails — 'Xyz' is not a declared constructor.
+type Opt = None | Some(val);
+
+f(x) {
+  var r;
+  r = 0;
+  case x of {
+    None      -> r = 0;
+    Some(Xyz) -> r = 1;
+  }
+  return r;
+}
+
+main() {
+  return f(None);
+}

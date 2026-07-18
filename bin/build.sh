@@ -36,6 +36,6 @@ case "$*" in
     ;;
   *)
     # Perform the linking step
-    ${TOPCLANG} -w "${@:$#}.bc" "${RTLIB}/top_rtlib.bc" -o "$(basename "${@:$#}" .tip)"
+    ${TOPCLANG} -w "${@:$#}.bc" "${RTLIB}/top_rtlib.bc" -o "$(basename "$(basename "${@:$#}" .tip)" .top)"
     ;;
 esac

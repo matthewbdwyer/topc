@@ -35,9 +35,11 @@ public:
   std::shared_ptr<TopType> getResult();
 
   virtual void endVisit(TopAlpha *element) override;
+  virtual void endVisit(TopAbsentField *element) override;
   virtual void endVisit(TopFunction *element) override;
   virtual void endVisit(TopInt *element) override;
   virtual void endVisit(TopMu *element) override;
+  virtual void endVisit(TopRecord *element) override;
   virtual void endVisit(TopRef *element) override;
   virtual void endVisit(TopOwningRef *element) override;
   virtual void endVisit(TopBorrowRef *element) override;

@@ -51,7 +51,9 @@ public:
   Any visitVarExpr(TOPParser::VarExprContext *ctx) override;
   Any visitInputExpr(TOPParser::InputExprContext *ctx) override;
   Any visitFunAppExpr(TOPParser::FunAppExprContext *ctx) override;
+  Any visitFieldAccessExpr(TOPParser::FieldAccessExprContext *ctx) override;
   Any visitAllocExpr(TOPParser::AllocExprContext *ctx) override;
+  Any visitRecordExpr(TOPParser::RecordExprContext *ctx) override;
   Any visitRefExpr(TOPParser::RefExprContext *ctx) override;
   Any visitDeRefExpr(TOPParser::DeRefExprContext *ctx) override;
   Any visitNullExpr(TOPParser::NullExprContext *ctx) override;
@@ -70,6 +72,7 @@ public:
   Any visitSumVariant(TOPParser::SumVariantContext *ctx) override;
   Any visitCaseStmt(TOPParser::CaseStmtContext *ctx) override;
   Any visitCaseArm(TOPParser::CaseArmContext *ctx) override;
+  Any visitPattern(TOPParser::PatternContext *ctx) override;
   Any visitSumCtorExprWithArgs(TOPParser::SumCtorExprWithArgsContext *ctx) override;
   Any visitSumCtorExprNoArgs(TOPParser::SumCtorExprNoArgsContext *ctx) override;
 };

@@ -1,0 +1,17 @@
+// Expected: compile fails — Lit(n) expects 1 sub-pattern but 0 provided.
+type Inner = Lit(n) | Neg(x);
+type Outer = Empty | Wrap(inner);
+
+f(o) {
+  var r;
+  r = 0;
+  case o of {
+    Empty    -> r = 0;
+    Wrap(Lit) -> r = 1;
+  }
+  return r;
+}
+
+main() {
+  return f(Empty);
+}

@@ -3,6 +3,8 @@
 #include "ASTVisitor.h"
 
 #include <set>
+#include <string>
+#include <vector>
 
 class ASTProgram;
 class ASTBorrowExpr;
@@ -22,13 +24,25 @@ class ASTFunAppExpr;
  */
 class BorrowChecker : public ASTVisitor {
 public:
+  struct BorrowTraceEvent {
+    int line;
+    int column;
+    std::string expr;
+    bool approved;
+  };
+
   static void check(ASTProgram *p);
+
+  /*! \brief Returns retained borrow trace from the most recent run. */
+  static const std::vector<BorrowTraceEvent> &getLastTrace();
 
 private:
   BorrowChecker() = default;
 
   // Set of ASTBorrowExpr nodes that appear as direct arguments of a call.
   std::set<ASTBorrowExpr *> approvedBorrows;
+  std::vector<BorrowTraceEvent> trace;
+  static std::vector<BorrowTraceEvent> lastTrace;
 
   bool visit(ASTFunAppExpr *element) override;
   void endVisit(ASTBorrowExpr *element) override;

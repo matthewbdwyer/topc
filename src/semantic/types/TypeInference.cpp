@@ -1,6 +1,7 @@
 #include <cassert>
 #include <unordered_set>
 #include "TypeInference.h"
+#include "AbsentFieldChecker.h"
 #include "PolyTypeConstraintCollectVisitor.h"
 #include "Unifier.h"
 #include "TypeConstraint.h"
@@ -174,6 +175,8 @@ std::shared_ptr<TypeInference> runPoly(ASTProgram *ast, SymbolTable *symbols,
    */
   unifier->solve();
 
+  AbsentFieldChecker::check(ast, unifier.get());
+
   return std::make_shared<TypeInference>(symbols, unifier);
 }
 
@@ -190,6 +193,8 @@ std::shared_ptr<TypeInference> runMono(ASTProgram *ast, SymbolTable *symbols) {
 
   auto unifier = std::make_shared<Unifier>(visitor.getCollectedConstraints());
   unifier->solve();
+
+  AbsentFieldChecker::check(ast, unifier.get());
 
   return std::make_shared<TypeInference>(symbols, unifier);
 }

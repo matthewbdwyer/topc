@@ -25,12 +25,16 @@ class TopTypeVisitor {
 public:
   virtual bool visit(TopAlpha *element) { return true; }
   virtual void endVisit(TopAlpha *element) {}
+  virtual bool visit(TopAbsentField *element) { return true; }
+  virtual void endVisit(TopAbsentField *element) {}
   virtual bool visit(TopFunction *element) { return true; }
   virtual void endVisit(TopFunction *element) {}
   virtual bool visit(TopInt *element) { return true; }
   virtual void endVisit(TopInt *element) {}
   virtual bool visit(TopMu *element) { return true; }
   virtual void endVisit(TopMu *element) {}
+  virtual bool visit(TopRecord *element) { return true; }
+  virtual void endVisit(TopRecord *element) {}
   virtual bool visit(TopRef *element) { return true; }
   virtual void endVisit(TopRef *element) {}
   virtual bool visit(TopOwningRef *element) { return true; }

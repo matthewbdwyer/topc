@@ -1,6 +1,6 @@
-add_library(codegen)
+add_library(topc_codegen)
 target_sources(
-  codegen
+  topc_codegen
   PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/CodeGenContext.h
           ${CMAKE_CURRENT_SOURCE_DIR}/CodeGenVisitor.h
           ${CMAKE_CURRENT_SOURCE_DIR}/CodeGenVisitor.cpp
@@ -8,7 +8,7 @@ target_sources(
           ${CMAKE_CURRENT_SOURCE_DIR}/CodeGenerator.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/CodeGenFunctions.cpp)
 target_include_directories(
-  codegen
+  topc_codegen
   PRIVATE ${CMAKE_SOURCE_DIR}/src/error
           ${CMAKE_SOURCE_DIR}/src/frontend/ast
           ${CMAKE_SOURCE_DIR}/src/frontend/ast/treetypes
@@ -23,8 +23,8 @@ target_include_directories(
           ${CMAKE_SOURCE_DIR}/src/semantic/solver/term
           ${CMAKE_SOURCE_DIR}/src/semantic/weeding)
 llvm_map_components_to_libnames(llvm_libs Support Core Passes)
-target_link_libraries(codegen PRIVATE ${llvm_libs} semantic error
-                                      coverage_config loguru)
+target_link_libraries(topc_codegen PRIVATE ${llvm_libs} semantic error
+                                           coverage_config loguru)
 # set C++ definition build flag
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     add_definitions(-DTOPC_DEBUG)

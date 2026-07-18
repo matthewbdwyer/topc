@@ -40,6 +40,12 @@ struct CodeGenContext {
   // Per-function local variable bindings
   std::map<std::string, llvm::AllocaInst *> namedValues;
 
+  // Unified record type for all TOP records
+  llvm::StructType *globalRecordType = nullptr;
+  llvm::PointerType *pointerToGlobalRecordType = nullptr;
+  std::map<std::string, int> fieldIndex;
+  std::vector<std::string> fieldVector;
+
   // Global variables emitted into the module
   llvm::GlobalVariable *topFunctionTable = nullptr;
   llvm::GlobalVariable *topNumInputs     = nullptr;

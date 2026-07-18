@@ -160,3 +160,93 @@ TEST_CASE("MoveAnalysis: rejectAssignOverLiveOwn — p assigned twice without mo
   )";
   expectError(program, "assigned while still owned");
 }
+
+// ---------------------------------------------------------------------------
+// Record move tests
+// ---------------------------------------------------------------------------
+
+TEST_CASE("MoveAnalysis: Copy record assignment is not a move",
+          "[MoveAnalysis]") {
+  // r2 = r1 where r1:{a:int} — r1 is Copy; still usable afterwards.
+  std::stringstream program;
+  program << R"(
+    type Flag = On | Off;
+    main() {
+      var r1, r2, v;
+      r1 = {a:1};
+      r2 = r1;
+      v = r1.a;
+      output v;
+      return 0;
+    }
+  )";
+  expectAccepted(program);
+}
+
+TEST_CASE("MoveAnalysis: Own record assignment is a move",
+          "[MoveAnalysis]") {
+  // r2 = r1 where r1:{p:⭡int} — r1 is Own; move transfers ownership.
+  std::stringstream program;
+  program << R"(
+    type Flag = On | Off;
+    main() {
+      var r1, r2;
+      r1 = {p: alloc 5};
+      r2 = r1;
+      return 0;
+    }
+  )";
+  expectAccepted(program);
+}
+
+TEST_CASE("MoveAnalysis: use after move of Own record rejected",
+          "[MoveAnalysis]") {
+  // r1 has Own field p and Copy field tag.
+  // After r2=r1 (move), accessing r1.tag must be rejected.
+  std::stringstream program;
+  program << R"(
+    type Flag = On | Off;
+    main() {
+      var r1, r2;
+      r1 = {p: alloc 5, tag: 1};
+      r2 = r1;
+      output r1.tag;
+      return 0;
+    }
+  )";
+  expectError(program, "used after move");
+}
+
+TEST_CASE("MoveAnalysis: retained move trace records transitions",
+          "[MoveAnalysis]") {
+  std::stringstream program;
+  program << R"(
+    type Flag = On | Off;
+    main() {
+      var p, q;
+      p = alloc 5;
+      q = p;
+      return 0;
+    }
+  )";
+
+  auto ast = ASTHelper::build_ast(program);
+  REQUIRE_NOTHROW(SemanticAnalysis::analyze(ast.get()));
+
+  const auto &trace = MoveAnalysis::getLastTrace();
+  REQUIRE_FALSE(trace.empty());
+
+  bool sawMoveP = false;
+  bool sawOwnQ = false;
+  for (const auto &event : trace) {
+    if (event.kind == "move" && event.variable == "p") {
+      sawMoveP = true;
+    }
+    if (event.kind == "own" && event.variable == "q") {
+      sawOwnQ = true;
+    }
+  }
+
+  REQUIRE(sawMoveP);
+  REQUIRE(sawOwnQ);
+}

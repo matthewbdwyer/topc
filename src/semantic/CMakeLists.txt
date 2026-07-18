@@ -12,6 +12,17 @@ target_sources(
                    ${CMAKE_CURRENT_SOURCE_DIR}/SemanticAnalysis.cpp
                    ${CMAKE_CURRENT_SOURCE_DIR}/BorrowChecker.h
                    ${CMAKE_CURRENT_SOURCE_DIR}/BorrowChecker.cpp
+                   ${CMAKE_CURRENT_SOURCE_DIR}/cfg/CFGTypes.h
+                   ${CMAKE_CURRENT_SOURCE_DIR}/cfg/BasicBlock.h
+                   ${CMAKE_CURRENT_SOURCE_DIR}/cfg/BasicBlock.cpp
+                   ${CMAKE_CURRENT_SOURCE_DIR}/cfg/ControlFlowGraph.h
+                   ${CMAKE_CURRENT_SOURCE_DIR}/cfg/ControlFlowGraph.cpp
+                   ${CMAKE_CURRENT_SOURCE_DIR}/cfg/IntraproceduralCFGs.h
+                   ${CMAKE_CURRENT_SOURCE_DIR}/cfg/IntraproceduralCFGs.cpp
+                   ${CMAKE_CURRENT_SOURCE_DIR}/cfg/CFGBuilder.h
+                   ${CMAKE_CURRENT_SOURCE_DIR}/cfg/CFGBuilder.cpp
+                   ${CMAKE_CURRENT_SOURCE_DIR}/cfg/CFGRenderer.h
+                   ${CMAKE_CURRENT_SOURCE_DIR}/cfg/CFGRenderer.cpp
                    ${CMAKE_CURRENT_SOURCE_DIR}/DestructionPass.h
                    ${CMAKE_CURRENT_SOURCE_DIR}/DestructionPass.cpp
                    ${CMAKE_CURRENT_SOURCE_DIR}/OwnershipClassifier.h
@@ -22,6 +33,7 @@ target_include_directories(
   semantic
   PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
           ${CMAKE_CURRENT_SOURCE_DIR}/symboltable
+          ${CMAKE_CURRENT_SOURCE_DIR}/cfg
           ${CMAKE_CURRENT_SOURCE_DIR}/cfa
           ${CMAKE_CURRENT_SOURCE_DIR}/types
           ${CMAKE_CURRENT_SOURCE_DIR}/types/concrete

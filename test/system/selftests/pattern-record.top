@@ -1,0 +1,22 @@
+// Phase B4: Tests record patterns with variable binding.
+// v is extracted from the 'x' field of a Just payload and used in the arm body.
+type MaybePoint = Nothing | Just(pt);
+
+getX(p) {
+  var r;
+  r = 0;
+  case p of {
+    Nothing            -> r = -1;
+    Just({x: v, y: _}) -> r = v;
+  }
+  return r;
+}
+
+main() {
+  var ok, pt;
+  pt = {x: 3, y: 4};
+  ok = 1;
+  if (getX(Nothing) != -1) { ok = 0; }
+  if (getX(Just(pt)) != 3) { ok = 0; }
+  return 1 - ok;
+}

@@ -159,3 +159,67 @@ TEST_CASE("BorrowChecker: rejectMoveWhileBorrowedStored — b=&p then q=p is err
   )";
   expectError(program, "immediate function argument");
 }
+
+// ---------------------------------------------------------------------------
+// Record field borrow
+// ---------------------------------------------------------------------------
+
+TEST_CASE("BorrowChecker: borrow of record field accepted",
+          "[BorrowChecker]") {
+  // readField(&r.val) where val:int — legal borrow of Copy field.
+  std::stringstream program;
+  program << R"(
+    type Flag = On | Off;
+    readField(x) { return x; }
+    main() {
+      var r, dummy;
+      r = {val: 42};
+      dummy = readField(&r.val);
+      return 0;
+    }
+  )";
+  expectAccepted(program);
+}
+
+TEST_CASE("BorrowChecker: retained trace marks approved borrow",
+          "[BorrowChecker]") {
+  std::stringstream program;
+  program << R"(
+    type Flag = On | Off;
+    peek(x) { return x; }
+    main() {
+      var p, dummy;
+      p = alloc 7;
+      dummy = peek(&p);
+      return 0;
+    }
+  )";
+
+  auto ast = ASTHelper::build_ast(program);
+  REQUIRE_NOTHROW(SemanticAnalysis::analyze(ast.get()));
+
+  const auto &trace = BorrowChecker::getLastTrace();
+  REQUIRE(trace.size() == 1);
+  REQUIRE(trace[0].approved);
+}
+
+TEST_CASE("BorrowChecker: retained trace marks rejected borrow",
+          "[BorrowChecker]") {
+  std::stringstream program;
+  program << R"(
+    type Flag = On | Off;
+    main() {
+      var p, b;
+      p = alloc 5;
+      b = &p;
+      return 0;
+    }
+  )";
+
+  auto ast = ASTHelper::build_ast(program);
+  REQUIRE_THROWS_AS(SemanticAnalysis::analyze(ast.get()), SemanticError);
+
+  const auto &trace = BorrowChecker::getLastTrace();
+  REQUIRE(trace.size() == 1);
+  REQUIRE_FALSE(trace[0].approved);
+}
