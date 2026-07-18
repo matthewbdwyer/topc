@@ -72,13 +72,14 @@ class TestResult:
 # ---------------------------------------------------------------------------
 
 def _run(cmd: Sequence, *,
-         timeout: int = TIMEOUT,
-         args: Sequence[str] = (),
-         cwd: Optional[Path] = None) -> subprocess.CompletedProcess:
+     timeout: int = TIMEOUT,
+     args: Sequence[str] = (),
+     cwd: Optional[Path] = None,
+     input_text: Optional[str] = None) -> subprocess.CompletedProcess:
     """Run *cmd* and return the CompletedProcess; never raises on non-zero exit."""
     full = list(cmd) + list(args)
     return subprocess.run(full, capture_output=True, text=True,
-                          timeout=timeout, cwd=cwd)
+                          timeout=timeout, cwd=cwd, input=input_text)
 
 
 def _compile(srcfile: Path, out_bc: Path,
@@ -176,7 +177,9 @@ def run_iotest(expected_file: Path, scratch: Path) -> TestResult:
 
     try:
         cmd = [str(exe)] + ([prog_arg] if prog_arg else [])
-        r = _run(cmd, timeout=TIMEOUT)
+        stdin_fixture = expected_file.with_suffix(".stdin")
+        stdin_text = stdin_fixture.read_text() if stdin_fixture.exists() else None
+        r = _run(cmd, timeout=TIMEOUT, input_text=stdin_text)
     except subprocess.TimeoutExpired:
         return TestResult(name, False, "timeout", time.monotonic() - t0)
 

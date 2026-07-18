@@ -50,6 +50,8 @@ Golden reference files:
 Programs that read input from `argv[1]` and produce output on stdout.
 Expected output is stored in `*.expected` files named
 `<program>-<input>.expected`.
+Programs that use TOP's `input` expression instead of `main` parameters can
+provide stdin with a same-stem `*.stdin` fixture next to the `*.expected` file.
 
 Golden reference files:
 - `fib.ppps`   — expected output of `topc --psource --psym fib.top`
