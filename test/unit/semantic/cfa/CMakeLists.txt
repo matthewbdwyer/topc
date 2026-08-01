@@ -10,11 +10,11 @@ target_link_libraries(
           symboltable
           frontend
           semantic
-          codegen
+          topc_codegen
           optimizer
           error
           test_helpers
-          tipc_test_includes
+          topc_test_includes
           coverage_config
           cfa
           Catch2::Catch2WithMain)

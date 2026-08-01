@@ -1,6 +1,7 @@
 #include "CheckAssignable.h"
 #include "PrettyPrinter.h"
 #include "SemanticError.h"
+#include "../SemanticLogging.h"
 
 #include <sstream>
 
@@ -12,23 +13,13 @@ namespace {
 bool isAssignable(ASTExpr *e) {
   if (dynamic_cast<ASTVariableExpr *>(e))
     return true;
-  if (dynamic_cast<ASTAccessExpr *>(e)) {
-    ASTAccessExpr *access = dynamic_cast<ASTAccessExpr *>(e);
-    if (dynamic_cast<ASTVariableExpr *>(access->getRecord())) {
-      return true;
-    } else if (dynamic_cast<ASTDeRefExpr *>(access->getRecord())) {
-      return true;
-    } else {
-      return false;
-    }
-  }
   return false;
 }
 
 } // namespace
 
 void CheckAssignable::endVisit(ASTAssignStmt *element) {
-  LOG_S(1) << "Checking assignability of " << *element;
+  SEMANTIC_LOG(3, "assignability") << "assignment=" << *element;
 
   if (isAssignable(element->getLHS()))
     return;
@@ -39,18 +30,12 @@ void CheckAssignable::endVisit(ASTAssignStmt *element) {
 
   std::ostringstream oss;
   oss << "Assignment error on line " << element->getLine() << ": ";
-  if (dynamic_cast<ASTAccessExpr *>(element->getLHS())) {
-    ASTAccessExpr *access = dynamic_cast<ASTAccessExpr *>(element->getLHS());
-    oss << *access->getRecord()
-        << " is an expression, and not a variable corresponding to a record\n";
-  } else {
-    oss << *element->getLHS() << " not an l-value\n";
-  }
+  oss << *element->getLHS() << " not an l-value\n";
   throw SemanticError(oss.str());
 }
 
-void CheckAssignable::endVisit(ASTRefExpr *element) {
-  LOG_S(1) << "Checking assignability of " << *element;
+void CheckAssignable::endVisit(ASTBorrowExpr *element) {
+  SEMANTIC_LOG(3, "assignability") << "borrow=" << *element;
 
   if (isAssignable(element->getVar()))
     return;
@@ -62,7 +47,8 @@ void CheckAssignable::endVisit(ASTRefExpr *element) {
 }
 
 void CheckAssignable::check(ASTProgram *p) {
-  LOG_S(1) << "Checking assignability";
+  SEMANTIC_LOG(1, "assignability") << "start";
   CheckAssignable visitor;
   p->accept(&visitor);
+  SEMANTIC_LOG(1, "assignability") << "complete";
 }

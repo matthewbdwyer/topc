@@ -1,0 +1,21 @@
+// Ownership: alloc inside a helper called from a loop.
+// Each helper call allocates a value; the destruction pass frees it before
+// the helper returns.  No memory is live between iterations.
+helper(n) {
+  var p, v;
+  p = alloc n;
+  v = *p;
+  return v;
+}
+
+main() {
+  var i, total;
+  i = 0;
+  total = 0;
+  while (5 > i) {
+    total = total + helper(i);
+    i = i + 1;
+  }
+  // total = 0+1+2+3+4 = 10; return 0 if correct
+  return total - 10;
+}

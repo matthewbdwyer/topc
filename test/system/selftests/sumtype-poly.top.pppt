@@ -1,0 +1,51 @@
+type Result = Ok(val) | Err(code);
+getOrDefault(r, def) 
+{
+  var v;
+  v = def;
+  case r of {
+    Ok(x) -> v = x;
+    Err(c) -> v = def;
+  }
+  return v;
+}
+
+main() 
+{
+  var a, b, ok;
+  a = getOrDefault(Ok(42), 0);
+  b = getOrDefault(Err(1), 99);
+  ok = 1;
+  if ((a != 42)) 
+    {
+      ok = 0;
+    }
+  if ((b != 99)) 
+    {
+      ok = 0;
+    }
+  return (1 - ok);
+}
+
+Types : {
+  Result : Ok(int) | Err(int)
+}
+
+Functions : {
+  getOrDefault : (Result{Ok(int)|Err(int)},int) -> int,
+  main : () -> int
+}
+
+Locals for function getOrDefault : {
+  c : int,
+  def : int,
+  r : Result{Ok(int)|Err(int)},
+  v : int,
+  x : int
+}
+
+Locals for function main : {
+  a : int,
+  b : int,
+  ok : int
+}

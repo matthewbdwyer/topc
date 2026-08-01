@@ -1,0 +1,37 @@
+type Inner = Lit(n) | Neg(x);
+type Outer = Empty | Wrap(inner);
+getN(o) 
+{
+  var r;
+  r = 0;
+  case o of {
+    Empty -> r = 0;
+    Wrap(Lit(n)) -> r = n;
+  }
+  return r;
+}
+
+main() 
+{
+  return getN(Empty);
+}
+
+Types : {
+  Inner : Lit(int) | Neg(α<x@6:26>),
+  Outer : Empty | Wrap(Inner)
+}
+
+Functions : {
+  getN : (Outer{Empty|Wrap(Inner{Lit(int)|Neg(α<x@6:26>)})}) -> int,
+  main : () -> int
+}
+
+Locals for function getN : {
+  n : int,
+  o : Outer{Empty|Wrap(Inner{Lit(int)|Neg(α<x@6:26>)})},
+  r : int
+}
+
+Locals for function main : {
+
+}

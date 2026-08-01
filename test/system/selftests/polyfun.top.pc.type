@@ -1,0 +1,57 @@
+
+[type-constraints]
+  [type] - ⟦(49!=identity(square)(n))@17:8⟧ = int
+  [type] - ⟦(49!=identity(square)(n))@17:8⟧ = int
+  [type] - ⟦(8!=identity(addone)(n))@16:8⟧ = int
+  [type] - ⟦(8!=identity(addone)(n))@16:8⟧ = int
+  [type] - ⟦(x*x)@6:9⟧ = int
+  [type] - ⟦(x+1)@2:9⟧ = int
+  [type] - ⟦0@18:11⟧ = int
+  [type] - ⟦0@18:11⟧ = int
+  [type] - ⟦1@2:11⟧ = int
+  [type] - ⟦1@2:11⟧ = int
+  [type] - ⟦49@17:8⟧ = int
+  [type] - ⟦49@17:8⟧ = ⟦identity(square)(n)@17:14⟧
+  [type] - ⟦7@15:8⟧ = int
+  [type] - ⟦8@16:8⟧ = int
+  [type] - ⟦8@16:8⟧ = ⟦identity(addone)(n)@16:13⟧
+  [type] - ⟦addone@1:0⟧ = (⟦x@1:7⟧) -> ⟦(x+1)@2:9⟧
+  [type] - ⟦identity(addone)(n)@16:40⟧ = int
+  [type] - ⟦identity(addone)@16:13⟧ = (⟦n@14:8⟧) -> ⟦identity(addone)(n)@16:13⟧
+  [type] - ⟦identity(addone)@16:40⟧ = (⟦n@14:8⟧) -> ⟦identity(addone)(n)@16:40⟧
+  [type] - ⟦identity(square)(n)@17:41⟧ = int
+  [type] - ⟦identity(square)@17:14⟧ = (⟦n@14:8⟧) -> ⟦identity(square)(n)@17:14⟧
+  [type] - ⟦identity(square)@17:41⟧ = (⟦n@14:8⟧) -> ⟦identity(square)(n)@17:41⟧
+  [type] - ⟦identity@9:0⟧ = (⟦addone@1:0⟧) -> ⟦identity(addone)@16:13⟧
+  [type] - ⟦identity@9:0⟧ = (⟦addone@1:0⟧) -> ⟦identity(addone)@16:40⟧
+  [type] - ⟦identity@9:0⟧ = (⟦f@9:9⟧) -> ⟦f@9:9⟧
+  [type] - ⟦identity@9:0⟧ = (⟦square@5:0⟧) -> ⟦identity(square)@17:14⟧
+  [type] - ⟦identity@9:0⟧ = (⟦square@5:0⟧) -> ⟦identity(square)@17:41⟧
+  [type] - ⟦main@13:0⟧ = () -> ⟦0@18:11⟧
+  [type] - ⟦n@14:8⟧ = ⟦7@15:8⟧
+  [type] - ⟦square@5:0⟧ = (⟦x@5:7⟧) -> ⟦(x*x)@6:9⟧
+  [type] - ⟦x@1:7⟧ = int
+  [type] - ⟦x@5:7⟧ = int
+  [type] - ⟦x@5:7⟧ = int
+
+[type-schemes]
+  [scheme] - addone : (int) -> int
+  [scheme] - square : (int) -> int
+  [scheme] - identity : (α<f@9:9>) -> α<f@9:9>
+  [scheme] - main : () -> int
+
+[type-instantiations]
+  [instantiation] 16:13 call identity(addone) instantiates identity
+  [instantiation] 16:40 call identity(addone) instantiates identity
+  [instantiation] 17:14 call identity(square) instantiates identity
+  [instantiation] 17:41 call identity(square) instantiates identity
+
+[type-inferred]
+  [inferred] - function addone : (int) -> int
+  [inferred] 1:7 local addone.x : int
+  [inferred] - function square : (int) -> int
+  [inferred] 5:7 local square.x : int
+  [inferred] - function identity : (α<f@9:9>) -> α<f@9:9>
+  [inferred] 9:9 local identity.f : α<f@9:9>
+  [inferred] - function main : () -> int
+  [inferred] 14:8 local main.n : int

@@ -1,8 +1,8 @@
 #include "ASTHelper.h"
 
 #include "antlr4-runtime.h"
-#include <TIPLexer.h>
-#include <TIPParser.h>
+#include <TOPLexer.h>
+#include <TOPParser.h>
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -15,14 +15,14 @@ TEST_CASE("ASTBuilder: bad op string throws error", "[ASTBuilder]") {
     x = 1 + 1;
   )";
   antlr4::ANTLRInputStream input(stream);
-  TIPLexer lexer(&input);
+  TOPLexer lexer(&input);
   antlr4::CommonTokenStream tokens(&lexer);
-  TIPParser parser(&tokens);
+  TOPParser parser(&tokens);
   ASTBuilder tb(&parser);
 
   // Inject a bad operation token into an arbitrary binary expression.
-  TIPParser::ExprContext exprContext;
-  TIPParser::AdditiveExprContext context(&exprContext);
+  TOPParser::ExprContext exprContext;
+  TOPParser::AdditiveExprContext context(&exprContext);
   antlr4::CommonToken mockToken(-1, "mock");
   context.op = &mockToken;
 

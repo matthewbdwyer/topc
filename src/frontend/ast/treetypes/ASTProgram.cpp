@@ -2,11 +2,16 @@
 #include "ASTVisitor.h"
 #include "ASTinternal.h"
 
-ASTProgram::ASTProgram(std::vector<std::shared_ptr<ASTFunction>> FUNCTIONS) {
-  for (auto &func : FUNCTIONS) {
-    std::shared_ptr<ASTFunction> f = func;
-    this->FUNCTIONS.push_back(f);
-  }
+ASTProgram::ASTProgram(std::vector<std::shared_ptr<ASTSumTypeDecl>> typedecls,
+                       std::vector<std::shared_ptr<ASTFunction>> functions) {
+  for (auto &td : typedecls)
+    this->TYPEDECLS.push_back(td);
+  for (auto &func : functions)
+    this->FUNCTIONS.push_back(func);
+}
+
+std::vector<ASTSumTypeDecl *> ASTProgram::getTypedecls() const {
+  return rawRefs(TYPEDECLS);
 }
 
 std::vector<ASTFunction *> ASTProgram::getFunctions() const {
@@ -24,6 +29,9 @@ ASTFunction *ASTProgram::findFunctionByName(std::string name) {
 
 void ASTProgram::accept(ASTVisitor *visitor) {
   if (visitor->visit(this)) {
+    for (auto td : getTypedecls()) {
+      td->accept(visitor);
+    }
     for (auto f : getFunctions()) {
       f->accept(visitor);
     }
@@ -38,9 +46,10 @@ std::ostream &ASTProgram::print(std::ostream &out) const {
 
 std::vector<std::shared_ptr<ASTNode>> ASTProgram::getChildren() {
   std::vector<std::shared_ptr<ASTNode>> children;
-  for (auto &function : FUNCTIONS) {
+  for (auto &td : TYPEDECLS)
+    children.push_back(td);
+  for (auto &function : FUNCTIONS)
     children.push_back(function);
-  }
   return children;
 }
 

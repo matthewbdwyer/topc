@@ -1,0 +1,19 @@
+main() 
+{
+  var x;
+  x = alloc 17;
+  if ((*x != 17)) 
+    error *x;
+  *x = (10 - *x);
+  if ((*x != -7)) 
+    error *x;
+  return 0;
+}
+
+Functions : {
+  main : () -> int
+}
+
+Locals for function main : {
+  x : ⭡int
+}

@@ -30,6 +30,11 @@ public:
   std::vector<ASTDeclNode *> getFormals() const;
   std::vector<ASTDeclStmt *> getDeclarations() const;
   std::vector<ASTStmt *> getStmts() const;
+  /*! \brief Insert \p stmt into BODY immediately before the return statement.
+   *
+   * Called by DestructionPass to inject ASTDestroyStmt nodes at scope exit.
+   */
+  void insertBeforeReturn(std::shared_ptr<ASTStmt> stmt);
   void accept(ASTVisitor *visitor) override;
 
 protected:

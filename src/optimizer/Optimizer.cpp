@@ -3,6 +3,8 @@
 #include "llvm/Passes/PassBuilder.h"
 
 #include "llvm/Transforms/InstCombine/InstCombine.h"
+#include "llvm/Transforms/Instrumentation/AddressSanitizer.h"
+#include "llvm/Transforms/Instrumentation/AddressSanitizerOptions.h"
 #include "llvm/Transforms/Scalar/GVN.h"
 #include "llvm/Transforms/Scalar/Reassociate.h"
 #include "llvm/Transforms/Scalar/SimplifyCFG.h"
@@ -11,7 +13,7 @@
 #include "loguru.hpp"
 
 //  Minimal optimization pass using LLVM pass managers
-void Optimizer::optimize(llvm::Module *theModule) {
+void Optimizer::optimize(llvm::Module *theModule, bool asan) {
   LOG_S(1) << "Optimizing program " << theModule->getName().str();
 
   // New pass builder
@@ -59,5 +61,13 @@ void Optimizer::optimize(llvm::Module *theModule) {
   // ModuleAnalysisManager.
   modulePassManager.addPass(
       createModuleToFunctionPassAdaptor(std::move(functionPassManager)));
+
+  // Optionally instrument the module with AddressSanitizer.
+  if (asan) {
+    LOG_S(1) << "Instrumenting with AddressSanitizer";
+    modulePassManager.addPass(
+        llvm::AddressSanitizerPass(llvm::AddressSanitizerOptions()));
+  }
+
   modulePassManager.run(*theModule, moduleAnalysisManager);
 }

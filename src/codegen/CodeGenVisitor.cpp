@@ -1,10 +1,18 @@
 #include "CodeGenVisitor.h"
 
 #include "AST.h"
+#include "ASTCaseArm.h"
+#include "ASTCtorPattern.h"
+#include "ASTPattern.h"
+#include "ASTSumVariant.h"
+#include "ASTVarPattern.h"
 #include "ASTVisitor.h"
+#include "ASTWildcardPattern.h"
 #include "CodeGenContext.h"
 #include "InternalError.h"
+#include "OwnershipClassifier.h"
 #include "SemanticAnalysis.h"
+#include "TopOwningRef.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Constants.h"
@@ -25,6 +33,7 @@
 #include "loguru.hpp"
 
 #include <algorithm>
+#include <map>
 #include <stdexcept>
 
 // ---------------------------------------------------------------------------
@@ -37,13 +46,13 @@ llvm::Function *getFunction(const std::string &functionName,
   auto formalNames = ctx.functionFormalNames[functionName];
 
   if (functionName == "main") {
-    if (auto *M = ctx.module->getFunction("_tip_main")) {
+    if (auto *M = ctx.module->getFunction("_top_main")) {
       return M;
     }
-    ctx.numTIPArgs = formalNames.size();
+    ctx.numArgs = formalNames.size();
     auto *fn = llvm::Function::Create(
         llvm::FunctionType::get(llvm::Type::getInt64Ty(ctx.llvmContext), false),
-        llvm::Function::ExternalLinkage, "_tip_" + functionName,
+        llvm::Function::ExternalLinkage, "_top_" + functionName,
         ctx.module.get());
     return fn;
   } else {
@@ -82,6 +91,8 @@ CodeGenVisitor::generate(ASTProgram *program,
                          SemanticAnalysis *semanticAnalysis,
                          const std::string &programName) {
   LOG_S(1) << "Generating code for program " << programName;
+
+  semanticAnalysis_ = semanticAnalysis;
 
   CodeGenContext ctx;
   ctx_ = &ctx;
@@ -134,9 +145,9 @@ CodeGenVisitor::generate(ASTProgram *program,
     auto *ftableInit =
         llvm::ConstantArray::get(functionTableType, castProgramFunctions);
 
-    ctx.tipFunctionTable = new llvm::GlobalVariable(
+    ctx.topFunctionTable = new llvm::GlobalVariable(
         *ctx.module, functionTableType, true,
-        llvm::GlobalValue::InternalLinkage, ftableInit, "_tip_ftable");
+        llvm::GlobalValue::InternalLinkage, ftableInit, "_top_ftable");
   }
 
   {
@@ -144,36 +155,36 @@ CodeGenVisitor::generate(ASTProgram *program,
     if (fidx == ctx.functionIndex.end()) {
       auto *M = llvm::Function::Create(
           llvm::FunctionType::get(llvm::Type::getInt64Ty(ctx.llvmContext), false),
-          llvm::Function::ExternalLinkage, "_tip_main", ctx.module.get());
+          llvm::Function::ExternalLinkage, "_top_main", ctx.module.get());
       llvm::BasicBlock *BB =
           llvm::BasicBlock::Create(ctx.llvmContext, "entry", M);
       ctx.irBuilder.SetInsertPoint(BB);
 
       auto *undef = llvm::Function::Create(
           llvm::FunctionType::get(llvm::Type::getVoidTy(ctx.llvmContext), false),
-          llvm::Function::ExternalLinkage, "_tip_main_undefined",
+          llvm::Function::ExternalLinkage, "_top_main_undefined",
           ctx.module.get());
       ctx.irBuilder.CreateCall(undef);
       ctx.irBuilder.CreateRet(
           llvm::ConstantInt::get(llvm::Type::getInt64Ty(ctx.llvmContext), 0));
     }
 
-    ctx.tipNumInputs = new llvm::GlobalVariable(
+    ctx.topNumInputs = new llvm::GlobalVariable(
         *ctx.module, llvm::Type::getInt64Ty(ctx.llvmContext), true,
         llvm::GlobalValue::ExternalLinkage,
         llvm::ConstantInt::get(llvm::Type::getInt64Ty(ctx.llvmContext),
-                               ctx.numTIPArgs),
-        "_tip_num_inputs");
+                               ctx.numArgs),
+        "_top_num_inputs");
 
     auto *inputArrayType =
         llvm::ArrayType::get(llvm::Type::getInt64Ty(ctx.llvmContext),
-                             ctx.numTIPArgs);
+                             ctx.numArgs);
     auto *zeroV =
         llvm::ConstantInt::get(llvm::Type::getInt64Ty(ctx.llvmContext), 0);
-    std::vector<llvm::Constant *> zeros(ctx.numTIPArgs, zeroV);
-    ctx.tipInputArray = new llvm::GlobalVariable(
+    std::vector<llvm::Constant *> zeros(ctx.numArgs, zeroV);
+    ctx.topInputArray = new llvm::GlobalVariable(
         *ctx.module, inputArrayType, false, llvm::GlobalValue::CommonLinkage,
-        llvm::ConstantArray::get(inputArrayType, zeros), "_tip_input_array");
+        llvm::ConstantArray::get(inputArrayType, zeros), "_top_input_array");
   }
 
   std::vector<llvm::Type *> twoInt(2, llvm::Type::getInt64Ty(ctx.llvmContext));
@@ -185,18 +196,6 @@ CodeGenVisitor::generate(ASTProgram *program,
   ctx.callocFun->setAttributes(
       ctx.callocFun->getAttributes().addAttributeAtIndex(
           ctx.callocFun->getContext(), 0, llvm::Attribute::NoAlias));
-
-  std::vector<llvm::Type *> member_values;
-  int index = 0;
-  for (const auto &field : semanticAnalysis->getSymbolTable()->getFields()) {
-    member_values.push_back(llvm::IntegerType::getInt64Ty(ctx.llvmContext));
-    ctx.fieldVector.push_back(field);
-    ctx.fieldIndex[field] = index;
-    index++;
-  }
-  ctx.globalRecordType = llvm::StructType::create(ctx.llvmContext, member_values,
-                                                   "globalRecord");
-  ctx.pointerToGlobalRecordType = llvm::PointerType::get(ctx.llvmContext, 0);
 
   for (auto const fn : program->getFunctions()) {
     generate(fn);
@@ -251,27 +250,11 @@ llvm::Value *CodeGenVisitor::dispatch(ASTNode *node) {
       result = codegen_.generate(n);
       return false;
     }
-    bool visit(ASTNullExpr *n) override {
-      result = codegen_.generate(n);
-      return false;
-    }
-    bool visit(ASTRefExpr *n) override {
+    bool visit(ASTBorrowExpr *n) override {
       result = codegen_.generate(n);
       return false;
     }
     bool visit(ASTDeRefExpr *n) override {
-      result = codegen_.generate(n);
-      return false;
-    }
-    bool visit(ASTRecordExpr *n) override {
-      result = codegen_.generate(n);
-      return false;
-    }
-    bool visit(ASTFieldExpr *n) override {
-      result = codegen_.generate(n);
-      return false;
-    }
-    bool visit(ASTAccessExpr *n) override {
       result = codegen_.generate(n);
       return false;
     }
@@ -308,6 +291,18 @@ llvm::Value *CodeGenVisitor::dispatch(ASTNode *node) {
       return false;
     }
     bool visit(ASTReturnStmt *n) override {
+      result = codegen_.generate(n);
+      return false;
+    }
+    bool visit(ASTDestroyStmt *n) override {
+      result = codegen_.generate(n);
+      return false;
+    }
+    bool visit(ASTSumCtorExpr *n) override {
+      result = codegen_.generate(n);
+      return false;
+    }
+    bool visit(ASTCaseStmt *n) override {
       result = codegen_.generate(n);
       return false;
     }
@@ -355,11 +350,11 @@ llvm::Value *CodeGenVisitor::generate(ASTFunction *node) {
       indices.push_back(
           llvm::ConstantInt::get(llvm::Type::getInt64Ty(ctx.llvmContext), argIdx));
       auto *gep = ctx.irBuilder.CreateInBoundsGEP(
-          ctx.tipInputArray->getValueType(), ctx.tipInputArray, indices,
+          ctx.topInputArray->getValueType(), ctx.topInputArray, indices,
           "inputidx");
       auto *inVal = ctx.irBuilder.CreateLoad(
           llvm::Type::getInt64Ty(ctx.llvmContext), gep,
-          "tipinput" + std::to_string(argIdx++));
+          "topinput" + std::to_string(argIdx++));
       ctx.irBuilder.CreateStore(inVal, argAlloc);
       ctx.namedValues[argName] = argAlloc;
     }
@@ -413,27 +408,30 @@ llvm::Value *CodeGenVisitor::generate(ASTBinaryExpr *node) {
 
   switch (node->getOpKind()) {
   case ASTBinaryExpr::BinaryOp::Add:
-    return ctx.irBuilder.CreateAdd(L, R, "addtmp");
+    return ctx.irBuilder.CreateAdd(L, R, "add");
   case ASTBinaryExpr::BinaryOp::Sub:
-    return ctx.irBuilder.CreateSub(L, R, "subtmp");
+    return ctx.irBuilder.CreateSub(L, R, "subtract");
   case ASTBinaryExpr::BinaryOp::Mul:
-    return ctx.irBuilder.CreateMul(L, R, "multmp");
+    return ctx.irBuilder.CreateMul(L, R, "multiply");
   case ASTBinaryExpr::BinaryOp::Div:
-    return ctx.irBuilder.CreateSDiv(L, R, "divtmp");
+    return ctx.irBuilder.CreateSDiv(L, R, "divide");
   case ASTBinaryExpr::BinaryOp::Gt: {
-    auto *cmp = ctx.irBuilder.CreateICmpSGT(L, R, "_gttmp");
+    auto *cmp = ctx.irBuilder.CreateICmpSGT(L, R, "compare.gt");
     return ctx.irBuilder.CreateIntCast(
-        cmp, llvm::IntegerType::getInt64Ty(ctx.llvmContext), false, "gttmp");
+        cmp, llvm::IntegerType::getInt64Ty(ctx.llvmContext), false,
+        "compare.gt.value");
   }
   case ASTBinaryExpr::BinaryOp::Eq: {
-    auto *cmp = ctx.irBuilder.CreateICmpEQ(L, R, "_eqtmp");
+    auto *cmp = ctx.irBuilder.CreateICmpEQ(L, R, "compare.eq");
     return ctx.irBuilder.CreateIntCast(
-        cmp, llvm::IntegerType::getInt64Ty(ctx.llvmContext), false, "eqtmp");
+        cmp, llvm::IntegerType::getInt64Ty(ctx.llvmContext), false,
+        "compare.eq.value");
   }
   case ASTBinaryExpr::BinaryOp::Neq: {
-    auto *cmp = ctx.irBuilder.CreateICmpNE(L, R, "_neqtmp");
+    auto *cmp = ctx.irBuilder.CreateICmpNE(L, R, "compare.ne");
     return ctx.irBuilder.CreateIntCast(
-        cmp, llvm::IntegerType::getInt64Ty(ctx.llvmContext), false, "neqtmp");
+        cmp, llvm::IntegerType::getInt64Ty(ctx.llvmContext), false,
+        "compare.ne.value");
   }
   }
   // LCOV_EXCL_START
@@ -472,7 +470,7 @@ llvm::Value *CodeGenVisitor::generate(ASTInputExpr *node) {
     auto *FT =
         llvm::FunctionType::get(llvm::Type::getInt64Ty(ctx.llvmContext), false);
     ctx.inputIntrinsic = llvm::Function::Create(
-        FT, llvm::Function::ExternalLinkage, "_tip_input", ctx.module.get());
+        FT, llvm::Function::ExternalLinkage, "_top_input", ctx.module.get());
   }
   return ctx.irBuilder.CreateCall(ctx.inputIntrinsic);
 } // LCOV_EXCL_LINE
@@ -494,11 +492,11 @@ llvm::Value *CodeGenVisitor::generate(ASTFunAppExpr *node) {
   indices.push_back(funVal);
 
   auto *gep = ctx.irBuilder.CreateInBoundsGEP(
-      ctx.tipFunctionTable->getValueType(), ctx.tipFunctionTable, indices,
-      "ftableidx");
+      ctx.topFunctionTable->getValueType(), ctx.topFunctionTable, indices,
+      "function.table.slot");
 
   auto *functionPointer = ctx.irBuilder.CreateLoad(
-      llvm::PointerType::get(ctx.llvmContext, 0), gep, "genfptr");
+      llvm::PointerType::get(ctx.llvmContext, 0), gep, "function.ptr");
 
   std::vector<llvm::Type *> actualTypes(node->getActuals().size(),
                                         llvm::Type::getInt64Ty(ctx.llvmContext));
@@ -515,7 +513,8 @@ llvm::Value *CodeGenVisitor::generate(ASTFunAppExpr *node) {
     argsV.push_back(argVal);
   }
 
-  return ctx.irBuilder.CreateCall(funType, functionPointer, argsV, "calltmp");
+  return ctx.irBuilder.CreateCall(funType, functionPointer, argsV,
+                                  "call.result");
 }
 
 llvm::Value *CodeGenVisitor::generate(ASTAllocExpr *node) {
@@ -542,15 +541,7 @@ llvm::Value *CodeGenVisitor::generate(ASTAllocExpr *node) {
       allocInst, llvm::Type::getInt64Ty(ctx.llvmContext), "allocIntVal");
 }
 
-llvm::Value *CodeGenVisitor::generate(ASTNullExpr *node) {
-  auto &ctx = *ctx_;
-  auto *nullPtr =
-      llvm::ConstantPointerNull::get(llvm::PointerType::get(ctx.llvmContext, 0));
-  return ctx.irBuilder.CreatePtrToInt(
-      nullPtr, llvm::Type::getInt64Ty(ctx.llvmContext), "nullPtrIntVal");
-}
-
-llvm::Value *CodeGenVisitor::generate(ASTRefExpr *node) {
+llvm::Value *CodeGenVisitor::generate(ASTBorrowExpr *node) {
   LOG_S(1) << "Generating code for " << *node;
   auto &ctx = *ctx_;
 
@@ -592,94 +583,6 @@ llvm::Value *CodeGenVisitor::generate(ASTDeRefExpr *node) {
   }
 }
 
-llvm::Value *CodeGenVisitor::generate(ASTRecordExpr *node) {
-  LOG_S(1) << "Generating code for " << *node;
-  auto &ctx = *ctx_;
-
-  if (ctx.allocFlag) {
-    auto *allocaRecord =
-        ctx.irBuilder.CreateAlloca(ctx.pointerToGlobalRecordType);
-
-    auto sizeOfGlobalRecord = ctx.module->getDataLayout()
-                                  .getStructLayout(ctx.globalRecordType)
-                                  ->getSizeInBytes();
-    auto *oneV =
-        llvm::ConstantInt::get(llvm::Type::getInt64Ty(ctx.llvmContext), 1);
-    std::vector<llvm::Value *> callocArgs;
-    callocArgs.push_back(oneV);
-    callocArgs.push_back(llvm::ConstantInt::get(
-        llvm::Type::getInt64Ty(ctx.llvmContext), sizeOfGlobalRecord));
-    auto *calloc =
-        ctx.irBuilder.CreateCall(ctx.callocFun, callocArgs, "callocedPtr");
-
-    ctx.irBuilder.CreateStore(calloc, allocaRecord);
-
-    auto loadInst = ctx.irBuilder.CreateLoad(ctx.pointerToGlobalRecordType,
-                                             allocaRecord);
-
-    for (auto const field : node->getFields()) {
-      auto *gep = ctx.irBuilder.CreateStructGEP(
-          ctx.globalRecordType, loadInst,
-          ctx.fieldIndex[field->getField()], field->getField());
-      auto value = dispatch(field);
-      ctx.irBuilder.CreateStore(value, gep);
-    }
-
-    return ctx.irBuilder.CreatePtrToInt(
-        calloc, llvm::Type::getInt64Ty(ctx.llvmContext), "recordPtr");
-  } else {
-    auto *allocaRecord =
-        ctx.irBuilder.CreateAlloca(ctx.globalRecordType);
-
-    for (auto const field : node->getFields()) {
-      auto *gep = ctx.irBuilder.CreateStructGEP(
-          allocaRecord->getAllocatedType(), allocaRecord,
-          ctx.fieldIndex[field->getField()], field->getField());
-      auto value = dispatch(field);
-      ctx.irBuilder.CreateStore(value, gep);
-    }
-    return ctx.irBuilder.CreatePtrToInt(
-        allocaRecord, llvm::Type::getInt64Ty(ctx.llvmContext), "record");
-  }
-}
-
-llvm::Value *CodeGenVisitor::generate(ASTFieldExpr *node) {
-  LOG_S(1) << "Generating code for " << *node;
-  return dispatch(node->getInitializer());
-} // LCOV_EXCL_LINE
-
-llvm::Value *CodeGenVisitor::generate(ASTAccessExpr *node) {
-  LOG_S(1) << "Generating code for " << *node;
-  auto &ctx = *ctx_;
-
-  bool isLValue = ctx.lValueGen;
-  if (isLValue) {
-    ctx.lValueGen = false;
-  }
-
-  auto currField = node->getField();
-  if (ctx.fieldIndex.count(currField) == 0) {
-    throw InternalError("This field doesn't exist");
-  }
-
-  llvm::Value *recordVal  = dispatch(node->getRecord());
-  llvm::Value *recordAddress =
-      ctx.irBuilder.CreateIntToPtr(recordVal, ctx.pointerToGlobalRecordType);
-
-  auto index = ctx.fieldIndex[currField];
-  auto *gep  = ctx.irBuilder.CreateStructGEP(ctx.globalRecordType,
-                                              recordAddress, index, currField);
-
-  if (isLValue) {
-    return gep;
-  }
-
-  auto fieldLoad = ctx.irBuilder.CreateLoad(
-      llvm::IntegerType::getInt64Ty(ctx.llvmContext), gep);
-  return ctx.irBuilder.CreatePtrToInt(
-      fieldLoad, llvm::Type::getInt64Ty(ctx.llvmContext), "fieldAccess");
-}
-
 llvm::Value *CodeGenVisitor::generate(ASTDeclNode *node) {
   throw InternalError("Declarations do not emit code");
 }
@@ -714,7 +617,14 @@ llvm::Value *CodeGenVisitor::generate(ASTAssignStmt *node) {
         "failed to generate bitcode for the lhs of the assignment");
   }
 
+  bool pointerAssign = dynamic_cast<ASTDeRefExpr *>(node->getLHS()) != nullptr;
+  if (pointerAssign) {
+    ctx.allocFlag = true;
+  }
   llvm::Value *rValue = dispatch(node->getRHS());
+  if (pointerAssign) {
+    ctx.allocFlag = false;
+  }
   if (rValue == nullptr) {
     throw InternalError(
         "failed to generate bitcode for the rhs of the assignment");
@@ -842,7 +752,7 @@ llvm::Value *CodeGenVisitor::generate(ASTOutputStmt *node) {
     auto *FT = llvm::FunctionType::get(llvm::Type::getInt64Ty(ctx.llvmContext),
                                        oneInt, false);
     ctx.outputIntrinsic = llvm::Function::Create(
-        FT, llvm::Function::ExternalLinkage, "_tip_output", ctx.module.get());
+        FT, llvm::Function::ExternalLinkage, "_top_output", ctx.module.get());
   }
 
   llvm::Value *argVal = dispatch(node->getArg());
@@ -864,7 +774,7 @@ llvm::Value *CodeGenVisitor::generate(ASTErrorStmt *node) {
     auto *FT = llvm::FunctionType::get(llvm::Type::getInt64Ty(ctx.llvmContext),
                                        oneInt, false);
     ctx.errorIntrinsic = llvm::Function::Create(
-        FT, llvm::Function::ExternalLinkage, "_tip_error", ctx.module.get());
+        FT, llvm::Function::ExternalLinkage, "_top_error", ctx.module.get());
   }
 
   llvm::Value *argVal = dispatch(node->getArg());
@@ -883,3 +793,326 @@ llvm::Value *CodeGenVisitor::generate(ASTReturnStmt *node) {
   llvm::Value *argVal = dispatch(node->getArg());
   return ctx.irBuilder.CreateRet(argVal);
 }
+
+// ---------------------------------------------------------------------------
+// Destruction: free owned heap resources (Phase 11)
+// ---------------------------------------------------------------------------
+
+void CodeGenVisitor::ensureFreeDecl(CodeGenContext &ctx) {
+  if (ctx.freeFun)
+    return;
+  auto *voidTy = llvm::Type::getVoidTy(ctx.llvmContext);
+  auto *ptrTy  = llvm::PointerType::get(ctx.llvmContext, 0);
+  auto *FT     = llvm::FunctionType::get(voidTy, {ptrTy}, false);
+  ctx.freeFun  = llvm::Function::Create(FT, llvm::Function::ExternalLinkage,
+                                        "free", ctx.module.get());
+  ctx.freeFun->addFnAttr(llvm::Attribute::NoUnwind);
+}
+
+
+void CodeGenVisitor::emitDestroyValue(llvm::Value *ptrAsInt, TopType *topType,
+                                       CodeGenContext &ctx) {
+  auto *owningRef = dynamic_cast<TopOwningRef *>(topType);
+  if (owningRef == nullptr) {
+    return; // Copy type — nothing to free
+  }
+
+  auto *ptrTy  = llvm::PointerType::get(ctx.llvmContext, 0);
+  auto *i64Ty  = llvm::Type::getInt64Ty(ctx.llvmContext);
+  auto *i32Ty  = llvm::Type::getInt32Ty(ctx.llvmContext);
+  auto *zeroV  = llvm::ConstantInt::get(i64Ty, 0);
+
+  // Convert the int64-encoded pointer to an actual pointer.
+  auto *ptr = ctx.irBuilder.CreateIntToPtr(ptrAsInt, ptrTy, "destroyPtr");
+
+  // Free the pointer itself.
+  ctx.irBuilder.CreateCall(ctx.freeFun, {ptr});
+}
+
+llvm::Value *CodeGenVisitor::generate(ASTDestroyStmt *node) {
+  LOG_S(1) << "Generating code for " << *node;
+  auto &ctx = *ctx_;
+
+  ensureFreeDecl(ctx);
+
+  ASTDeclNode *decl    = node->getVar();
+  std::string varName  = decl->getName();
+
+  auto it = ctx.namedValues.find(varName);
+  if (it == ctx.namedValues.end()) {
+    throw InternalError("destroy: variable '" + varName + // LCOV_EXCL_LINE
+                        "' not found in namedValues");    // LCOV_EXCL_LINE
+  }
+
+  // Load the i64 pointer-as-int stored in the variable's alloca.
+  auto *i64Ty    = llvm::Type::getInt64Ty(ctx.llvmContext);
+  auto *ptrAsInt = ctx.irBuilder.CreateLoad(i64Ty, it->second, varName + ".val");
+
+  // Look up the variable's inferred type for recursive destruction.
+  // Keep the shared_ptr alive for the duration of emitDestroyValue.
+  auto topTypeShared = semanticAnalysis_->getTypeResults()->getInferredType(decl);
+  TopType *topType = topTypeShared.get();
+
+  emitDestroyValue(ptrAsInt, topType, ctx);
+
+  return ctx.irBuilder.CreateCall(ctx.nop);
+}
+
+// ---------------------------------------------------------------------------
+// Pattern matching helper (Phase B4)
+// ---------------------------------------------------------------------------
+
+void CodeGenVisitor::emitPatternMatch(llvm::Value *basePtr, int64_t offset,
+                                       ASTPattern *pat, ASTDeclNode *paramDecl,
+                                       llvm::BasicBlock *failBB,
+                                       llvm::Function *func,
+                                       CodeGenContext &ctx) {
+  auto &builder = ctx.irBuilder;
+  auto *i64Ty   = llvm::Type::getInt64Ty(ctx.llvmContext);
+  auto *ptrTy   = llvm::PointerType::get(ctx.llvmContext, 0);
+
+  // Load the field value at the given offset within basePtr.
+  auto *fieldGEP = builder.CreateInBoundsGEP(
+      i64Ty, basePtr, {llvm::ConstantInt::get(i64Ty, offset)}, "pat.gep");
+  auto *fieldVal = builder.CreateLoad(i64Ty, fieldGEP, "pat.val");
+
+  if (auto *vp = dynamic_cast<ASTVarPattern *>(pat)) {
+    // Variable pattern: bind field value to the variable's stack slot.
+    auto *alloca = CreateEntryBlockAlloca(func, vp->getName(), ctx);
+    builder.CreateStore(fieldVal, alloca);
+    ctx.namedValues[vp->getName()] = alloca;
+
+  } else if (dynamic_cast<ASTWildcardPattern *>(pat)) {
+    // Wildcard: if the payload slot is Own, destroy it (prevents leaks).
+    if (paramDecl) {
+      auto typeShared =
+          semanticAnalysis_->getTypeResults()->getInferredType(paramDecl);
+      if (typeShared &&
+          OwnershipClassifier::classifyType(typeShared.get()) ==
+              OwnershipClass::Own) {
+        ensureFreeDecl(ctx);
+        emitDestroyValue(fieldVal, typeShared.get(), ctx);
+      }
+    }
+
+  } else if (auto *cp = dynamic_cast<ASTCtorPattern *>(pat)) {
+    // Nested constructor pattern: extract inner sum-type pointer, check tag.
+    auto *innerPtr = builder.CreateIntToPtr(fieldVal, ptrTy, "inner.ptr");
+    auto *innerTag = builder.CreateLoad(i64Ty, innerPtr, "inner.tag");
+
+    // Resolve the inner constructor's tag index and parameter list.
+    auto *symTab          = semanticAnalysis_->getSymbolTable();
+    auto *innerOwnerDecl  = symTab->getConstructorOwner(cp->getTag());
+    int   innerTagIdx     = 0;
+    std::vector<ASTDeclNode *> innerParams;
+    if (innerOwnerDecl) {
+      int idx = 0;
+      for (auto *v : innerOwnerDecl->getVariants()) {
+        if (v->getTag() == cp->getTag()) {
+          innerTagIdx  = idx;
+          innerParams  = v->getParams();
+          break;
+        }
+        ++idx;
+      }
+    }
+
+    // Conditional branch: jump to matchBB if the inner tag matches, failBB if not.
+    auto *expected = llvm::ConstantInt::get(i64Ty, innerTagIdx);
+    auto *cond     = builder.CreateICmpEQ(innerTag, expected, "ctor.cmp");
+    auto *matchBB  = llvm::BasicBlock::Create(ctx.llvmContext, "ctor.ok", func);
+    builder.CreateCondBr(cond, matchBB, failBB);
+    builder.SetInsertPoint(matchBB);
+
+    // Recurse: match sub-patterns against the inner struct's payload slots.
+    auto subPats = cp->getSubPatterns();
+    for (std::size_t j = 0; j < subPats.size(); ++j) {
+      ASTDeclNode *subDecl =
+          (j < innerParams.size()) ? innerParams[j] : nullptr;
+      emitPatternMatch(innerPtr, static_cast<int64_t>(j + 1), subPats[j],
+                       subDecl, failBB, func, ctx);
+    }
+
+  }
+}
+
+llvm::Value *CodeGenVisitor::generate(ASTSumCtorExpr *node) {
+  LOG_S(1) << "Generating code for " << *node;
+  auto &ctx = *ctx_;
+  auto *i64Ty = llvm::Type::getInt64Ty(ctx.llvmContext);
+
+  // Determine tag index and arity from the symbol table.
+  auto *symTab = semanticAnalysis_->getSymbolTable();
+  auto *ownerDecl = symTab->getConstructorOwner(node->getTag());
+
+  int tagIdx = 0;
+  int arity = 0;
+  if (ownerDecl) {
+    int idx = 0;
+    for (auto *v : ownerDecl->getVariants()) {
+      if (v->getTag() == node->getTag()) {
+        tagIdx = idx;
+        arity = static_cast<int>(v->getParams().size());
+        break;
+      }
+      idx++;
+    }
+  }
+
+  // Evaluate argument expressions before allocating memory.
+  std::vector<llvm::Value *> argVals;
+  for (auto *arg : node->getArgs()) {
+    argVals.push_back(dispatch(arg));
+  }
+
+  // calloc(1, (1 + arity) * 8) — zero-initialized block.
+  std::vector<llvm::Value *> callocArgs = {
+      llvm::ConstantInt::get(i64Ty, 1),
+      llvm::ConstantInt::get(i64Ty, (1 + arity) * 8)};
+  auto *allocPtr =
+      ctx.irBuilder.CreateCall(ctx.callocFun, callocArgs, "constructor.ptr");
+
+  // Store the tag index at offset 0.
+  ctx.irBuilder.CreateStore(llvm::ConstantInt::get(i64Ty, tagIdx), allocPtr);
+
+  // Store each argument value at successive i64 offsets.
+  for (int i = 0; i < static_cast<int>(argVals.size()); i++) {
+    auto *fieldPtr = ctx.irBuilder.CreateInBoundsGEP(
+        i64Ty, allocPtr,
+        {llvm::ConstantInt::get(i64Ty, i + 1)},
+        "constructor.payload." + std::to_string(i));
+    ctx.irBuilder.CreateStore(argVals[i], fieldPtr);
+  }
+
+  return ctx.irBuilder.CreatePtrToInt(allocPtr, i64Ty, "constructor.value");
+}
+
+llvm::Value *CodeGenVisitor::generate(ASTCaseStmt *node) {
+  LOG_S(1) << "Generating code for " << *node;
+  auto &ctx = *ctx_;
+  auto *i64Ty = llvm::Type::getInt64Ty(ctx.llvmContext);
+
+  // Evaluate the case expression (an i64 pointer-as-int).
+  llvm::Value *caseExprInt = dispatch(node->getCaseExpr());
+
+  // Recover the actual pointer.
+    auto *caseExprPtr = ctx.irBuilder.CreateIntToPtr(
+      caseExprInt, llvm::PointerType::get(ctx.llvmContext, 0), "case.value.ptr");
+
+  // Load the tag (first i64 in the sum-type allocation).
+  auto *tagVal = ctx.irBuilder.CreateLoad(i64Ty, caseExprPtr, "tag");
+
+  // Build a variant-name → tag-index map and variant-name → params map.
+  auto arms    = node->getArms();
+  auto *symTab = semanticAnalysis_->getSymbolTable();
+  auto *ownerDecl = symTab->getConstructorOwner(arms[0]->getTag());
+
+  std::map<std::string, int>                    variantIndex;
+  std::map<std::string, std::vector<ASTDeclNode *>> variantParams;
+  if (ownerDecl) {
+    int idx = 0;
+    for (auto *v : ownerDecl->getVariants()) {
+      variantIndex[v->getTag()]  = idx++;
+      variantParams[v->getTag()] = v->getParams();
+    }
+  }
+
+  llvm::Function *TheFunction = ctx.irBuilder.GetInsertBlock()->getParent();
+  ctx.labelNum++;
+  int label = ctx.labelNum;
+
+  // Merge block (fall-through destination for all arms).
+  llvm::BasicBlock *MergeBB = llvm::BasicBlock::Create(
+      ctx.llvmContext, "case.merge." + std::to_string(label));
+
+  // Default block for the LLVM switch (unreachable in well-typed programs).
+  llvm::BasicBlock *DefaultBB = llvm::BasicBlock::Create(
+      ctx.llvmContext, "case.default." + std::to_string(label));
+
+  // Group arms by outer constructor tag, preserving declaration order.
+  std::map<std::string, std::vector<ASTCaseArm *>> groupedArms;
+  std::vector<std::string> tagOrder;
+  for (auto *arm : arms) {
+    if (groupedArms.find(arm->getTag()) == groupedArms.end())
+      tagOrder.push_back(arm->getTag());
+    groupedArms[arm->getTag()].push_back(arm);
+  }
+
+  // One LLVM switch case per distinct outer tag.
+  auto *switchInst = ctx.irBuilder.CreateSwitch(
+      tagVal, DefaultBB, static_cast<unsigned>(tagOrder.size()));
+
+  // Emit one chain of arm checks per distinct outer tag.
+  for (const auto &tag : tagOrder) {
+    int tagIdx = variantIndex.count(tag) ? variantIndex.at(tag) : 0;
+    const auto &armGroup = groupedArms.at(tag);
+    const auto &params   = variantParams.count(tag)
+                               ? variantParams.at(tag)
+                               : std::vector<ASTDeclNode *>{};
+
+    // Entry block for this outer tag (the switch target).
+    auto *entryBB = llvm::BasicBlock::Create(
+        ctx.llvmContext,
+        "case." + tag + "." + std::to_string(label),
+        TheFunction);
+    switchInst->addCase(llvm::ConstantInt::get(i64Ty, tagIdx), entryBB);
+    ctx.irBuilder.SetInsertPoint(entryBB);
+
+    // Emit each arm in the group as a sequential chain.
+    for (std::size_t ai = 0; ai < armGroup.size(); ++ai) {
+      auto *arm = armGroup[ai];
+
+      // failBB: where to go if this arm's nested patterns don't match.
+      // For the last arm in a group the default block is used (unreachable
+      // in well-typed programs after B3 redundancy checks).
+      llvm::BasicBlock *failBB;
+      if (ai + 1 < armGroup.size()) {
+        failBB = llvm::BasicBlock::Create(
+            ctx.llvmContext,
+            "case." + tag + ".arm" + std::to_string(ai + 1) + "." +
+                std::to_string(label));
+      } else {
+        failBB = DefaultBB;
+      }
+
+      // Emit pattern bindings for each payload position of this arm.
+      auto patterns = arm->getPatterns();
+      for (std::size_t pi = 0; pi < patterns.size(); ++pi) {
+        ASTDeclNode *paramDecl =
+            (pi < params.size()) ? params[pi] : nullptr;
+        emitPatternMatch(caseExprPtr, static_cast<int64_t>(pi + 1),
+                         patterns[pi], paramDecl, failBB, TheFunction, ctx);
+      }
+
+      // Generate the arm body (all pattern tests passed).
+      dispatch(arm->getBody());
+
+      // Branch to merge unless the body already terminated the block.
+      if (!ctx.irBuilder.GetInsertBlock()->getTerminator())
+        ctx.irBuilder.CreateBr(MergeBB);
+
+      // Remove arm's named bindings so they don't bleed into sibling arms.
+      for (auto *b : arm->getBindings())
+        ctx.namedValues.erase(b->getName());
+
+      // If there is a next arm, its failBB is now the new insert point.
+      if (ai + 1 < armGroup.size()) {
+        TheFunction->insert(TheFunction->end(), failBB);
+        ctx.irBuilder.SetInsertPoint(failBB);
+      }
+    }
+  }
+
+  // Fill the default block.
+  TheFunction->insert(TheFunction->end(), DefaultBB);
+  ctx.irBuilder.SetInsertPoint(DefaultBB);
+  ctx.irBuilder.CreateCall(ctx.nop);
+  ctx.irBuilder.CreateBr(MergeBB);
+
+  // Continue after the case statement.
+  TheFunction->insert(TheFunction->end(), MergeBB);
+  ctx.irBuilder.SetInsertPoint(MergeBB);
+  return ctx.irBuilder.CreateCall(ctx.nop);
+}
+
+

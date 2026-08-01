@@ -8,6 +8,8 @@
 #include <stack>
 #include <string>
 
+class ASTPattern;
+
 /*! \brief Constructs a dot graph that can be used to visualize the AST.
  *
  * The visualizer traverses the AST in a pre-order fashion, connecting, with
@@ -32,6 +34,12 @@ public:
    */
   void buildGraph(SyntaxTree &tree);
 
+  /*! \brief Construct an ASCII indented tree view of the AST.
+   *
+   * \param tree The root of the AST.
+   */
+  void buildAscii(SyntaxTree &tree);
+
 private:
   std::ostream &os;
   std::stack<ASTNode *> parent;
@@ -41,4 +49,8 @@ private:
   void declare_node(ASTNode *element, std::string label = "");
   void pushn(ASTNode *element, int n);
   void process_node(ASTNode *element);
+  void emitAsciiNode(ASTNode *node, const std::string &prefix, bool isLast,
+                     const std::string &role);
+  void emitAsciiPattern(ASTPattern *pattern, const std::string &prefix,
+                        bool isLast, const std::string &role);
 };

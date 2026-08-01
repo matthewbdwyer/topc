@@ -2,19 +2,19 @@
 
 /*
  * The Copier inherits all of the methods above from Substituter, but
- * it overrides the behavior for TipVar and TipAlpha.
+ * it overrides the behavior for TopVar and TopAlpha.
  */
-std::shared_ptr<TipType> Copier::copy(std::shared_ptr<TipType> t) {
+std::shared_ptr<TopType> Copier::copy(std::shared_ptr<TopType> t) {
   Copier visitor;
   t->accept(&visitor);
   return visitor.getResult();
 }
 
-void Copier::endVisit(TipVar *element) {
-  visitedTypes.push_back(std::make_shared<TipVar>(element->getNode()));
+void Copier::endVisit(TopVar *element) {
+  visitedTypes.push_back(std::make_shared<TopVar>(element->getNode()));
 }
 
-void Copier::endVisit(TipAlpha *element) {
+void Copier::endVisit(TopAlpha *element) {
   visitedTypes.push_back(
-      std::make_shared<TipAlpha>(element->getNode(), element->getName()));
+      std::make_shared<TopAlpha>(element->getNode(), element->getName()));
 }

@@ -1,0 +1,35 @@
+type MaybeAlloc = Empty | Hold(ref);
+f(x) 
+{
+  var r;
+  r = 0;
+  case x of {
+    Empty -> r = 0;
+    Hold(_) -> r = 1;
+  }
+  /* destroy x */
+  return r;
+}
+
+main() 
+{
+  return (1 - f(Hold(alloc 5)));
+}
+
+Types : {
+  MaybeAlloc : Empty | Hold(own&int)
+}
+
+Functions : {
+  f : (MaybeAlloc{Empty|Hold(own&int)}) -> int,
+  main : () -> int
+}
+
+Locals for function f : {
+  r : int,
+  x : MaybeAlloc{Empty|Hold(own&int)}
+}
+
+Locals for function main : {
+
+}

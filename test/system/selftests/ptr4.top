@@ -1,0 +1,13 @@
+// Pass an owned pointer to a function that modifies it and returns it.
+increment(p) {
+  *p = *p + 1;
+  return p;
+}
+
+main() {
+  var x;
+  x = alloc 42;
+  x = increment(x);
+  if (*x != 43) error *x;
+  return 0;
+}

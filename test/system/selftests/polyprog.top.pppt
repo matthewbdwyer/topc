@@ -1,0 +1,26 @@
+ident(p) 
+{
+  return *p;
+}
+
+main() 
+{
+  var n;
+  n = alloc 42;
+  if ((ident(n) != 42)) 
+    error ident(n);
+  return 0;
+}
+
+Functions : {
+  ident : (⭡α<(*p)@2:11>) -> α<(*p)@2:11>,
+  main : () -> int
+}
+
+Locals for function ident : {
+  p : ⭡α<(*p)@2:11>
+}
+
+Locals for function main : {
+  n : ⭡int
+}

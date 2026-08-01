@@ -1,8 +1,22 @@
 #include <cassert>
 #include "PolyTypeConstraintVisitor.h"
+#include "../../SemanticLogging.h"
+#include "ASTVariableExpr.h"
 #include "FreshAlphaCopier.h"
 #include "TypeVars.h"
+#include "TopMu.h"
+#include "TopTypeVisitor.h"
 #include "loguru.hpp"
+
+/// Returns true if \p t contains any TopMu node at any nesting level.
+static bool containsTopMu(TopType *t) {
+  struct Finder : public TopTypeVisitor {
+    bool found = false;
+    bool visit(TopMu *) override { found = true; return false; }
+  } finder;
+  t->accept(&finder);
+  return finder.found;
+}
 
 PolyTypeConstraintVisitor::PolyTypeConstraintVisitor(
     SymbolTable *st, CallGraph *cg, std::shared_ptr<Unifier> u,
@@ -36,41 +50,60 @@ PolyTypeConstraintVisitor::PolyTypeConstraintVisitor(
  *
  */
 void PolyTypeConstraintVisitor::endVisit(ASTFunAppExpr *element) {
-  std::vector<std::shared_ptr<TipType>> actuals;
+  std::vector<std::shared_ptr<TopType>> actuals;
   for (auto &a : element->getActuals()) {
     actuals.push_back(astToVar(a));
   }
 
   /* For each called function:
-   *   - if it is declared polymorphic then look up its generic type, insantiate
-   * it and unify
+   *   - if it is declared polymorphic AND the call is a direct named call
+   *     (not a higher-order parameter call), instantiate with fresh type vars
    *   - otherwise use the monomorphic approach
+   *
+   * The "direct named call" check prevents incorrect poly instantiation inside
+   * higher-order functions (e.g., apply(f,v){return f(v);}) where CFA resolves
+   * `f` to several possibly-poly functions that would generate conflicting types.
    */
+  auto *calleeExpr = dynamic_cast<ASTVariableExpr *>(element->getFunction());
+  bool isDirectNamedCall = calleeExpr != nullptr &&
+                           symbolTable->getFunction(calleeExpr->getName()) != nullptr;
+
   for (auto f : callGraph->getCalledFuns(element)) {
     auto fName = f->getName();
     auto fDecl = symbolTable->getFunction(fName);
     auto isPoly = symbolTable->getPoly(fName);
 
-    if (isPoly) {
+    if (isPoly && isDirectNamedCall) {
       auto genericType = unifier->inferred(astToVar(fDecl));
-      auto copyType = FreshAlphaCopier::copy(genericType.get(), element);
 
-      auto instantiatedType = std::dynamic_pointer_cast<TipFunction>(copyType);
-      assert(instantiatedType != nullptr);
+      // Only do poly instantiation when the closed type has free type
+      // variables.  If there are none (e.g. fully-concrete or recursive record
+      // types), fresh copying would re-introduce TopMu nodes into the solver,
+      // which the TermUnifier cannot handle.  Fall through to mono instead.
+      auto freeVars = TypeVars::collect(genericType.get());
+      if (!freeVars.empty() && !containsTopMu(genericType.get())) {
+        auto copyType = FreshAlphaCopier::copy(genericType.get(), element);
 
-      LOG_S(1) << "Polymorphic type constraint for application of " << fName
-               << " with generic type " << *genericType
-               << " using instantiated type " << *instantiatedType;
+        auto instantiatedType = std::dynamic_pointer_cast<TopFunction>(copyType);
+        assert(instantiatedType != nullptr);
 
-      // Polymorphic function application
-      constraintHandler->handle(
-          instantiatedType,
-          std::make_shared<TipFunction>(actuals, astToVar(element)));
-    } else {
+        SEMANTIC_LOG(2, "type-inference")
+          << "instantiate function=" << fName << " generic=" << *genericType
+          << " instantiated=" << *instantiatedType;
+
+        // Polymorphic function application
+        constraintHandler->handle(
+            instantiatedType,
+            std::make_shared<TopFunction>(actuals, astToVar(element)));
+        continue;
+      }
+      // else: fall through to monomorphic handling below
+    }
+    {
       // Monomorphic function application
       constraintHandler->handle(
           astToVar(element->getFunction()),
-          std::make_shared<TipFunction>(actuals, astToVar(element)));
+          std::make_shared<TopFunction>(actuals, astToVar(element)));
     }
   }
 }

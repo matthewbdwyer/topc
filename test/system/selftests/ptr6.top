@@ -1,0 +1,11 @@
+// Aliased pointer: y holds the same pointer as x; modifying *x is visible
+// through **y.
+main() {
+  var x, y;
+  x = alloc 42;
+  y = alloc x;
+  if (**y != 42) error **y;
+  *x = 13;
+  if (**y != 13) error **y;
+  return 0;
+}

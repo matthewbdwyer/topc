@@ -12,6 +12,11 @@ std::vector<ASTDeclStmt *> ASTFunction::getDeclarations() const {
 
 std::vector<ASTStmt *> ASTFunction::getStmts() const { return rawRefs(BODY); }
 
+void ASTFunction::insertBeforeReturn(std::shared_ptr<ASTStmt> stmt) {
+  // BODY.back() is always the returnStmt — insert before it.
+  BODY.insert(BODY.end() - 1, std::move(stmt));
+}
+
 void ASTFunction::accept(ASTVisitor *visitor) {
   if (visitor->visit(this)) {
     getDecl()->accept(visitor);

@@ -1,0 +1,21 @@
+[ownership-result]
+  function identity : Copy
+  local identity.value : Copy
+  function main : Copy
+  local main.first : Own
+  local main.result : Copy
+  local main.second : Own
+[destruction-summary]
+  identity : 0 destroys
+  main : 1 destroy
+
+[ownership-constraints]
+  [ownership] - function identity : Copy
+  [ownership] 1:9 local identity.value : Copy
+  [ownership] - function main : Copy
+  [ownership] 6:6 local main.first : Own
+  [ownership] 6:13 local main.second : Own
+  [ownership] 6:21 local main.result : Copy
+  [move] 7:1 own first (ownership established by assignment)
+  [move] 8:1 move first (ownership moved via function argument)
+  [move] 8:1 own second (ownership established by assignment)

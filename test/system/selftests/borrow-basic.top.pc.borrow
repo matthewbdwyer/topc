@@ -1,0 +1,5 @@
+[borrow-result]
+  8:16 &x -> approved
+
+[borrow-constraints]
+  [borrow] 8:16 &x -> approved; direct argument 0 of read

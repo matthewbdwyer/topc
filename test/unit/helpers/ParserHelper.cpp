@@ -1,8 +1,8 @@
 #include "ParserHelper.h"
 #include "ConsoleErrorListener.h"
 #include "antlr4-runtime.h"
-#include <TIPLexer.h>
-#include <TIPParser.h>
+#include <TOPLexer.h>
+#include <TOPParser.h>
 
 // Handle parse errors
 class ErrorListener : public antlr4::BaseErrorListener {
@@ -21,9 +21,9 @@ public:
 
 bool ParserHelper::is_parsable(std::istream &stream) {
   antlr4::ANTLRInputStream input(stream);
-  TIPLexer lexer(&input);
+  TOPLexer lexer(&input);
   antlr4::CommonTokenStream tokens(&lexer);
-  TIPParser parser(&tokens);
+  TOPParser parser(&tokens);
 
   std::shared_ptr<bool> parseError = std::make_shared<bool>(false);
   ErrorListener errorListener(parseError);
@@ -34,17 +34,17 @@ bool ParserHelper::is_parsable(std::istream &stream) {
   parser.addErrorListener(&errorListener);
   parser.removeErrorListener(&antlr4::ConsoleErrorListener::INSTANCE);
 
-  TIPParser::ProgramContext *tree = parser.program();
+  TOPParser::ProgramContext *tree = parser.program();
   return !*parseError;
 }
 
 /* Assumes ParserHelper::is_parseable() is TRUE */
 std::string ParserHelper::parsetree(std::istream &stream) {
   antlr4::ANTLRInputStream input(stream);
-  TIPLexer lexer(&input);
+  TOPLexer lexer(&input);
   antlr4::CommonTokenStream tokens(&lexer);
-  TIPParser parser(&tokens);
-  TIPParser::ProgramContext *tree = parser.program();
+  TOPParser parser(&tokens);
+  TOPParser::ProgramContext *tree = parser.program();
   // Return printed string
   return tree->toStringTree(&parser, false);
 }

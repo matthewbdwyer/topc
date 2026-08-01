@@ -1,0 +1,10 @@
+/* Phase 11 destruction test: basic ownership free.
+ * The destruction pass inserts destroy(p) before return.
+ * With ASan, no memory leak is reported. */
+type Flag = On | Off;
+
+main() {
+  var p;
+  p = alloc 5;
+  return 0;
+}

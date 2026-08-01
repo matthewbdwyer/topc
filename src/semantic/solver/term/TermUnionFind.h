@@ -12,7 +12,7 @@
  * Mirrors the structure of UnionFind but operates on shared_ptr<Term> using
  * Term::equals() for value-based comparison.  This allows TermUnifier to use
  * the same union-find algorithm for constraint solving that Unifier uses at
- * the TipType level, giving students a consistent pedagogical experience.
+ * the TopType level, giving students a consistent pedagogical experience.
  *
  * Key invariant (same as UnionFind): when a variable is merged with a proper
  * type, the proper type becomes the canonical representative.

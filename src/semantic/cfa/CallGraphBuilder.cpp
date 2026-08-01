@@ -1,5 +1,5 @@
 #include "CallGraphBuilder.h"
-#include "loguru.hpp"
+#include "../SemanticLogging.h"
 
 CallGraphBuilder CallGraphBuilder::build(ASTProgram *ast, CFAnalyzer cfa) {
   CallGraphBuilder cgb(cfa);
@@ -18,8 +18,9 @@ bool CallGraphBuilder::visit(ASTFunAppExpr *element) {
   std::set<ASTFunction *> called;
   for (ASTFunction *f :
        cfa.getPossibleFunctionsForExpr(element->getFunction(), cfun)) {
-    LOG_S(1) << "Call graph builder: adding " << *cfun << " -> " << *f
-             << " based on call " << *element;
+    SEMANTIC_LOG(2, "call-graph")
+      << "add caller=" << cfun->getName() << " callee=" << f->getName()
+      << " call=" << *element;
     called.emplace(f);
     graph[cfun].insert(f);
     fromFunNameToASTFun[cfun->getName()] = cfun;
@@ -27,6 +28,7 @@ bool CallGraphBuilder::visit(ASTFunAppExpr *element) {
   }
   mayCall.insert(
       std::pair<ASTFunAppExpr *, std::set<ASTFunction *>>(element, called));
+  callSiteCaller[element] = cfun;
   return true;
 } // LCOV_EXCL_LINE
 
@@ -38,6 +40,10 @@ CallGraphBuilder::getCallGraph() {
 std::map<ASTFunAppExpr *, std::set<ASTFunction *>>
 CallGraphBuilder::getMayCall() {
   return mayCall;
+}
+
+std::map<ASTFunAppExpr *, ASTFunction *> CallGraphBuilder::getCallSiteCaller() {
+  return callSiteCaller;
 }
 
 std::map<std::string, ASTFunction *> CallGraphBuilder::getFunMap() {

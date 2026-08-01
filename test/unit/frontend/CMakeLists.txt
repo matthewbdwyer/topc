@@ -2,10 +2,11 @@ add_executable(frontend_unit_tests
         treetypes/ASTNodeTests.cpp)
 target_sources(
   frontend_unit_tests
-  PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/TIPParserTest.cpp
+  PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/TOPParserTest.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/ASTBuilderTest.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/ASTPrinterTest.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/ASTVisualizerTest.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/ConstraintRendererTest.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/PrettyPrinterTest.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/PreOrderIteratorTest.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/SyntaxTreeTest.cpp
@@ -22,7 +23,7 @@ target_link_libraries(
           error
           frontend
           test_helpers
-          tipc_test_includes
+          topc_test_includes
           coverage_config
           Catch2::Catch2WithMain)
 include(Catch)

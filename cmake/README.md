@@ -1,5 +1,5 @@
 # cmake
-CMake configurations for packages required by tipc.
+CMake configurations for packages required by topc.
 
 ## Upstream Projects
 + [Cmake-Codecov][1]

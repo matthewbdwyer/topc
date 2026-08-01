@@ -1,0 +1,36 @@
+helper(n) 
+{
+  var p, v;
+  p = alloc n;
+  v = *p;
+  return v;
+}
+
+main() 
+{
+  var i, total;
+  i = 0;
+  total = 0;
+  while ((5 > i)) 
+    {
+      total = (total + helper(i));
+      i = (i + 1);
+    }
+  return (total - 10);
+}
+
+Functions : {
+  helper : (α<(*p)@7:6>) -> α<(*p)@7:6>,
+  main : () -> int
+}
+
+Locals for function helper : {
+  n : α<(*p)@7:6>,
+  p : ⭡α<(*p)@7:6>,
+  v : α<(*p)@7:6>
+}
+
+Locals for function main : {
+  i : int,
+  total : int
+}

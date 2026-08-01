@@ -1,12 +1,19 @@
 #include "CallGraph.h"
-#include "loguru.hpp"
+#include "../SemanticLogging.h"
+
+#include <algorithm>
 
 std::shared_ptr<CallGraph> CallGraph::build(ASTProgram *ast, SymbolTable *st) {
-  LOG_S(1) << "Generating Control Flow Constraints";
+    SEMANTIC_LOG(1, "call-graph") << "start";
   auto cfa = CFAnalyzer::analyze(ast, st);
   auto cgb = CallGraphBuilder::build(ast, cfa);
-  return std::make_shared<CallGraph>(cgb.getCallGraph(), cgb.getMayCall(),
-                                     ast->getFunctions(), cgb.getFunMap());
+    auto result = std::make_shared<CallGraph>(
+      cgb.getCallGraph(), cgb.getMayCall(), cgb.getCallSiteCaller(),
+      ast->getFunctions(), cgb.getFunMap());
+    SEMANTIC_LOG(1, "call-graph")
+      << "complete vertices=" << result->getTotalVertices()
+      << " edges=" << result->getTotalEdges();
+    return result;
 }
 
 int CallGraph::getTotalVertices() { return total_vertices; }
@@ -103,4 +110,28 @@ bool CallGraph::existEdge(std::string caller, std::string callee) {
 
 ASTFunction *CallGraph::getASTFun(std::string f_name) {
   return fromFunNameToASTFuns[f_name];
+}
+
+std::vector<CallGraph::CfaConstraintRecord> CallGraph::getConstraintRecords() {
+  std::vector<CfaConstraintRecord> records;
+  records.reserve(mayCall.size());
+
+  for (const auto &entry : mayCall) {
+    auto *call = entry.first;
+    auto callerIt = callSiteCaller.find(call);
+    std::string callerName =
+        callerIt != callSiteCaller.end() ? callerIt->second->getName() : "<unknown>";
+
+    records.push_back({call, callerName, entry.second});
+  }
+
+  std::sort(records.begin(), records.end(), [](const auto &a, const auto &b) {
+    if (a.call->getLine() != b.call->getLine())
+      return a.call->getLine() < b.call->getLine();
+    if (a.call->getColumn() != b.call->getColumn())
+      return a.call->getColumn() < b.call->getColumn();
+    return a.callerName < b.callerName;
+  });
+
+  return records;
 }

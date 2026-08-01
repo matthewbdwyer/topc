@@ -1,89 +1,82 @@
-# Developing on UVA hardware (CLion)
-You can develop `tipc` on servers hosted by the CS department (e.g., portal,
-granger). The file system shared by these machines includes all of the required
-dependencies. For a familiar IDE experience, we can leverage JetBrains support
-for remote development. The following instructions describe how to install and
-configure the JetBrains thin client for `tipc` development on UVA hosted
-hardware.
+# Developing on UVA Hardware with CLion
 
-## Configuring SSH
-First, let us configure password-less logins to the server. In the following
-instructions we will use the [portal cluster][1].  
+You can develop `topc` on UVA CS servers such as `portal` or `granger`. Those
+machines provide the compiler and build dependencies used by the course setup.
+These notes show how to connect with JetBrains Gateway and CLion's thin client.
 
-We will use ssh keys instead of a username/password combination. Generate an
-SSH key for portal connections.
+## Configure SSH
+
+Generate an SSH key for portal connections:
 
 ```bash
-cd ~/.ssh  # Create this directory if it does not exist.
+mkdir -p ~/.ssh
+cd ~/.ssh
 ssh-keygen -t ed25519 -b 4096
 ```
 
-When prompted, choose a filename for your keys and leave the passphrase field
-empty.  
+Copy the public key to the remote server:
 
-Next, copy the public key you just created to the remote server. 
 ```bash
 ssh-copy-id -i ~/.ssh/<keyname> <computingID>@portal.cs.virginia.edu
 ```
 
-When prompted, provide your UVA CS password.  
+Test the connection:
 
-Once complete you should be able to ssh to the portal cluster without a password.  
 ```bash
 ssh -i ~/.ssh/<keyname> <computingID>@portal.cs.virginia.edu
 ```
 
-You can simplify the login experience with an [`ssh` config file][2]. In the
-`~/.ssh` directory create a file named `config`, and add an entry that looks
-like,
-```
+You can make the login shorter with `~/.ssh/config`:
+
+```sshconfig
 Host portal
   User <computingID>
   HostName portal.cs.virginia.edu
-  IdentityFile ~/.ssh/uva/<keyname>
+  IdentityFile ~/.ssh/<keyname>
 ```
 
-Now, you can login with `ssh portal`.
-
-## Cloning tipc
-From `portal`, clone `tipc`.
+After that, connect with:
 
 ```bash
-git clone https://github.com/matthewbdwyer/tipc.git
+ssh portal
 ```
 
-## Configuring the Remote environment.
-You can configure your environment on `portal` by loading and unloading
-[modules][3]. The `tipc` project includes [modulefiles][4] to help configure
-the environment. The modulefiles are in the `conf` directory.  
+## Clone TOPC
 
-You can load the tipc module with the following command.
+From `portal`, clone the public repository:
+
 ```bash
-module load ~/tipc/conf/modulefiles/tipc/F24
+git clone https://github.com/matthewbdwyer/topc.git
 ```
 
-Please note that there is an assumption in the stock modulefile that `tipc` is
-cloned to your home directory. If that assumption does not hold true, update
-the `topdir` variable in `conf/modules/tipc/F24` to the actual location of the
-`tipc` repository.  
+## Configure The Remote Environment
 
-To confirm the module was successfully loaded check the value of the `TIPCLANG`
-environment variable.  
+Load the `topc` modulefile from the checkout:
+
 ```bash
-echo $TIPCLANG
-# /sw/ubuntu-22.04/clangllvm/17.0.6/bin/clang
+module load ~/topc/conf/modulefiles/topc/F26
 ```
 
-To load the `tipc` environment every time you ssh to portal, add the `module
-load` command to your `bashrc`.
+The modulefile assumes the repository is cloned at `~/topc`. If you clone it
+elsewhere, update the `topdir` variable in `conf/modulefiles/topc/F26`.
+
+Confirm the environment is set:
+
 ```bash
-echo 'module load ~/tipc/conf/modulefiles/tipc/F24' >> ~/.bashrc
+echo $TOPCLANG
+# /sw/ubuntu2204/clangllvm/22.1.0/bin/clang
 ```
 
-## Building tipc from the Command Line.
-At this point you should be fully equipped to build tipc on portal from the command line.
+To load the environment on every portal login:
 
-From the `tipc` project directory,
+```bash
+echo 'module load ~/topc/conf/modulefiles/topc/F26' >> ~/.bashrc
+```
+
+## Build From The Command Line
+
+From the `topc` checkout:
+
 ```bash
 mkdir build
 cd build
@@ -91,93 +84,62 @@ cmake ..
 make -j4
 ```
 
-## Using the JetBrains thin client
-You may prefer to develop with an IDE. In that case you can use the [JetBrains
-Gateway and thin client][6]. In this setup the IDE runs entirely on the server.
-You connect to the IDE from a thin client on your local machine over SSH.  
+## Connect With JetBrains Gateway
 
-[JetBrains Gateway][5] can be installed as a standalone app. It also comes part
-of any JetBrains IDE distribution. That is, if you have CLion installed
-already, you need not install the gateway. The instructions will continue with
-the JetBrains Gateway standalone app but are nearly identical, and have been
-tested with CLion.  
+Launch JetBrains Gateway and choose **New Connection** under **SSH Connection**.
 
-First, launch the JetBrains Gateway application. From the "All Providers" page
-select "New Connection" under "SSH Connection".
+![](assets/clion/gateway_all_provider_new_connection.png)
 
-![](assets/clion/gateway_all_provider_new_connection.png")
-
-From the "Connect to SSH" page, select the gear icon next to the "Connection"
-drop down.
+Create or select your `portal` SSH configuration.
 
 ![](assets/clion/gateway_connect_ssh_connection.png)
 
-Select the "+" icon on the "SSH Configurations" page. Fill out the information
-as done in the screenshot below. Note the "Host" field should match the name of
-the entry in your ssh config. We chose the name, "portal", in our initial
-setup.   
-
 ![](assets/clion/gateway_ssh_configuration.png)
 
-If preferred, you can prevent the connection from being dropped for inactivity. Under "Connection Parameters" check the "Send keep-alive messages..." box.  
-
-Select "Test Connection" to verify you can establish a connection.  
+Use **Test Connection** to verify the SSH configuration.
 
 ![](assets/clion/gateway_ssh_configuration_connection_success.png)
 
-Select "Ok" on the "SSH Configurations" page and return to the "Connect to SSH"
-page. In the "Connection" drop down select the connection you just created.
-Select "Check Connection and Continue".  
+Return to the connection page and select **Check Connection and Continue**.
 
 ![](assets/clion/gateway_connect_ssh_connection_check_and_continue.png)
 
-You will then be prompted to "Choose IDE and Project". For the "IDE version",
-choose "CLion". For the "Project directory" choose the `tipc` repository we
-previously cloned to your home directory. Select "Download IDE and Connect"
+Choose CLion as the IDE and select the `topc` checkout as the project directory.
 
 ![](assets/clion/gateway_choose_ide.png)
 
-This process may take several minutes. Once complete, `tipc` should appear as
-an SSH project running on "portal". Select the project to open it.
+Once Gateway connects, open the remote project.
 
 ![](assets/clion/gateway_ssh_project.png)
 
-The `tipc` project will open in the JetBrains client.  
+## Configure CLion
 
-The IDE running on portal (that you are connected to) does not source the
-`bashrc` file as your shell does. As such, we need to configure your build
-environment within CLion.  
+If CLion shows the project wizard, accept the default toolchain and configure the
+CMake profile with:
 
-From the "Project Wizard" popup accept the default toolchain by pressing "Next".  
-
-Update the default CMake profile on the following page. Set the "Generator" to
-"Unix Makefiles", the "Build directory" to `build`, and the "Environment" to
-`LLVM_DIR=/sw/ubuntu-22.04/llvm/17.0.6/lib/cmake`. Select "Finish".
+- Generator: `Unix Makefiles`
+- Build directory: `build`
+- Environment: `LLVM_DIR=/sw/ubuntu2204/llvm/22.1.0/lib/cmake`
 
 ![](assets/clion/client_wizard_cmake.png)
 
-Note, if the "Project Wizard" does not appear, you can reach the same
-configuration page from the CLion settings. From the settings, navigate to
-"Build, Execution, Deployment" in the side menu, and then to "CMake". From here
-you can configure the default profile appropriately.  
+If the wizard does not appear, open CLion settings and configure the default
+CMake profile under **Build, Execution, Deployment**.
 
-Once complete, CLion will index your files and construct build configurations.  
+## Run TOPC From CLion
 
-## Running tipc from CLion
-You should now be able to run and debug tipc with the "play" and "debug" icons respectively.  
+Use the run/debug controls after CLion finishes indexing and configuring the
+project.
 
 ![](assets/clion/client_run_debug.png)
 
-You can pass arguments to `tipc` just as you do on the command line by editing
-the Run/Debug configuration.  
+Program arguments can be set in the run/debug configuration.
 
 ![](assets/clion/client_edit_conf.png)
 
-The screenshot below shows how you can pass the `--help` flag as one of the
-"Program arguments".  
+For example, pass `--help` as a program argument:
 
-![](assets/clion/client_conf_tipc_args.png)
-
+![](assets/clion/client_conf_topc_args.png)
 
 [1]: https://www.cs.virginia.edu/wiki/doku.php?id=compute_portal
 [2]: https://www.ssh.com/academy/ssh/config

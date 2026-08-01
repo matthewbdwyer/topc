@@ -4,7 +4,7 @@
 #include "ConstraintHandler.h"
 #include "PolyTypeConstraintVisitor.h"
 #include "SymbolTable.h"
-#include "TipType.h"
+#include "TopType.h"
 #include "TypeConstraint.h"
 #include <memory>
 #include <set>

@@ -11,7 +11,7 @@
 #include <vector>
 
 /*! \struct CodeGenContext
- *  \brief Holds all per-compilation state for TIP code generation.
+ *  \brief Holds all per-compilation state for TOP code generation.
  *
  * Replacing the 22 file-scope globals that lived in the anonymous namespace of
  * CodeGenFunctions.cpp.  Constructing a fresh CodeGenContext for each
@@ -40,16 +40,10 @@ struct CodeGenContext {
   // Per-function local variable bindings
   std::map<std::string, llvm::AllocaInst *> namedValues;
 
-  // Unified record type for all TIP records
-  llvm::StructType *  globalRecordType           = nullptr;
-  llvm::PointerType * pointerToGlobalRecordType  = nullptr;
-  std::map<std::string, int> fieldIndex;
-  std::vector<std::string>   fieldVector;
-
   // Global variables emitted into the module
-  llvm::GlobalVariable *tipFunctionTable = nullptr;
-  llvm::GlobalVariable *tipNumInputs     = nullptr;
-  llvm::GlobalVariable *tipInputArray    = nullptr;
+  llvm::GlobalVariable *topFunctionTable = nullptr;
+  llvm::GlobalVariable *topNumInputs     = nullptr;
+  llvm::GlobalVariable *topInputArray    = nullptr;
 
   // Intrinsic / runtime functions
   llvm::Function *nop             = nullptr;
@@ -57,11 +51,12 @@ struct CodeGenContext {
   llvm::Function *outputIntrinsic = nullptr;
   llvm::Function *errorIntrinsic  = nullptr;
   llvm::Function *callocFun       = nullptr;
+  llvm::Function *freeFun         = nullptr;
 
   // Counters and flags
-  int     labelNum   = 0;
-  int64_t numTIPArgs = 0;
-  bool    lValueGen  = false;
+  int     labelNum = 0;
+  int64_t numArgs  = 0;
+  bool    lValueGen = false;
   bool    allocFlag  = false;
 
   // Non-copyable.

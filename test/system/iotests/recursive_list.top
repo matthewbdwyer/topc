@@ -1,0 +1,32 @@
+type List = Nil | Cons(head, tail);
+
+length(lst) {
+  var n;
+  n = 0;
+  case lst of {
+    Nil -> n = 0;
+    Cons(h, t) -> n = 1 + length(t);
+  }
+  return n;
+}
+
+sum(lst) {
+  var s;
+  s = 0;
+  case lst of {
+    Nil -> s = 0;
+    Cons(h, t) -> s = h + sum(t);
+  }
+  return s;
+}
+
+main() {
+  var lst, n, s, ok;
+  lst = Cons(1, Cons(2, Cons(3, Nil)));
+  n = length(lst);
+  s = sum(lst);
+  ok = 1;
+  if (n != 3) { ok = 0; }
+  if (s != 6) { ok = 0; }
+  return 1 - ok;
+}

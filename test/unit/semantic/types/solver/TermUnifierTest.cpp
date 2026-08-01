@@ -97,7 +97,7 @@ TEST_CASE("TermUnifier: different functor fails", "[TermUnifier]") {
 }
 
 // Note: no occurs check — cyclic constraints are permitted and handled in
-// TipTermClosure::close() via TipMu.  The two former occurs-check tests
+// TopTermClosure::close() via TopMu.  The two former occurs-check tests
 // (direct and indirect) have been removed in Phase 4.5.
 
 TEST_CASE("TermUnifier: transitivity", "[TermUnifier]") {

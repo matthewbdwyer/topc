@@ -1,15 +1,15 @@
 #include "ASTHelper.h"
 #include "ConsoleErrorListener.h"
 #include "antlr4-runtime.h"
-#include <TIPLexer.h>
-#include <TIPParser.h>
+#include <TOPLexer.h>
+#include <TOPParser.h>
 
 std::shared_ptr<ASTProgram> ASTHelper::build_ast(std::stringstream &stream) {
     antlr4::ANTLRInputStream input(stream);
-    TIPLexer lexer(&input);
+    TOPLexer lexer(&input);
     antlr4::CommonTokenStream tokens(&lexer);
-    TIPParser parser(&tokens);
-    TIPParser::ProgramContext *tree = parser.program();
+    TOPParser parser(&tokens);
+    TOPParser::ProgramContext *tree = parser.program();
     ASTBuilder tb(&parser);
     return tb.build(tree);
 }

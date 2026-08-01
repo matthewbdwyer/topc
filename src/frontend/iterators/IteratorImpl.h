@@ -3,7 +3,7 @@
 
 /*! \brief The interface that an iterator should follow.
  *
- * Please note that this is not the client-facing interface. This is a tipc
+ * Please note that this is not the client-facing interface. This is a topc
  * internal.
  */
 class IteratorImpl {

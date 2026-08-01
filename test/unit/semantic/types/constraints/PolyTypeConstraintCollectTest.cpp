@@ -12,11 +12,16 @@
 #include <sstream>
 
 static void testidentmain(std::stringstream &program,
-                          std::set<std::string> &expected) {
+                          std::set<std::string> &expected,
+                          bool polyIdent = false) {
   auto ast = ASTHelper::build_ast(program);
   auto symbols = SymbolTable::build(ast.get());
   auto unifier = std::make_shared<Unifier>();
   auto cg = CallGraph::build(ast.get(), symbols.get());
+
+  // For the polymorphic test, simulate auto-generalization by marking ident poly
+  if (polyIdent)
+    symbols->setPoly("ident");
 
   // First generate the monomorphic constraints for ident, since we need them in
   // a unifier
@@ -63,21 +68,21 @@ main() {
       "\u27E6ident(&x)@8:6\u27E7", // no instantiation of generic type ident
       "\u27E6ident@1:0\u27E7 = (\u27E642@7:12\u27E7) -> "
       "\u27E6ident(42)@7:6\u27E7", // no instantiation of generic type for ident
-      "\u27E6&x@8:12\u27E7 = \u2B61\u27E6x@6:6\u27E7",
+      "\u27E6&x@8:12\u27E7 = borrow&\u27E6x@6:6\u27E7",
       "\u27E6(*x)@9:9\u27E7 = int",
       "\u27E642@7:12\u27E7 = int",
       "\u27E6main@5:0\u27E7 = () -> \u27E6(*x)@9:9\u27E7",
       "\u27E6x@6:6\u27E7 = \u27E6ident(42)@7:6\u27E7",
-      "\u27E6x@6:6\u27E7 = \u2B61\u27E6(*x)@9:9\u27E7",
+      "ref&\u27E6(*x)@9:9\u27E7 = \u27E6x@6:6\u27E7",
       "\u27E6y@6:9\u27E7 = \u27E6ident(&x)@8:6\u27E7"};
 
-  testidentmain(program, expected);
+  testidentmain(program, expected); // polyIdent=false (default): monomorphic
 }
 
 TEST_CASE("PolyTypeConstraintVisitor: polymorphic identity function",
           "[TypeConstraintVisitor]") {
   std::stringstream program;
-  program << R"(ident(p) poly {
+  program << R"(ident(p) {
  return p;
 }
 
@@ -97,12 +102,12 @@ main() {
       "(\u27E642@7:12\u27E7) -> \u27E6ident(42)@7:6\u27E7", // Instantiation of
                                                             // generic type for
                                                             // first call
-      "\u27E6&x@8:12\u27E7 = \u2B61\u27E6x@6:6\u27E7",
+      "\u27E6&x@8:12\u27E7 = borrow&\u27E6x@6:6\u27E7",
       "\u27E6(*x)@9:9\u27E7 = int", "\u27E642@7:12\u27E7 = int",
       "\u27E6main@5:0\u27E7 = () -> \u27E6(*x)@9:9\u27E7",
       "\u27E6x@6:6\u27E7 = \u27E6ident(42)@7:6\u27E7",
-      "\u27E6x@6:6\u27E7 = \u2B61\u27E6(*x)@9:9\u27E7",
+      "ref&\u27E6(*x)@9:9\u27E7 = \u27E6x@6:6\u27E7",
       "\u27E6y@6:9\u27E7 = \u27E6ident(&x)@8:6\u27E7"};
 
-  testidentmain(program, expected);
+  testidentmain(program, expected, true); // polyIdent=true: auto-generalized
 }

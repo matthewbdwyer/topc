@@ -1,0 +1,12 @@
+identity(value) {
+  return value;
+}
+
+main() {
+  var first, second, result;
+  first = alloc 42;
+  second = identity(first);
+  result = *second;
+  if (result != 42) error result;
+  return 0;
+}

@@ -1,0 +1,98 @@
+// Phase A + B showcase: measurements, results, and shapes.
+//
+// Features demonstrated:
+//   Phase A  -- sum types with 0/1/2-arity constructors; case statement
+//   Phase B1 -- nested constructor patterns (grammar + AST)
+//   Phase B2 -- type inference for nested constructor variable patterns
+//   Phase B3 -- exhaustiveness and redundancy checking
+//   Phase B4 -- codegen: nested ctor var bindings, record field bindings,
+//               grouped arms per outer tag, wildcard at Copy payload
+
+// A raw measurement: no value, a precise value, or an approximate value+error.
+type Measurement = Unknown | Exact(n) | Approx(val, err);
+
+// A labeled result: either a good Measurement, or a failure code.
+type Result = Bad(code) | Good(m);
+
+// A 2D shape.
+type Shape = Dot | Segment(len) | Rect(dims) | Tri(sides);
+
+// ── sign ──────────────────────────────────────────────────────────────────────
+// Classify a Measurement: 1 (positive), -1 (negative), 0 (zero), -999 (unknown).
+// Exercises: 0-arity arm (Unknown), 1-arity arm (Exact), 2-arity arm with
+//            wildcard on the second (Copy) payload (Approx).
+
+sign(m) {
+  var r;
+  r = 0;
+  case m of {
+    Unknown      -> r = 0 - 999;
+    Exact(n)     -> if (n > 0) { r = 1; } else { if (0 > n) { r = 0 - 1; } }
+    Approx(v, _) -> if (v > 0) { r = 1; } else { if (0 > v) { r = 0 - 1; } }
+  }
+  return r;
+}
+
+// ── interpret ─────────────────────────────────────────────────────────────────
+// Unwrap a Result<Measurement> into an integer.
+// The three Good arms exercise B4's grouped-arm codegen: for the same outer
+// constructor tag (Good), the compiler emits a chain of inner-tag checks
+// that fall through to the next arm on mismatch.
+
+interpret(res) {
+  var r;
+  r = 0;
+  case res of {
+    Bad(code)           -> r = 0 - code;     // outer Bad arm
+    Good(Unknown)       -> r = 0 - 999;      // Good wrapping 0-arity inner
+    Good(Exact(n))      -> r = n;            // Good wrapping Exact: bind n
+    Good(Approx(v, _))  -> r = v;            // Good wrapping Approx: bind v, discard err
+  }
+  return r;
+}
+
+// ── perimeter ─────────────────────────────────────────────────────────────────
+// Compute the perimeter of a Shape.
+// Rect and Tri use B4 record field patterns to destructure their payloads.
+
+perimeter(s) {
+  var p;
+  p = 0;
+  case s of {
+    Dot                        -> p = 0;
+    Segment(n)                 -> p = 2 * n;
+    Rect({w: ww, h: hh})       -> p = 2 * (ww + hh);
+    Tri({a: aa, b: bb, c: cc}) -> p = aa + bb + cc;
+  }
+  return p;
+}
+
+// ── main ──────────────────────────────────────────────────────────────────────
+// All assertions: set ok=0 on failure. Returns 0 if everything passes.
+
+main() {
+  var ok;
+  ok = 1;
+
+  // Phase A: plain case statement on 0/1/2-arity constructors
+  if (sign(Unknown) != 0 - 999)         { ok = 0; }   // 0-arity arm
+  if (sign(Exact(5)) != 1)              { ok = 0; }   // positive exact
+  if (sign(Exact(0 - 3)) != 0 - 1)     { ok = 0; }   // negative exact
+  if (sign(Exact(0)) != 0)              { ok = 0; }   // zero exact
+  if (sign(Approx(7, 2)) != 1)          { ok = 0; }   // 2-arity, wildcard err
+  if (sign(Approx(0 - 4, 1)) != 0 - 1) { ok = 0; }   // 2-arity, negative val
+
+  // Phase B4: nested constructor patterns + grouped arms (interpret)
+  if (interpret(Bad(42)) != 0 - 42)         { ok = 0; }   // outer Bad
+  if (interpret(Good(Unknown)) != 0 - 999)  { ok = 0; }   // Good(0-arity)
+  if (interpret(Good(Exact(10))) != 10)     { ok = 0; }   // Good(Exact(n))
+  if (interpret(Good(Approx(5, 1))) != 5)  { ok = 0; }   // Good(Approx(v,_))
+
+  // Phase B4: record field patterns (perimeter)
+  if (perimeter(Dot) != 0)                         { ok = 0; }
+  if (perimeter(Segment(7)) != 14)                 { ok = 0; }   // 2*7
+  if (perimeter(Rect({w: 3, h: 4})) != 14)        { ok = 0; }   // 2*(3+4)
+  if (perimeter(Tri({a: 3, b: 4, c: 5})) != 12)  { ok = 0; }   // 3+4+5
+
+  return 1 - ok;   // 0 = all checks passed
+}

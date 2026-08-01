@@ -87,6 +87,14 @@ public:
     return getFunctor() == other.getFunctor() && arity() == other.arity();
   }
 
+  virtual bool preferAsRepresentativeOver(const Term &other) const {
+    return false;
+  }
+
+  virtual bool unifiesByStructureOnlyWith(const Term &other) const {
+    return false;
+  }
+
   /**
    * @brief Check structural equality of two terms.
    * @param other The term to compare with.

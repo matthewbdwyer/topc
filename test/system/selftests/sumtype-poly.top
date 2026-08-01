@@ -1,0 +1,24 @@
+// Inferred Result payload types; tests a polymorphic getOrDefault function
+// that works over both constructor variants.
+type Result = Ok(val) | Err(code);
+
+getOrDefault(r, def) {
+  var v;
+  v = def;
+  case r of {
+    Ok(x)  -> v = x;
+    Err(c) -> v = def;
+  }
+  return v;
+}
+
+main() {
+  var a, b, ok;
+  a = getOrDefault(Ok(42), 0);
+  b = getOrDefault(Err(1), 99);
+  // a must be 42 and b must be 99
+  ok = 1;
+  if (a != 42) { ok = 0; }
+  if (b != 99) { ok = 0; }
+  return 1 - ok;
+}

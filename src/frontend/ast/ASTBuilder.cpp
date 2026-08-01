@@ -1,5 +1,9 @@
 #include "ASTBuilder.h"
 
+#include "ASTCtorPattern.h"
+#include "ASTVarPattern.h"
+#include "ASTWildcardPattern.h"
+#include "InternalError.h"
 #include "picosha2.h"
 
 #include "loguru.hpp"
@@ -8,30 +12,30 @@
 
 using namespace antlrcpp;
 
-ASTBuilder::ASTBuilder(TIPParser *p) : parser{p} {}
+ASTBuilder::ASTBuilder(TOPParser *p) : parser{p} {}
 
 std::string ASTBuilder::opString(int op) {
   std::string opStr;
   switch (op) {
-  case TIPParser::MUL:
+  case TOPParser::MUL:
     opStr = "*";
     break;
-  case TIPParser::DIV:
+  case TOPParser::DIV:
     opStr = "/";
     break;
-  case TIPParser::ADD:
+  case TOPParser::ADD:
     opStr = "+";
     break;
-  case TIPParser::SUB:
+  case TOPParser::SUB:
     opStr = "-";
     break;
-  case TIPParser::GT:
+  case TOPParser::GT:
     opStr = ">";
     break;
-  case TIPParser::EQ:
+  case TOPParser::EQ:
     opStr = "==";
     break;
-  case TIPParser::NE:
+  case TOPParser::NE:
     opStr = "!=";
     break;
   default:
@@ -51,15 +55,18 @@ static std::shared_ptr<ASTStmt> visitedStmt = nullptr;
 static std::shared_ptr<ASTDeclNode> visitedDeclNode = nullptr;
 static std::shared_ptr<ASTDeclStmt> visitedDeclStmt = nullptr;
 static std::shared_ptr<ASTExpr> visitedExpr = nullptr;
-static std::shared_ptr<ASTFieldExpr> visitedFieldExpr = nullptr;
 static std::shared_ptr<ASTFunction> visitedFunction = nullptr;
+static std::shared_ptr<ASTSumTypeDecl> visitedTypedecl = nullptr;
+static std::shared_ptr<ASTSumVariant> visitedSumVariant = nullptr;
+static std::shared_ptr<ASTCaseArm> visitedCaseArm = nullptr;
+static std::shared_ptr<ASTPattern> visitedPattern = nullptr;
 
 /**********************************************************************
- * These methods override selected methods in the TIPBaseVisitor.
+ * These methods override selected methods in the TOPBaseVisitor.
  *
  * For each rule name in an ANTLR4 grammar a visit method and a
  * "context" class is generated.  The visit methods are defined in
- * TIPBaseVisitor.h and the context classes in TIPParser.h
+ * TOPBaseVisitor.h and the context classes in TOPParser.h
  *
  * Only the methods for grammar rules that "directly" contain
  * content that must be processed need to be overridden.  For example,
@@ -83,19 +90,25 @@ static std::shared_ptr<ASTFunction> visitedFunction = nullptr;
  * You will access these from the method overrides in your visitor.
  */
 
-std::shared_ptr<ASTProgram> ASTBuilder::build(TIPParser::ProgramContext *ctx) {
+std::shared_ptr<ASTProgram> ASTBuilder::build(TOPParser::ProgramContext *ctx) {
+  std::vector<std::shared_ptr<ASTSumTypeDecl>> pTypedecls;
+  for (auto td : ctx->typeDecl()) {
+    visit(td);
+    pTypedecls.push_back(visitedTypedecl);
+  }
+
   std::vector<std::shared_ptr<ASTFunction>> pFunctions;
   for (auto fn : ctx->function()) {
     visit(fn);
     pFunctions.push_back(visitedFunction);
   }
 
-  auto prog = std::make_shared<ASTProgram>(pFunctions);
+  auto prog = std::make_shared<ASTProgram>(pTypedecls, pFunctions);
   prog->setName(generateSHA256(ctx->getText()));
   return prog;
 }
 
-Any ASTBuilder::visitFunction(TIPParser::FunctionContext *ctx) {
+Any ASTBuilder::visitFunction(TOPParser::FunctionContext *ctx) {
   std::shared_ptr<ASTDeclNode> fName;
   std::vector<std::shared_ptr<ASTDeclNode>> fParams;
   std::vector<std::shared_ptr<ASTDeclStmt>> fDecls;
@@ -112,8 +125,6 @@ Any ASTBuilder::visitFunction(TIPParser::FunctionContext *ctx) {
     }
   }
 
-  bool isPoly = ctx->KPOLY() != nullptr;
-
   for (auto decl : ctx->declaration()) {
     visit(decl);
     fDecls.push_back(visitedDeclStmt);
@@ -124,12 +135,12 @@ Any ASTBuilder::visitFunction(TIPParser::FunctionContext *ctx) {
     fBody.push_back(visitedStmt);
   }
 
-  // return statement is always the last statement in a TIP function body
+  // return statement is always the last statement in a TOP function body
   visit(ctx->returnStmt());
   fBody.push_back(visitedStmt);
 
   visitedFunction =
-      std::make_shared<ASTFunction>(fName, fParams, fDecls, fBody, isPoly);
+      std::make_shared<ASTFunction>(fName, fParams, fDecls, fBody, false);
 
   LOG_S(1) << "Built AST node for function " << *visitedFunction;
 
@@ -139,7 +150,7 @@ Any ASTBuilder::visitFunction(TIPParser::FunctionContext *ctx) {
   return "";
 }
 
-Any ASTBuilder::visitNegNumber(TIPParser::NegNumberContext *ctx) {
+Any ASTBuilder::visitNegNumber(TOPParser::NegNumberContext *ctx) {
   int val = std::stoi(ctx->NUMBER()->getText());
   val = -val;
   visitedExpr = std::make_shared<ASTNumberExpr>(val);
@@ -179,34 +190,34 @@ void ASTBuilder::visitBinaryExpr(T *ctx, const std::string &op) {
                            ctx->getStart()->getCharPositionInLine());
 }
 
-Any ASTBuilder::visitAdditiveExpr(TIPParser::AdditiveExprContext *ctx) {
+Any ASTBuilder::visitAdditiveExpr(TOPParser::AdditiveExprContext *ctx) {
   visitBinaryExpr(ctx, opString(ctx->op->getType()));
   return "";
 } // LCOV_EXCL_LINE
 
-Any ASTBuilder::visitRelationalExpr(TIPParser::RelationalExprContext *ctx) {
+Any ASTBuilder::visitRelationalExpr(TOPParser::RelationalExprContext *ctx) {
   visitBinaryExpr(ctx, opString(ctx->op->getType()));
   return "";
 } // LCOV_EXCL_LINE
 
 Any ASTBuilder::visitMultiplicativeExpr(
-    TIPParser::MultiplicativeExprContext *ctx) {
+    TOPParser::MultiplicativeExprContext *ctx) {
   visitBinaryExpr(ctx, opString(ctx->op->getType()));
   return "";
 } // LCOV_EXCL_LINE
 
-Any ASTBuilder::visitEqualityExpr(TIPParser::EqualityExprContext *ctx) {
+Any ASTBuilder::visitEqualityExpr(TOPParser::EqualityExprContext *ctx) {
   visitBinaryExpr(ctx, opString(ctx->op->getType()));
   return "";
 } // LCOV_EXCL_LINE
 
-Any ASTBuilder::visitParenExpr(TIPParser::ParenExprContext *ctx) {
+Any ASTBuilder::visitParenExpr(TOPParser::ParenExprContext *ctx) {
   visit(ctx->expr());
   // leave visitedExpr from expr unchanged
   return "";
 } // LCOV_EXCL_LINE
 
-Any ASTBuilder::visitNumExpr(TIPParser::NumExprContext *ctx) {
+Any ASTBuilder::visitNumExpr(TOPParser::NumExprContext *ctx) {
   int val = std::stoi(ctx->NUMBER()->getText());
   visitedExpr = std::make_shared<ASTNumberExpr>(val);
 
@@ -218,7 +229,7 @@ Any ASTBuilder::visitNumExpr(TIPParser::NumExprContext *ctx) {
   return "";
 } // LCOV_EXCL_LINE
 
-Any ASTBuilder::visitVarExpr(TIPParser::VarExprContext *ctx) {
+Any ASTBuilder::visitVarExpr(TOPParser::VarExprContext *ctx) {
   std::string name = ctx->IDENTIFIER()->getText();
   visitedExpr = std::make_shared<ASTVariableExpr>(name);
 
@@ -230,7 +241,7 @@ Any ASTBuilder::visitVarExpr(TIPParser::VarExprContext *ctx) {
   return "";
 }
 
-Any ASTBuilder::visitInputExpr(TIPParser::InputExprContext *ctx) {
+Any ASTBuilder::visitInputExpr(TOPParser::InputExprContext *ctx) {
   visitedExpr = std::make_shared<ASTInputExpr>();
 
   LOG_S(1) << "Built AST node " << *visitedExpr;
@@ -241,7 +252,7 @@ Any ASTBuilder::visitInputExpr(TIPParser::InputExprContext *ctx) {
   return "";
 } // LCOV_EXCL_LINE
 
-Any ASTBuilder::visitFunAppExpr(TIPParser::FunAppExprContext *ctx) {
+Any ASTBuilder::visitFunAppExpr(TOPParser::FunAppExprContext *ctx) {
   std::shared_ptr<ASTExpr> fExpr = nullptr;
   std::vector<std::shared_ptr<ASTExpr>> fArgs;
 
@@ -267,7 +278,7 @@ Any ASTBuilder::visitFunAppExpr(TIPParser::FunAppExprContext *ctx) {
   return "";
 }
 
-Any ASTBuilder::visitAllocExpr(TIPParser::AllocExprContext *ctx) {
+Any ASTBuilder::visitAllocExpr(TOPParser::AllocExprContext *ctx) {
   visit(ctx->expr());
   visitedExpr = std::make_shared<ASTAllocExpr>(visitedExpr);
 
@@ -279,9 +290,9 @@ Any ASTBuilder::visitAllocExpr(TIPParser::AllocExprContext *ctx) {
   return "";
 } // LCOV_EXCL_LINE
 
-Any ASTBuilder::visitRefExpr(TIPParser::RefExprContext *ctx) {
+Any ASTBuilder::visitRefExpr(TOPParser::RefExprContext *ctx) {
   visit(ctx->expr());
-  visitedExpr = std::make_shared<ASTRefExpr>(visitedExpr);
+  visitedExpr = std::make_shared<ASTBorrowExpr>(visitedExpr);
 
   LOG_S(1) << "Built AST node " << *visitedExpr;
 
@@ -291,7 +302,7 @@ Any ASTBuilder::visitRefExpr(TIPParser::RefExprContext *ctx) {
   return "";
 } // LCOV_EXCL_LINE
 
-Any ASTBuilder::visitDeRefExpr(TIPParser::DeRefExprContext *ctx) {
+Any ASTBuilder::visitDeRefExpr(TOPParser::DeRefExprContext *ctx) {
   visit(ctx->expr());
   visitedExpr = std::make_shared<ASTDeRefExpr>(visitedExpr);
 
@@ -303,64 +314,7 @@ Any ASTBuilder::visitDeRefExpr(TIPParser::DeRefExprContext *ctx) {
   return "";
 } // LCOV_EXCL_LINE
 
-Any ASTBuilder::visitNullExpr(TIPParser::NullExprContext *ctx) {
-  visitedExpr = std::make_shared<ASTNullExpr>();
-
-  LOG_S(1) << "Built AST node " << *visitedExpr;
-
-  // Set source location
-  visitedExpr->setLocation(ctx->getStart()->getLine(),
-                           ctx->getStart()->getCharPositionInLine());
-  return "";
-} // LCOV_EXCL_LINE
-
-Any ASTBuilder::visitRecordExpr(TIPParser::RecordExprContext *ctx) {
-  std::vector<std::shared_ptr<ASTFieldExpr>> rFields;
-  for (auto fn : ctx->fieldExpr()) {
-    visit(fn);
-    rFields.push_back(visitedFieldExpr);
-  }
-
-  visitedExpr = std::make_shared<ASTRecordExpr>(rFields);
-
-  LOG_S(1) << "Built AST node " << *visitedExpr;
-
-  // Set source location
-  visitedExpr->setLocation(ctx->getStart()->getLine(),
-                           ctx->getStart()->getCharPositionInLine());
-  return "";
-}
-
-Any ASTBuilder::visitFieldExpr(TIPParser::FieldExprContext *ctx) {
-  std::string fName = ctx->IDENTIFIER()->getText();
-  visit(ctx->expr());
-  visitedFieldExpr = std::make_shared<ASTFieldExpr>(fName, visitedExpr);
-
-  LOG_S(1) << "Built AST node " << *visitedExpr;
-
-  // Set source location
-  visitedFieldExpr->setLocation(ctx->getStart()->getLine(),
-                                ctx->getStart()->getCharPositionInLine());
-  return "";
-}
-
-Any ASTBuilder::visitAccessExpr(TIPParser::AccessExprContext *ctx) {
-  std::string fName = ctx->IDENTIFIER()->getText();
-
-  visit(ctx->expr());
-  auto rExpr = visitedExpr;
-
-  visitedExpr = std::make_shared<ASTAccessExpr>(rExpr, fName);
-
-  LOG_S(1) << "Built AST node " << *visitedExpr;
-
-  // Set source location
-  visitedExpr->setLocation(ctx->getStart()->getLine(),
-                           ctx->getStart()->getCharPositionInLine());
-  return "";
-}
-
-Any ASTBuilder::visitDeclaration(TIPParser::DeclarationContext *ctx) {
+Any ASTBuilder::visitDeclaration(TOPParser::DeclarationContext *ctx) {
   std::vector<std::shared_ptr<ASTDeclNode>> dVars;
   for (auto decl : ctx->nameDeclaration()) {
     visit(decl);
@@ -376,7 +330,7 @@ Any ASTBuilder::visitDeclaration(TIPParser::DeclarationContext *ctx) {
   return "";
 }
 
-Any ASTBuilder::visitNameDeclaration(TIPParser::NameDeclarationContext *ctx) {
+Any ASTBuilder::visitNameDeclaration(TOPParser::NameDeclarationContext *ctx) {
   std::string name = ctx->IDENTIFIER()->getText();
   visitedDeclNode = std::make_shared<ASTDeclNode>(name);
 
@@ -388,7 +342,7 @@ Any ASTBuilder::visitNameDeclaration(TIPParser::NameDeclarationContext *ctx) {
   return "";
 }
 
-Any ASTBuilder::visitBlockStmt(TIPParser::BlockStmtContext *ctx) {
+Any ASTBuilder::visitBlockStmt(TOPParser::BlockStmtContext *ctx) {
   std::vector<std::shared_ptr<ASTStmt>> bStmts;
   for (auto s : ctx->statement()) {
     visit(s);
@@ -404,7 +358,7 @@ Any ASTBuilder::visitBlockStmt(TIPParser::BlockStmtContext *ctx) {
   return "";
 }
 
-Any ASTBuilder::visitWhileStmt(TIPParser::WhileStmtContext *ctx) {
+Any ASTBuilder::visitWhileStmt(TOPParser::WhileStmtContext *ctx) {
   visit(ctx->expr());
   auto cond = visitedExpr;
   visit(ctx->statement());
@@ -419,7 +373,7 @@ Any ASTBuilder::visitWhileStmt(TIPParser::WhileStmtContext *ctx) {
   return "";
 }
 
-Any ASTBuilder::visitIfStmt(TIPParser::IfStmtContext *ctx) {
+Any ASTBuilder::visitIfStmt(TOPParser::IfStmtContext *ctx) {
   visit(ctx->expr());
   auto cond = visitedExpr;
   visit(ctx->statement(0));
@@ -442,7 +396,7 @@ Any ASTBuilder::visitIfStmt(TIPParser::IfStmtContext *ctx) {
   return "";
 }
 
-Any ASTBuilder::visitOutputStmt(TIPParser::OutputStmtContext *ctx) {
+Any ASTBuilder::visitOutputStmt(TOPParser::OutputStmtContext *ctx) {
   visit(ctx->expr());
   visitedStmt = std::make_shared<ASTOutputStmt>(visitedExpr);
 
@@ -454,7 +408,7 @@ Any ASTBuilder::visitOutputStmt(TIPParser::OutputStmtContext *ctx) {
   return "";
 } // LCOV_EXCL_LINE
 
-Any ASTBuilder::visitErrorStmt(TIPParser::ErrorStmtContext *ctx) {
+Any ASTBuilder::visitErrorStmt(TOPParser::ErrorStmtContext *ctx) {
   visit(ctx->expr());
   visitedStmt = std::make_shared<ASTErrorStmt>(visitedExpr);
 
@@ -466,7 +420,7 @@ Any ASTBuilder::visitErrorStmt(TIPParser::ErrorStmtContext *ctx) {
   return "";
 } // LCOV_EXCL_LINE
 
-Any ASTBuilder::visitReturnStmt(TIPParser::ReturnStmtContext *ctx) {
+Any ASTBuilder::visitReturnStmt(TOPParser::ReturnStmtContext *ctx) {
   visit(ctx->expr());
   visitedStmt = std::make_shared<ASTReturnStmt>(visitedExpr);
 
@@ -478,7 +432,118 @@ Any ASTBuilder::visitReturnStmt(TIPParser::ReturnStmtContext *ctx) {
   return "";
 } // LCOV_EXCL_LINE
 
-Any ASTBuilder::visitAssignStmt(TIPParser::AssignStmtContext *ctx) {
+// TOP extensions — Phase 2 AST builder implementations
+Any ASTBuilder::visitSumVariant(TOPParser::SumVariantContext *ctx) {
+  std::string tag = ctx->CONID()->getText();
+  std::vector<std::shared_ptr<ASTDeclNode>> params;
+  for (auto nd : ctx->nameDeclaration()) {
+    visit(nd);
+    params.push_back(visitedDeclNode);
+  }
+  visitedSumVariant = std::make_shared<ASTSumVariant>(tag, params);
+  LOG_S(1) << "Built AST node " << *visitedSumVariant;
+  visitedSumVariant->setLocation(ctx->getStart()->getLine(),
+                                 ctx->getStart()->getCharPositionInLine());
+  return "";
+}
+
+Any ASTBuilder::visitTypeDecl(TOPParser::TypeDeclContext *ctx) {
+  std::string name = ctx->CONID()->getText();
+  std::vector<std::shared_ptr<ASTSumVariant>> variants;
+  for (auto sv : ctx->sumVariant()) {
+    visit(sv);
+    variants.push_back(visitedSumVariant);
+  }
+  visitedTypedecl = std::make_shared<ASTSumTypeDecl>(name, variants);
+  LOG_S(1) << "Built AST node " << *visitedTypedecl;
+  visitedTypedecl->setLocation(ctx->getStart()->getLine(),
+                               ctx->getStart()->getCharPositionInLine());
+  return "";
+}
+
+Any ASTBuilder::visitSumCtorExprWithArgs(TOPParser::SumCtorExprWithArgsContext *ctx) {
+  std::string tag = ctx->CONID()->getText();
+  std::vector<std::shared_ptr<ASTExpr>> args;
+  for (auto *argCtx : ctx->expr()) {
+    visit(argCtx);
+    args.push_back(visitedExpr);
+  }
+  visitedExpr = std::make_shared<ASTSumCtorExpr>(tag, std::move(args));
+
+  LOG_S(1) << "Built AST node " << *visitedExpr;
+
+  visitedExpr->setLocation(ctx->getStart()->getLine(),
+                           ctx->getStart()->getCharPositionInLine());
+  return "";
+} // LCOV_EXCL_LINE
+
+Any ASTBuilder::visitSumCtorExprNoArgs(TOPParser::SumCtorExprNoArgsContext *ctx) {
+  std::string tag = ctx->CONID()->getText();
+  visitedExpr = std::make_shared<ASTSumCtorExpr>(tag, std::vector<std::shared_ptr<ASTExpr>>{});
+
+  LOG_S(1) << "Built AST node " << *visitedExpr;
+
+  visitedExpr->setLocation(ctx->getStart()->getLine(),
+                           ctx->getStart()->getCharPositionInLine());
+  return "";
+} // LCOV_EXCL_LINE
+
+Any ASTBuilder::visitPattern(TOPParser::PatternContext *ctx) {
+  if (ctx->KWILDCARD()) {
+    // Wildcard pattern: `_`
+    visitedPattern = std::make_shared<ASTWildcardPattern>();
+  } else if (ctx->CONID()) {
+    // Constructor pattern: `None` (no args) or `Inner(x)` (with args)
+    std::vector<std::shared_ptr<ASTPattern>> subs;
+    for (auto sub : ctx->pattern()) {
+      visit(sub);
+      subs.push_back(visitedPattern);
+    }
+    visitedPattern = std::make_shared<ASTCtorPattern>(
+        ctx->CONID()->getText(), std::move(subs));
+  } else {
+    // Variable pattern: single IDENTIFIER
+    auto id = ctx->IDENTIFIER();
+    auto decl = std::make_shared<ASTDeclNode>(id->getText());
+    decl->setLocation(static_cast<int>(id->getSymbol()->getLine()),
+                      static_cast<int>(id->getSymbol()->getCharPositionInLine()));
+    visitedPattern = std::make_shared<ASTVarPattern>(decl);
+  }
+  return "";
+}
+
+Any ASTBuilder::visitCaseArm(TOPParser::CaseArmContext *ctx) {
+  std::string tag = ctx->CONID()->getText();
+  std::vector<std::shared_ptr<ASTPattern>> patterns;
+  for (auto patCtx : ctx->pattern()) {
+    visit(patCtx);
+    patterns.push_back(visitedPattern);
+  }
+  visit(ctx->statement());
+  auto body = visitedStmt;
+  visitedCaseArm = std::make_shared<ASTCaseArm>(tag, patterns, body);
+  LOG_S(1) << "Built AST node " << *visitedCaseArm;
+  visitedCaseArm->setLocation(ctx->getStart()->getLine(),
+                              ctx->getStart()->getCharPositionInLine());
+  return "";
+}
+
+Any ASTBuilder::visitCaseStmt(TOPParser::CaseStmtContext *ctx) {
+  visit(ctx->expr());
+  auto caseExpr = visitedExpr;
+  std::vector<std::shared_ptr<ASTCaseArm>> arms;
+  for (auto arm : ctx->caseArm()) {
+    visit(arm);
+    arms.push_back(visitedCaseArm);
+  }
+  visitedStmt = std::make_shared<ASTCaseStmt>(caseExpr, arms);
+  LOG_S(1) << "Built AST node " << *visitedStmt;
+  visitedStmt->setLocation(ctx->getStart()->getLine(),
+                           ctx->getStart()->getCharPositionInLine());
+  return "";
+}
+
+Any ASTBuilder::visitAssignStmt(TOPParser::AssignStmtContext *ctx) {
   visit(ctx->expr(0));
   auto lhs = visitedExpr;
   visit(ctx->expr(1));

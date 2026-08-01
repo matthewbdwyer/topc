@@ -1,0 +1,53 @@
+type Inner = Lit(n) | Neg(x);
+type Outer = Empty | Wrap(inner);
+innerVal(o) 
+{
+  var r;
+  r = 0;
+  case o of {
+    Empty -> r = -1;
+    Wrap(Lit(x)) -> r = x;
+    Wrap(Neg(y)) -> r = (0 - y);
+  }
+  return r;
+}
+
+main() 
+{
+  var ok;
+  ok = 1;
+  if ((innerVal(Empty) != -1)) 
+    {
+      ok = 0;
+    }
+  if ((innerVal(Wrap(Lit(5))) != 5)) 
+    {
+      ok = 0;
+    }
+  if ((innerVal(Wrap(Neg(3))) != -3)) 
+    {
+      ok = 0;
+    }
+  return (1 - ok);
+}
+
+Types : {
+  Inner : Lit(int) | Neg(int),
+  Outer : Empty | Wrap(Inner)
+}
+
+Functions : {
+  innerVal : (Outer{Empty|Wrap(Inner{Lit(int)|Neg(int)})}) -> int,
+  main : () -> int
+}
+
+Locals for function innerVal : {
+  o : Outer{Empty|Wrap(Inner{Lit(int)|Neg(int)})},
+  r : int,
+  x : int,
+  y : int
+}
+
+Locals for function main : {
+  ok : int
+}

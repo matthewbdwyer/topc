@@ -1,0 +1,15 @@
+type Tree = Leaf | Node(val, left, right);
+
+height(t) {
+  var h;
+  h = 0;
+  case t of {
+    Leaf -> h = 0;
+    Node(v, l, r) -> h = 1;
+  }
+  return h;
+}
+
+main() {
+  return 0;
+}

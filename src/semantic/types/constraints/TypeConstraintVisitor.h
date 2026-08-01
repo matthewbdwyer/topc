@@ -3,7 +3,7 @@
 #include "ASTVisitor.h"
 #include "ConstraintHandler.h"
 #include "SymbolTable.h"
-#include "TipType.h"
+#include "TopType.h"
 #include <memory>
 #include <set>
 #include <stack>
@@ -39,7 +39,6 @@ public:
                         std::shared_ptr<ConstraintHandler> handler);
 
   bool visit(ASTFunction *element) override;
-  void endVisit(ASTAccessExpr *element) override;
   void endVisit(ASTAllocExpr *element) override;
   void endVisit(ASTAssignStmt *element) override;
   void endVisit(ASTBinaryExpr *element) override;
@@ -49,17 +48,28 @@ public:
   void endVisit(ASTFunction *element) override;
   void endVisit(ASTIfStmt *element) override;
   void endVisit(ASTInputExpr *element) override;
-  void endVisit(ASTNullExpr *element) override;
   void endVisit(ASTNumberExpr *element) override;
   void endVisit(ASTOutputStmt *element) override;
-  void endVisit(ASTRecordExpr *element) override;
-  void endVisit(ASTRefExpr *element) override;
+  void endVisit(ASTBorrowExpr *element) override;
   void endVisit(ASTWhileStmt *element) override;
+
+  // TOP extensions
+  bool visit(ASTSumTypeDecl *element) override;
+  void endVisit(ASTSumCtorExpr *element) override;
+  void endVisit(ASTCaseStmt *element) override;
 
 protected:
   std::shared_ptr<ConstraintHandler> constraintHandler;
   SymbolTable *symbolTable;
-  std::shared_ptr<TipType> astToVar(ASTNode *n);
+  std::shared_ptr<TopType> astToVar(ASTNode *n);
+
+  /*! \brief Recursively generate type constraints for a case-arm pattern.
+   *
+   * \param pat       The pattern node (any concrete subclass of ASTPattern).
+   * \param slotType  The type of the payload slot that \p pat is matching.
+   */
+  void constrainPattern(ASTPattern *pat, std::shared_ptr<TopType> slotType,
+                         ASTNode *anchor);
 
 private:
   std::stack<ASTDeclNode *> scope;

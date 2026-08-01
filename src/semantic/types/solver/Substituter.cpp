@@ -1,22 +1,28 @@
 #include "Substituter.h"
 #include "Copier.h"
+#include "TopBorrowRef.h"
+#include "TopModeVar.h"
+#include "TopOwningRef.h"
+#include "ReferenceMode.h"
+#include "ReferenceType.h"
+#include "TopSumType.h"
 
 #include <algorithm>
 #include <iterator>
 
-std::shared_ptr<TipType> Substituter::substitute(TipType *t, TipVar *v,
-                                                 std::shared_ptr<TipType> s) {
+std::shared_ptr<TopType> Substituter::substitute(TopType *t, TopVar *v,
+                                                 std::shared_ptr<TopType> s) {
   Substituter visitor(v, s);
   t->accept(&visitor);
   return visitor.getResult();
 }
 
-std::shared_ptr<TipType> Substituter::getResult() {
+std::shared_ptr<TopType> Substituter::getResult() {
   return visitedTypes.back();
 }
 
-void Substituter::endVisit(TipFunction *element) {
-  std::vector<std::shared_ptr<TipType>> argTypes;
+void Substituter::endVisit(TopFunction *element) {
+  std::vector<std::shared_ptr<TopType>> argTypes;
   for (auto &arg : element->getArguments()) {
     argTypes.push_back(std::move(visitedTypes.back()));
     visitedTypes.pop_back();
@@ -26,72 +32,85 @@ void Substituter::endVisit(TipFunction *element) {
   // so we set them right here
   std::reverse(argTypes.begin(), argTypes.end());
 
-  std::shared_ptr<TipType> retType = argTypes.back();
+  std::shared_ptr<TopType> retType = argTypes.back();
   argTypes.pop_back();
-  visitedTypes.push_back(std::make_shared<TipFunction>(argTypes, retType));
+  visitedTypes.push_back(std::make_shared<TopFunction>(argTypes, retType));
 }
 
-void Substituter::endVisit(TipInt *element) {
+void Substituter::endVisit(TopInt *element) {
   // Zero element in visitedTypes (a special case of Cons)
-  visitedTypes.push_back(std::make_shared<TipInt>());
+  visitedTypes.push_back(std::make_shared<TopInt>());
 }
 
-void Substituter::endVisit(TipMu *element) {
+void Substituter::endVisit(TopMu *element) {
   // Two elements in visitedTypes
   auto tType = visitedTypes.back();
   visitedTypes.pop_back();
 
-  // The second element on the LIFO is always a TipVar
-  auto vType = std::dynamic_pointer_cast<TipVar>(visitedTypes.back());
+  // The second element on the LIFO is always a TopVar
+  auto vType = std::dynamic_pointer_cast<TopVar>(visitedTypes.back());
   visitedTypes.pop_back();
 
-  visitedTypes.push_back(std::make_shared<TipMu>(vType, tType));
+  visitedTypes.push_back(std::make_shared<TopMu>(vType, tType));
 }
 
-void Substituter::endVisit(TipRecord *element) {
-  std::vector<std::shared_ptr<TipType>> initTypes;
-  for (auto &init : element->getArguments()) {
-    initTypes.push_back(std::move(visitedTypes.back()));
-    visitedTypes.pop_back();
-  }
-
-  // the post-order visit will reverse the arguments in visitedTypes
-  // so we set them right here
-  std::reverse(initTypes.begin(), initTypes.end());
-
-  visitedTypes.push_back(
-      std::make_shared<TipRecord>(initTypes, element->getNames()));
+void Substituter::endVisit(TopModeVar *element) {
+  visitedTypes.push_back(std::make_shared<TopModeVar>(element->getId()));
 }
 
-void Substituter::endVisit(TipAbsentField *element) {
-  // Zero element in visitedTypes (a special case of Cons)
-  visitedTypes.push_back(std::make_shared<TipAbsentField>());
+void Substituter::endVisit(ReferenceMode *element) {
+  visitedTypes.push_back(std::make_shared<ReferenceMode>(element->getMode()));
 }
 
-void Substituter::endVisit(TipRef *element) {
-  // One element in visitedTypes (a special case of Cons)
+void Substituter::endVisit(ReferenceType *element) {
   auto pointedToType = visitedTypes.back();
   visitedTypes.pop_back();
-  visitedTypes.push_back(std::make_shared<TipRef>(pointedToType));
+  auto mode = visitedTypes.back();
+  visitedTypes.pop_back();
+  visitedTypes.push_back(std::make_shared<ReferenceType>(mode, pointedToType));
+}
+
+void Substituter::endVisit(TopOwningRef *element) {
+  auto pointedToType = visitedTypes.back();
+  visitedTypes.pop_back();
+  visitedTypes.push_back(std::make_shared<TopOwningRef>(pointedToType));
+}
+
+void Substituter::endVisit(TopBorrowRef *element) {
+  auto pointedToType = visitedTypes.back();
+  visitedTypes.pop_back();
+  visitedTypes.push_back(std::make_shared<TopBorrowRef>(pointedToType));
+}
+
+void Substituter::endVisit(TopSumType *element) {
+  std::vector<std::shared_ptr<TopType>> payloads;
+  for (std::size_t i = 0; i < element->getArguments().size(); i++) {
+    payloads.push_back(visitedTypes.back());
+    visitedTypes.pop_back();
+  }
+  std::reverse(payloads.begin(), payloads.end());
+  visitedTypes.push_back(std::make_shared<TopSumType>(
+      element->getTypeName(), element->getCtorOrder(), payloads,
+      element->getCtorArities()));
 }
 
 /*! \brief Substitute if variable is the target.
  */
-void Substituter::endVisit(TipVar *element) {
+void Substituter::endVisit(TopVar *element) {
   if (*element == *target) {
     auto copy = Copier::copy(substitution);
     visitedTypes.push_back(copy);
   } else {
-    visitedTypes.push_back(std::make_shared<TipVar>(element->getNode()));
+    visitedTypes.push_back(std::make_shared<TopVar>(element->getNode()));
   }
 }
 
-void Substituter::endVisit(TipAlpha *element) {
+void Substituter::endVisit(TopAlpha *element) {
   if (*element == *target) {
     auto copy = Copier::copy(substitution);
     visitedTypes.push_back(copy);
   } else {
     visitedTypes.push_back(
-        std::make_shared<TipAlpha>(element->getNode(), element->getContext(), element->getName()));
+        std::make_shared<TopAlpha>(element->getNode(), element->getContext(), element->getName()));
   }
 }

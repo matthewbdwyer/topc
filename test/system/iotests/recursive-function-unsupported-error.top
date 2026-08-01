@@ -1,0 +1,15 @@
+// Recursive higher-order function type: requires recursive type support that
+// TOP currently rejects before ownership analysis.
+foo(n, f) {
+    var r;
+    if (n == 0) {
+      r = 1;
+    } else {
+      r = n * f(n - 1, f);
+    }
+    return r;
+}
+
+main() {
+    return foo(3, foo);
+}

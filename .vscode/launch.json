@@ -2,10 +2,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "tipc (debug)",
+            "name": "topc (debug)",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/src/tipc",
+            "program": "${workspaceFolder}/build/src/topc",
             "args": [
                 "--help"
             ],

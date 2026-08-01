@@ -3,8 +3,8 @@ get_property(GrammarIncDir GLOBAL PROPERTY GrammarIncludeDir)
 # We need to include those files in builds of the unit tests
 include_directories(${GrammarIncDir})
 
-add_library(tipc_test_includes INTERFACE)
-target_include_directories(tipc_test_includes INTERFACE
+add_library(topc_test_includes INTERFACE)
+target_include_directories(topc_test_includes INTERFACE
     ${CMAKE_SOURCE_DIR}/src/error
     ${CMAKE_SOURCE_DIR}/src/frontend/
     ${CMAKE_SOURCE_DIR}/src/frontend/ast
@@ -12,6 +12,7 @@ target_include_directories(tipc_test_includes INTERFACE
     ${CMAKE_SOURCE_DIR}/src/frontend/prettyprint
     ${CMAKE_SOURCE_DIR}/src/frontend/iterators
     ${CMAKE_SOURCE_DIR}/src/semantic
+    ${CMAKE_SOURCE_DIR}/src/semantic/ownership
     ${CMAKE_SOURCE_DIR}/src/semantic/symboltable
     ${CMAKE_SOURCE_DIR}/src/semantic/types
     ${CMAKE_SOURCE_DIR}/src/semantic/types/concrete

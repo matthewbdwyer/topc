@@ -7,8 +7,8 @@ target_sources(
           ${CMAKE_CURRENT_SOURCE_DIR}/FunctionNameCollector.h
           ${CMAKE_CURRENT_SOURCE_DIR}/LocalNameCollector.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/LocalNameCollector.h
-          ${CMAKE_CURRENT_SOURCE_DIR}/FieldNameCollector.cpp
-          ${CMAKE_CURRENT_SOURCE_DIR}/FieldNameCollector.h)
+          ${CMAKE_CURRENT_SOURCE_DIR}/TypeNameCollector.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/TypeNameCollector.h)
 target_include_directories(
   symboltable
   PRIVATE ${CMAKE_SOURCE_DIR}/src/frontend/ast

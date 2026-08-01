@@ -38,12 +38,10 @@ public:
    * \sa UnificationError
    * \sa SemanticError
    * \param ast The program AST
-   * \param polyInf Flag indicating whether to perform polymorphic or
-   * monomorphic inference \param cg The program call graph \param symbols The
-   * symbol table
+   * \param cg The program call graph \param symbols The symbol table
    */
   [[nodiscard]] static std::shared_ptr<TypeInference>
-  run(ASTProgram *ast, bool polyInf, CallGraph *cg, SymbolTable *symbols);
+  run(ASTProgram *ast, CallGraph *cg, SymbolTable *symbols);
 
   /*! \fn getInferredType
    *  \brief Returns the type expression inferred for the given ASTDeclNode.
@@ -55,12 +53,15 @@ public:
    * is generated and returned.  In other cases, the resulting type will be
    * shared with those computed during inference -- hence a shared pointer.
    *
-   * \sa TipType
+   * \sa TopType
    * \sa ASTDeclNode
    * \param node An AST declaration node.
    * \return A shared pointer to the inferred type for the AST node.
    */
-  std::shared_ptr<TipType> getInferredType(ASTDeclNode *node);
+  std::shared_ptr<TopType> getInferredType(ASTDeclNode *node);
+
+  /*! \brief Format a sum declaration with its inferred payload types. */
+  std::string getInferredTypeDisplay(ASTSumTypeDecl *node);
 
   //! Print type inference results to output stream
   void print(std::ostream &os);

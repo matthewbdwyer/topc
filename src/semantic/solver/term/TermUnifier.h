@@ -31,10 +31,10 @@ public:
  * @brief Generic first-order term unification solver backed by union-find.
  *
  * Uses a TermUnionFind structure for symmetric equivalence-class merging,
- * mirroring the Unifier class's use of UnionFind at the TipType level.
+ * mirroring the Unifier class's use of UnionFind at the TopType level.
  *
  * No occurs check is performed: cyclic constraints are allowed and produce
- * recursive types during the closure phase (TipTermClosure).
+ * recursive types during the closure phase (TopTermClosure).
  */
 class TermUnifier {
 public:

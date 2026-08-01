@@ -1,0 +1,36 @@
+Program
+├── function[0]: Function: increment
+│   ├── name: Declaration: increment
+│   ├── parameter[0]: Declaration: p
+│   ├── statement[0]: AssignStmt
+│   │   ├── lhs: DerefExpr
+│   │   │   └── reference: VariableExpr: p
+│   │   └── rhs: BinaryExpr: +
+│   │       ├── lhs: DerefExpr
+│   │       │   └── reference: VariableExpr: p
+│   │       └── rhs: IntegerLiteral: 1
+│   └── statement[1]: ReturnStmt
+│       └── value: VariableExpr: p
+└── function[1]: Function: main
+    ├── name: Declaration: main
+    ├── declaration[0]: DeclarationStmt: var x;
+    │   └── binding[0]: Declaration: x
+    ├── statement[0]: AssignStmt
+    │   ├── lhs: VariableExpr: x
+    │   └── rhs: AllocExpr
+    │       └── initializer: IntegerLiteral: 42
+    ├── statement[1]: AssignStmt
+    │   ├── lhs: VariableExpr: x
+    │   └── rhs: CallExpr
+    │       ├── callee: VariableExpr: increment
+    │       └── argument[0]: VariableExpr: x
+    ├── statement[2]: IfStmt
+    │   ├── condition: BinaryExpr: !=
+    │   │   ├── lhs: DerefExpr
+    │   │   │   └── reference: VariableExpr: x
+    │   │   └── rhs: IntegerLiteral: 43
+    │   └── then: ErrorStmt
+    │       └── value: DerefExpr
+    │           └── reference: VariableExpr: x
+    └── statement[3]: ReturnStmt
+        └── value: IntegerLiteral: 0

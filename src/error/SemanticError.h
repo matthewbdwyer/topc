@@ -2,7 +2,7 @@
 
 #include "Error.h"
 
-/*! \brief Class for tipc semantic errors.
+/*! \brief Class for topc semantic errors.
  *
  * Errors in weeding, symbol processing, or type checking generate instances of
  * this type. \sa Error

@@ -1,0 +1,51 @@
+type Expr = Unit | Lit(n) | Pair(a, b);
+tag(e) 
+{
+  var r;
+  r = 0;
+  case e of {
+    Unit -> r = 0;
+    Lit(x) -> r = x;
+    Pair(_, y) -> r = y;
+  }
+  return r;
+}
+
+main() 
+{
+  var ok;
+  ok = 1;
+  if ((tag(Unit) != 0)) 
+    {
+      ok = 0;
+    }
+  if ((tag(Lit(7)) != 7)) 
+    {
+      ok = 0;
+    }
+  if ((tag(Pair(3, 5)) != 5)) 
+    {
+      ok = 0;
+    }
+  return (1 - ok);
+}
+
+Types : {
+  Expr : Unit | Lit(int) | Pair(int, int)
+}
+
+Functions : {
+  main : () -> int,
+  tag : (Expr{Unit|Lit(int)|Pair(int,int)}) -> int
+}
+
+Locals for function main : {
+  ok : int
+}
+
+Locals for function tag : {
+  e : Expr{Unit|Lit(int)|Pair(int,int)},
+  r : int,
+  x : int,
+  y : int
+}

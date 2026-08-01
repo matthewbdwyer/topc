@@ -38,18 +38,10 @@ public:
   virtual void endVisit(ASTFunAppExpr *element) {}
   virtual bool visit(ASTAllocExpr *element) { return true; }
   virtual void endVisit(ASTAllocExpr *element) {}
-  virtual bool visit(ASTRefExpr *element) { return true; }
-  virtual void endVisit(ASTRefExpr *element) {}
+  virtual bool visit(ASTBorrowExpr *element) { return true; }
+  virtual void endVisit(ASTBorrowExpr *element) {}
   virtual bool visit(ASTDeRefExpr *element) { return true; }
   virtual void endVisit(ASTDeRefExpr *element) {}
-  virtual bool visit(ASTNullExpr *element) { return true; }
-  virtual void endVisit(ASTNullExpr *element) {}
-  virtual bool visit(ASTFieldExpr *element) { return true; }
-  virtual void endVisit(ASTFieldExpr *element) {}
-  virtual bool visit(ASTRecordExpr *element) { return true; }
-  virtual void endVisit(ASTRecordExpr *element) {}
-  virtual bool visit(ASTAccessExpr *element) { return true; }
-  virtual void endVisit(ASTAccessExpr *element) {}
   virtual bool visit(ASTDeclNode *element) { return true; }
   virtual void endVisit(ASTDeclNode *element) {}
   virtual bool visit(ASTDeclStmt *element) { return true; }
@@ -68,4 +60,24 @@ public:
   virtual void endVisit(ASTErrorStmt *element) {}
   virtual bool visit(ASTBlockStmt *element) { return true; }
   virtual void endVisit(ASTBlockStmt *element) {}
+  virtual bool visit(ASTDestroyStmt *element) { return true; }
+  virtual void endVisit(ASTDestroyStmt *element) {}
+  // TOP/SOP extension nodes
+  virtual bool visit(ASTSumCtorExpr *element) { return true; }
+  virtual void endVisit(ASTSumCtorExpr *element) {}
+  virtual bool visit(ASTSumTypeDecl *element) { return true; }
+  virtual void endVisit(ASTSumTypeDecl *element) {}
+  virtual bool visit(ASTSumVariant *element) { return true; }
+  virtual void endVisit(ASTSumVariant *element) {}
+  virtual bool visit(ASTCaseStmt *element) { return true; }
+  virtual void endVisit(ASTCaseStmt *element) {}
+  virtual bool visit(ASTCaseArm *element) { return true; }
+  virtual void endVisit(ASTCaseArm *element) {}
+  // Pattern visitor hooks (used by Phase B2+ passes; default: visit/no-op)
+  virtual bool visit(ASTVarPattern *element) { return true; }
+  virtual void endVisit(ASTVarPattern *element) {}
+  virtual bool visit(ASTWildcardPattern *element) { return true; }
+  virtual void endVisit(ASTWildcardPattern *element) {}
+  virtual bool visit(ASTCtorPattern *element) { return true; }
+  virtual void endVisit(ASTCtorPattern *element) {}
 };

@@ -1,0 +1,30 @@
+type Flag = On | Off;
+main() 
+{
+  var c, p;
+  c = 1;
+  p = alloc 5;
+  if (c) 
+    {
+      output 1;
+    }
+  else
+    {
+      output 2;
+    }
+  /* destroy p */
+  return 0;
+}
+
+Types : {
+  Flag : On | Off
+}
+
+Functions : {
+  main : () -> int
+}
+
+Locals for function main : {
+  c : int,
+  p : own&int
+}

@@ -1,6 +1,6 @@
 #include "LocalNameCollector.h"
 #include "SemanticError.h"
-#include "loguru.hpp"
+#include "../SemanticLogging.h"
 
 std::map<ASTDeclNode *, std::map<std::string, ASTDeclNode *>>
 LocalNameCollector::build(
@@ -12,6 +12,7 @@ LocalNameCollector::build(
 
 bool LocalNameCollector::visit(ASTFunction *element) {
   curMap.clear();
+  caseArmBindingNames.clear();
   funName = element->getName();
   first = true;
   return true;
@@ -19,8 +20,9 @@ bool LocalNameCollector::visit(ASTFunction *element) {
 
 void LocalNameCollector::endVisit(ASTFunction *element) {
   auto decl = element->getDecl();
-  LOG_S(1) << "Adding fun [[" << decl->getName() << "@" << decl->getLine()
-           << ":" << decl->getColumn() << "]] to symbol table.";
+  SEMANTIC_LOG(2, "symbol-table")
+      << "add function=" << decl->getName() << " line=" << decl->getLine()
+      << " column=" << decl->getColumn();
   lMap.insert(std::pair<ASTDeclNode *, std::map<std::string, ASTDeclNode *>>(
       decl, curMap));
 }
@@ -32,12 +34,15 @@ void LocalNameCollector::endVisit(ASTDeclNode *element) {
     first = false;
   } else {
     if (fMap.count(element->getName()) == 0) {
-      if (curMap.count(element->getName()) == 0) {
-        LOG_S(1) << "Adding var [[" << element->getName() << "@"
-                 << element->getLine() << ":" << element->getColumn()
-                 << "]] to symbol table.";
-        curMap.insert(
-            std::pair<std::string, ASTDeclNode *>(element->getName(), element));
+      if (curMap.count(element->getName()) == 0 ||
+          caseArmBindingNames.count(element->getName()) != 0) {
+        // Either first occurrence, or a case arm binding being re-bound by
+        // a subsequent case arm — silently overwrite.
+        SEMANTIC_LOG(2, "symbol-table")
+          << "add local=" << element->getName()
+          << " line=" << element->getLine()
+          << " column=" << element->getColumn();
+        curMap[element->getName()] = element;
       } else {
         throw SemanticError(
             "Symbol error line " + std::to_string(element->getLine()) +
@@ -62,4 +67,19 @@ void LocalNameCollector::endVisit(ASTVariableExpr *element) {
           element->getName() + " undeclared in function " + funName + "\n");
     }
   }
+}
+
+// ---- Case arm binding scoping ----
+
+bool LocalNameCollector::visit(ASTCaseArm *element) {
+  // Register binding names so they may be overwritten by a subsequent arm.
+  for (auto b : element->getBindings())
+    caseArmBindingNames.insert(b->getName());
+  return true;
+}
+
+void LocalNameCollector::endVisit(ASTCaseArm *element) {
+  // Arm bindings stay in curMap (and thus in localNames) for type inference.
+  // The caseArmBindingNames set allows subsequent arms with the same binding
+  // name to overwrite without a "redeclared" error.
 }

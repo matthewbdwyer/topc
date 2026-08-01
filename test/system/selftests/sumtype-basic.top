@@ -1,0 +1,22 @@
+// Sum type with four no-argument constructors.
+// case-matches each to an integer; verifies the sum is correct.
+type Direction = North | South | East | West;
+
+toInt(d) {
+  var n;
+  n = 0;
+  case d of {
+    North -> n = 1;
+    South -> n = 2;
+    East  -> n = 3;
+    West  -> n = 4;
+  }
+  return n;
+}
+
+main() {
+  var sum;
+  sum = toInt(North) + toInt(South) + toInt(East) + toInt(West);
+  // 1+2+3+4 = 10; return 0 if correct
+  return sum - 10;
+}

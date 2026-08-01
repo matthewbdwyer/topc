@@ -1,0 +1,14 @@
+// Ownership: owned value allocated in a helper and returned to the caller.
+// The caller reads the value; the destruction pass frees the pointer before
+// main() returns.
+makeVal(n) {
+  return alloc n;
+}
+
+main() {
+  var p, v;
+  p = makeVal(42);
+  v = *p;
+  if (v != 42) error v;
+  return 0;
+}

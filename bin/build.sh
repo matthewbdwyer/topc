@@ -1,33 +1,57 @@
 #!/bin/bash
 set -e
 
-# Set ROOT_DIR to TIPDIR or the top-level Git directory if TIPDIR is not set
-ROOT_DIR=${TIPDIR:-$(git rev-parse --show-toplevel)}
-TIPC="${ROOT_DIR}/build/src/tipc"
-RTLIB="${ROOT_DIR}/rtlib"
+# Set ROOT_DIR to TOPDIR or the top-level Git directory if TOPDIR is not set
+ROOT_DIR=${TOPDIR:-$(git rev-parse --show-toplevel)}
+TOPC="${ROOT_DIR}/build/src/topc"
+BUILD_DIR="${ROOT_DIR}/build"
+RTLIB="${BUILD_DIR}/rtlib"
 
-# Check if TIPCLANG environment variable is set
-if [ -z "${TIPCLANG}" ]; then
-  echo "error: TIPCLANG env var must be set"
+# Check if TOPCLANG environment variable is set
+if [ -z "${TOPCLANG}" ]; then
+  echo "error: TOPCLANG env var must be set"
   exit 1
 fi
 
-# Check if the tipc executable exists
-if [ ! -f "${TIPC}" ]; then
-  echo "error: tipc was not found"
+# Check if the topc executable exists
+if [ ! -f "${TOPC}" ]; then
+  echo "error: topc was not found"
   exit 1
 fi
 
-# Check if the tip_rtlib.bc file exists
-if [ ! -f "${RTLIB}/tip_rtlib.bc" ]; then
-  echo "error: tip_rtlib.bc was not found"
-  exit 1
+# Check if the top_rtlib.bc file exists
+if [ ! -f "${RTLIB}/top_rtlib.bc" ]; then
+  cmake --build "${BUILD_DIR}" --target top_rtlib --parallel
 fi
 
 set -- "$@"
 
-# Execute tipc with the provided arguments
-${TIPC} "$@"
+SOURCE_FILE=""
+OUTPUT_BC=""
+previous=""
+for arg in "$@"; do
+  if [ "${previous}" = "-o" ]; then
+    OUTPUT_BC="${arg}"
+    previous=""
+    continue
+  fi
+  if [ "${arg}" = "-o" ]; then
+    previous="-o"
+    continue
+  fi
+  case "${arg}" in
+    *.top)
+      SOURCE_FILE="${arg}"
+      ;;
+  esac
+done
+
+if [ -n "${SOURCE_FILE}" ] && [ -z "${OUTPUT_BC}" ]; then
+  OUTPUT_BC="${SOURCE_FILE}.bc"
+fi
+
+# Execute topc with the provided arguments
+"${TOPC}" "$@"
 
 # Only perform link step if bitcode has been generated
 case "$*" in
@@ -35,7 +59,10 @@ case "$*" in
     # Do nothing if --help or --asm is present
     ;;
   *)
-    # Perform the linking step
-    ${TIPCLANG} -w "${@:$#}.bc" "${RTLIB}/tip_rtlib.bc" -o "$(basename "${@:$#}" .tip)"
+    if [ -z "${OUTPUT_BC}" ] || [ ! -f "${OUTPUT_BC}" ]; then
+      exit 0
+    fi
+    exe_name="$(basename "${SOURCE_FILE}" .top)"
+    "${TOPCLANG}" -w "${OUTPUT_BC}" "${RTLIB}/top_rtlib.bc" -o "${exe_name}"
     ;;
 esac

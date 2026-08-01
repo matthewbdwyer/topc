@@ -1,0 +1,6 @@
+[borrow-result]
+  17:30 &x -> approved
+
+[borrow-constraints]
+  [borrow] 17:30 &x -> approved; direct argument 0 of identity
+  [borrow-flow] 17:30 hop 1 identity(&x) -> argument 0 of readBorrow at 17:10

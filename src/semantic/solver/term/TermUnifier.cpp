@@ -1,11 +1,16 @@
 #include "TermUnifier.h"
+#include "../../SemanticLogging.h"
 
 void TermUnifier::addConstraint(std::shared_ptr<Term> t1,
                                 std::shared_ptr<Term> t2) {
+  SEMANTIC_LOG(3, "unification")
+      << "enqueue lhs=" << t1->toString() << " rhs=" << t2->toString();
   constraints.emplace_back(std::move(t1), std::move(t2));
 }
 
 void TermUnifier::solve() {
+  SEMANTIC_LOG(3, "unification")
+      << "solve-start constraints=" << constraints.size();
   std::size_t i = 0;
   while (i < constraints.size()) {
     auto [t1, t2] = constraints[i];
@@ -18,6 +23,7 @@ void TermUnifier::solve() {
     constraints.erase(constraints.begin(),
                       constraints.begin() + static_cast<std::ptrdiff_t>(i));
   }
+  SEMANTIC_LOG(3, "unification") << "solve-complete processed=" << i;
 }
 
 /**
@@ -31,9 +37,11 @@ void TermUnifier::solve() {
  *   otherwise      → throw TermUnificationError
  *
  * No occurs check is performed.  Cyclic bindings are resolved by
- * TipTermClosure::close() using the TipMu constructor.
+ * TopTermClosure::close() using the TopMu constructor.
  */
 void TermUnifier::unify(std::shared_ptr<Term> t1, std::shared_ptr<Term> t2) {
+  SEMANTIC_LOG(3, "unification")
+      << "unify lhs=" << t1->toString() << " rhs=" << t2->toString();
   t1 = unionFind.find(t1);
   t2 = unionFind.find(t2);
 
@@ -54,7 +62,13 @@ void TermUnifier::unify(std::shared_ptr<Term> t1, std::shared_ptr<Term> t2) {
                                      t2->toString() + ": different structure",
                                  t1, t2);
     }
-    unionFind.quick_union(t1, t2);
+    if (!t1->unifiesByStructureOnlyWith(*t2)) {
+      if (t1->preferAsRepresentativeOver(*t2)) {
+        unionFind.quick_union(t2, t1);
+      } else {
+        unionFind.quick_union(t1, t2);
+      }
+    }
     auto subs1 = t1->getSubterms();
     auto subs2 = t2->getSubterms();
     for (std::size_t i = 0; i < subs1.size(); ++i) {

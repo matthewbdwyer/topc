@@ -1,0 +1,12 @@
+addBorrows(a, b) {
+  return *a + *b;
+}
+
+main() {
+  var x, y, result;
+  x = 3;
+  y = 7;
+  result = addBorrows(&x, &y);
+  if (result != 10) error result;
+  return 0;
+}

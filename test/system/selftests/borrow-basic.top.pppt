@@ -1,0 +1,28 @@
+read(p) 
+{
+  return *p;
+}
+
+main() 
+{
+  var x, result;
+  x = 5;
+  result = read(&x);
+  if ((result != 5)) 
+    error result;
+  return 0;
+}
+
+Functions : {
+  main : () -> int,
+  read : (⭡α<(*p)@2:9>) -> α<(*p)@2:9>
+}
+
+Locals for function main : {
+  result : int,
+  x : int
+}
+
+Locals for function read : {
+  p : ⭡α<(*p)@2:9>
+}

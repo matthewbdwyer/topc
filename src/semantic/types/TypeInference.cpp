@@ -1,11 +1,13 @@
 #include <cassert>
+#include <unordered_set>
 #include "TypeInference.h"
-#include "AbsentFieldChecker.h"
 #include "PolyTypeConstraintCollectVisitor.h"
+#include "TopMu.h"
+#include "TopSumType.h"
 #include "Unifier.h"
 #include "TypeConstraint.h"
 #include "TypeConstraintCollectVisitor.h"
-#include "loguru.hpp"
+#include "../SemanticLogging.h"
 #include <memory>
 
 /* Local name space for DFS visit variables */
@@ -40,18 +42,25 @@ void topoVisit(CallGraph *cg, ASTFunction *f) {
 
 /* Determine whether there is a call chain from function f to g.
  * To determine if a function is recursive call with f==g.
+ * Uses a visited set to avoid infinite recursion on cyclic call graphs.
  */
-bool mayIndirectlyCall(CallGraph *cg, ASTFunction *f, ASTFunction *g) {
-  bool result = false;
-  auto callees = cg->getCallees(f);
-  for (auto c : callees) {
-    if (c == g) {
+static bool mayIndirectlyCallHelper(CallGraph *cg, ASTFunction *f,
+                                    ASTFunction *g,
+                                    std::unordered_set<ASTFunction *> &visited) {
+  if (!visited.insert(f).second)
+    return false; // already explored from f
+  for (auto c : cg->getCallees(f)) {
+    if (c == g)
       return true;
-    } else {
-      result = result || mayIndirectlyCall(cg, c, g);
-    }
+    if (mayIndirectlyCallHelper(cg, c, g, visited))
+      return true;
   }
-  return result;
+  return false;
+}
+
+bool mayIndirectlyCall(CallGraph *cg, ASTFunction *f, ASTFunction *g) {
+  std::unordered_set<ASTFunction *> visited;
+  return mayIndirectlyCallHelper(cg, f, g, visited);
 }
 
 // Topologically sort the set of functions based on the call graph.
@@ -116,7 +125,7 @@ std::deque<ASTFunction *> topoSortNonRecursive(CallGraph *cg) {
  */
 std::shared_ptr<TypeInference> runPoly(ASTProgram *ast, SymbolTable *symbols,
                                        CallGraph *cg) {
-  LOG_S(1) << "Generating Polymorphic Type Constraints";
+  SEMANTIC_LOG(2, "type-inference") << "stage=polymorphic start";
 
   /* A single unifier is used for the staged polymorphic inference
    * and then the final monomorphic inference process.  The unifier
@@ -129,8 +138,17 @@ std::shared_ptr<TypeInference> runPoly(ASTProgram *ast, SymbolTable *symbols,
    * in topological order for the call graph.
    */
   auto nonRecursiveFuncs = topoSortNonRecursive(cg);
+
+  /* Auto-generalize: mark every non-recursive singleton-SCC function as
+   * polymorphic so that call sites instantiate fresh type variables.
+   * This replaces the explicit `poly` keyword (Phase 7).
+   */
+  for (auto f : nonRecursiveFuncs)
+    symbols->setPoly(f->getName());
+
   for (auto f : nonRecursiveFuncs) {
-    LOG_S(1) << "Generating Polymorphic Type Constraints for " << *f;
+    SEMANTIC_LOG(2, "type-inference")
+      << "function=" << f->getName() << " stage=polymorphic";
 
     PolyTypeConstraintCollectVisitor polyVisitor(symbols, cg, unifier);
     f->accept(&polyVisitor);
@@ -139,7 +157,7 @@ std::shared_ptr<TypeInference> runPoly(ASTProgram *ast, SymbolTable *symbols,
     unifier->solve();
   }
 
-  LOG_S(1) << "Generating Residual Monomorphic Type Constraints";
+  SEMANTIC_LOG(2, "type-inference") << "stage=residual-monomorphic start";
 
   /* Iterate over functions those that are recursive, or that may directly
    * or indirectly call a recursive function, generate their constraints.
@@ -159,8 +177,6 @@ std::shared_ptr<TypeInference> runPoly(ASTProgram *ast, SymbolTable *symbols,
    */
   unifier->solve();
 
-  AbsentFieldChecker::check(ast, unifier.get());
-
   return std::make_shared<TypeInference>(symbols, unifier);
 }
 
@@ -168,17 +184,15 @@ std::shared_ptr<TypeInference> runPoly(ASTProgram *ast, SymbolTable *symbols,
  * Performs monomorphic type inference on the entire program.
  */
 std::shared_ptr<TypeInference> runMono(ASTProgram *ast, SymbolTable *symbols) {
-  LOG_S(1) << "Generating Monomorphic Type Constraints";
+  SEMANTIC_LOG(2, "type-inference") << "stage=monomorphic start";
 
   TypeConstraintCollectVisitor visitor(symbols);
   ast->accept(&visitor);
 
-  LOG_S(1) << "Solving type constraints";
+  SEMANTIC_LOG(2, "type-inference") << "stage=solve start";
 
   auto unifier = std::make_shared<Unifier>(visitor.getCollectedConstraints());
   unifier->solve();
-
-  AbsentFieldChecker::check(ast, unifier.get());
 
   return std::make_shared<TypeInference>(symbols, unifier);
 }
@@ -188,18 +202,72 @@ std::shared_ptr<TypeInference> runMono(ASTProgram *ast, SymbolTable *symbols) {
  * unifier instance.  The unifier then records the inferred type results that
  * can be subsequently queried.
  */
-std::shared_ptr<TypeInference> TypeInference::run(ASTProgram *ast, bool doPoly,
+std::shared_ptr<TypeInference> TypeInference::run(ASTProgram *ast,
                                                   CallGraph *cg,
                                                   SymbolTable *symbols) {
-  return (doPoly) ? runPoly(ast, symbols, cg) : runMono(ast, symbols);
+  SEMANTIC_LOG(1, "type-inference") << "start";
+  auto result = runPoly(ast, symbols, cg);
+  SEMANTIC_LOG(1, "type-inference")
+      << "complete functions=" << symbols->getFunctions().size();
+  return result;
 }
 
-std::shared_ptr<TipType> TypeInference::getInferredType(ASTDeclNode *node) {
-  auto var = std::make_shared<TipVar>(node);
+std::shared_ptr<TopType> TypeInference::getInferredType(ASTDeclNode *node) {
+  auto var = std::make_shared<TopVar>(node);
   return unifier->inferred(var);
 };
 
+std::string TypeInference::getInferredTypeDisplay(ASTSumTypeDecl *node) {
+  std::ostringstream s;
+  auto firstVariant = true;
+  for (auto *variant : node->getVariants()) {
+    if (!firstVariant)
+      s << " | ";
+    firstVariant = false;
+    s << variant->getTag();
+
+    auto params = variant->getParams();
+    if (params.empty())
+      continue;
+
+    s << "(";
+    for (std::size_t i = 0; i < params.size(); ++i) {
+      if (i > 0)
+        s << ", ";
+      auto payload = getInferredType(params[i]);
+      if (auto *sum = dynamic_cast<TopSumType *>(payload.get())) {
+        s << sum->getTypeName();
+      } else if (auto *mu = dynamic_cast<TopMu *>(payload.get())) {
+        if (auto *sum = dynamic_cast<TopSumType *>(mu->getT().get()))
+          s << sum->getTypeName();
+        else
+          s << *payload;
+      } else {
+        s << *payload;
+      }
+    }
+    s << ")";
+  }
+  return s.str();
+}
+
 void TypeInference::print(std::ostream &s) {
+  auto typeNames = symbols->getSumTypes();
+  if (!typeNames.empty()) {
+    s << "\nTypes : {\n";
+    auto skip = true;
+    for (const auto &name : typeNames) {
+      auto *type = symbols->getSumType(name);
+      if (skip) {
+        skip = false;
+        s << "  " << name << " : " << getInferredTypeDisplay(type);
+        continue;
+      }
+      s << ",\n  " << name << " : " << getInferredTypeDisplay(type);
+    }
+    s << "\n}\n";
+  }
+
   s << "\nFunctions : {\n";
   auto skip = true;
   for (auto f : symbols->getFunctions()) {

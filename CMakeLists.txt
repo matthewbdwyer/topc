@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.15)
 
-project(tipc)
+project(topc)
 
 # Include CMake modules
 include(FetchContent)
@@ -94,7 +94,7 @@ endif()
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 
-# TIP relies on opaque pointers and APIs from newer LLVM releases.
+# TOP relies on opaque pointers and APIs from newer LLVM releases.
 if(LLVM_PACKAGE_VERSION VERSION_LESS "22.0.0")
   message(FATAL_ERROR "LLVM 22+ is required, found ${LLVM_PACKAGE_VERSION}")
 endif()
@@ -115,6 +115,7 @@ add_definitions(-DLOGURU_WITH_STREAMS=1 -DLOGURU_VERBOSE_SCOPE_ENDINGS=0)
 include_directories(${CMAKE_SOURCE_DIR}/externals/loguru)
 
 # build target including unit tests ###########
+add_subdirectory(rtlib)
 add_subdirectory(src)
 
 

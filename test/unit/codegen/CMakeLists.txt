@@ -13,9 +13,9 @@ target_link_libraries(
           error
           frontend
           semantic
-          codegen
+          topc_codegen
           test_helpers
-          tipc_test_includes
+          topc_test_includes
           coverage_config
           Catch2::Catch2WithMain)
 include(Catch)

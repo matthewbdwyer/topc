@@ -15,7 +15,7 @@ TEST_CASE("PrettyPrinter: Test default constructor", "[PrettyPrinter]") {
         y = alloc x;
         *y = x;
         z = *y;
-        z = null;
+        z = 0;
         return z;
       }
     )";

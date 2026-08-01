@@ -2,8 +2,12 @@
 
 #include "ASTNode.h"
 #include "ASTProgram.h"
+#include "FunctionEffectSummaries.h"
+#include "MoveAnalysis.h"
+#include "OwnershipClassifier.h"
 #include "SymbolTable.h"
 #include "TypeInference.h"
+#include "cfg/IntraproceduralCFGs.h"
 #include "cfa/CallGraph.h" //call graph builder header
 #include <memory>
 
@@ -17,15 +21,23 @@
  */
 class SemanticAnalysis {
   std::shared_ptr<SymbolTable> symTable;
+  std::shared_ptr<IntraproceduralCFGs> intraproceduralCFGs;
   std::shared_ptr<TypeInference> typeResults;
   std::shared_ptr<CallGraph> callGraph;
+  std::shared_ptr<OwnershipClassifier> ownershipClassifier;
+  std::shared_ptr<FunctionEffectSummaries> functionEffectSummaries;
 
 public:
   SemanticAnalysis(std::shared_ptr<SymbolTable> s,
+                   std::shared_ptr<IntraproceduralCFGs> cfgs,
                    std::shared_ptr<TypeInference> t,
-                   std::shared_ptr<CallGraph> cg)
-      : symTable(std::move(s)), typeResults(std::move(t)),
-        callGraph(std::move(cg)) {}
+                   std::shared_ptr<CallGraph> cg,
+                   std::shared_ptr<OwnershipClassifier> oc,
+                   std::shared_ptr<FunctionEffectSummaries> fe)
+      : symTable(std::move(s)), intraproceduralCFGs(std::move(cfgs)),
+        typeResults(std::move(t)),
+        callGraph(std::move(cg)), ownershipClassifier(std::move(oc)),
+        functionEffectSummaries(std::move(fe)) {}
 
   /*! \fn analyze
    *  \brief Perform semantic analysis on program AST.
@@ -34,17 +46,20 @@ public:
    * in any of these result in a SemanticError.  If no errors then ownership of
    * semantic analysis results are transferred to caller. \sa SemanticError
    * \param ast The program AST
-   * \param polyInf Indicate whether polymorphic type inference should be
-   * performed. \return The unique pointer to the semantic analysis structure.
+   * \return The unique pointer to the semantic analysis structure.
    */
-  [[nodiscard]] static std::shared_ptr<SemanticAnalysis> analyze(ASTProgram *ast,
-                                                   bool polyInf);
+  [[nodiscard]] static std::shared_ptr<SemanticAnalysis> analyze(ASTProgram *ast);
 
   /*! \fn getSymbolTable
    *  \brief Returns the symbol table computed for the program.
    * \sa SymbolTable
    */
   SymbolTable *getSymbolTable();
+
+  /*! \fn getIntraproceduralCFGs
+   *  \brief Returns the source-level intraprocedural CFG result.
+   */
+  IntraproceduralCFGs *getIntraproceduralCFGs();
 
   /*! \fn getTypeResults
    *  \brief Returns the type inference results.
@@ -57,4 +72,15 @@ public:
    * \sa CallGraph
    */
   CallGraph *getCallGraph();
+
+  /*! \fn getOwnershipClassifier
+   *  \brief Returns the ownership classifier result.
+   * \sa OwnershipClassifier
+   */
+  OwnershipClassifier *getOwnershipClassifier();
+
+  /*! \fn getFunctionEffectSummaries
+   *  \brief Returns the inter-procedural function effect summaries.
+   */
+  FunctionEffectSummaries *getFunctionEffectSummaries();
 };

@@ -2,17 +2,17 @@
 
 #include "Substituter.h"
 
-/*! \brief Makes a copy of a TipType
+/*! \brief Makes a copy of a TopType
  *
- * This subtype of the Substituter overrides the behavior for TipVar
- * and TipAlpha to just copy that node rather than perform a substitution.
+ * This subtype of the Substituter overrides the behavior for TopVar
+ * and TopAlpha to just copy that node rather than perform a substitution.
  */
 class Copier : public Substituter {
 public:
   Copier() = default;
 
-  static std::shared_ptr<TipType> copy(std::shared_ptr<TipType> s);
+  static std::shared_ptr<TopType> copy(std::shared_ptr<TopType> s);
 
-  virtual void endVisit(TipAlpha *element) override;
-  virtual void endVisit(TipVar *element) override;
+  virtual void endVisit(TopAlpha *element) override;
+  virtual void endVisit(TopVar *element) override;
 };

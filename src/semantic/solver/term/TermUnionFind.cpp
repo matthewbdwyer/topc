@@ -1,4 +1,5 @@
 #include "TermUnionFind.h"
+#include "../../SemanticLogging.h"
 #include <cassert>
 
 // ---------------------------------------------------------------------------
@@ -28,6 +29,7 @@ std::shared_ptr<Term> TermUnionFind::smart_insert(std::shared_ptr<Term> t) {
     return existing; // return the stored canonical pointer
   }
   // New term: create a self-loop (t is its own root)
+  SEMANTIC_LOG(3, "union-find") << "insert term=" << t->toString();
   edges[t] = t;
   return t;
 }
@@ -45,6 +47,9 @@ std::shared_ptr<Term> TermUnionFind::find(std::shared_ptr<Term> term) {
   while (!parent->equals(*get_parent(parent))) {
     parent = get_parent(parent);
   }
+  SEMANTIC_LOG(3, "union-find")
+      << "find term=" << term->toString()
+      << " representative=" << parent->toString();
   return parent;
 }
 
@@ -55,6 +60,9 @@ void TermUnionFind::quick_union(std::shared_ptr<Term> t1,
 
   auto t1_root = find(t1);
   auto t2_root = find(t2);
+  SEMANTIC_LOG(3, "union-find")
+      << "union from=" << t1_root->toString()
+      << " to=" << t2_root->toString();
 
   // Make t1_root point to t2_root (t2_root becomes the canonical rep)
   auto key = lookup_edge(t1_root);

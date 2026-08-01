@@ -1,11 +1,11 @@
 # Call macro to add lexer and grammar to your build dependencies.
-antlr_target(TIPGrammar TIP.g4 VISITOR)
+antlr_target(TOPGrammar TOP.g4 VISITOR)
 
 # define a property to communicate the grammar directory to tests
-set_property(GLOBAL PROPERTY GrammarIncludeDir ${ANTLR_TIPGrammar_OUTPUT_DIR})
+set_property(GLOBAL PROPERTY GrammarIncludeDir ${ANTLR_TOPGrammar_OUTPUT_DIR})
 
 # Define a target to force the compilation of the ANTLR4 generated output files.
-add_library(antlrgen STATIC ${ANTLR_TIPGrammar_CXX_OUTPUTS}
+add_library(antlrgen STATIC ${ANTLR_TOPGrammar_CXX_OUTPUTS}
                             iterators/Iterator.h)
 target_link_libraries(antlrgen PRIVATE antlr4_static coverage_config)
 
@@ -25,6 +25,6 @@ target_include_directories(
           ${CMAKE_CURRENT_SOURCE_DIR}/prettyprint
           ${CMAKE_CURRENT_SOURCE_DIR}/iterators
           ${CMAKE_SOURCE_DIR}/src/error
-          ${ANTLR_TIPGrammar_OUTPUT_DIR})
+          ${ANTLR_TOPGrammar_OUTPUT_DIR})
 target_link_libraries(frontend PRIVATE antlrgen ast prettyprint iterators
                                        coverage_config)

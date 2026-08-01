@@ -1,0 +1,20 @@
+/* Interprocedural borrow provenance stress test.
+ * A borrow-derived value may flow through immediate call arguments, but it must
+ * not be stored or returned. */
+type Flag = On | Off;
+
+identity(x) {
+  return x;
+}
+
+readBorrow(b) {
+  return *b;
+}
+
+main() {
+  var x, value;
+  x = 17;
+  value = readBorrow(identity(&x));
+  if (value != 17) error value;
+  return 0;
+}

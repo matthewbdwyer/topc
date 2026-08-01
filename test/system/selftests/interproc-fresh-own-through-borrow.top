@@ -1,0 +1,16 @@
+/* Interprocedural ownership/destruction stress test.
+ * makeBox receives a borrow but returns fresh owned storage. The caller must
+ * treat the result as owned and the destruction pass must free it at return. */
+type Flag = On | Off;
+
+makeBox(seed) {
+  return alloc *seed;
+}
+
+main() {
+  var x, p;
+  x = 23;
+  p = makeBox(&x);
+  if (*p != 23) error *p;
+  return 0;
+}

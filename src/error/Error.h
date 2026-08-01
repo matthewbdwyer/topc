@@ -4,7 +4,7 @@
 #include <iostream>
 #include <string>
 
-/*! \brief Base class for tipc errors.
+/*! \brief Base class for topc errors.
  *
  * Errors detected during compilation result in exceptions being thrown.
  * The exception carries a message -- the return value of the what() method.
