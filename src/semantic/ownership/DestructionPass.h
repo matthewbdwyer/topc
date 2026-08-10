@@ -22,7 +22,7 @@ class ASTWhileStmt;
 
 /*!
  * \class DestructionPass
- * \brief Phase 11 pass: insert ASTDestroyStmt nodes before function returns.
+ * \brief Insert ASTDestroyStmt nodes before function returns.
  *
  * Re-runs a simplified forward ownership dataflow (without error checking —
  * the program has already been validated by MoveAnalysis) to determine which

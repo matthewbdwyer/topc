@@ -13,7 +13,7 @@
 
 /*!
  * \class MoveAnalysis
- * \brief Phase 9 pass: forward dataflow analysis tracking ownership state for
+ * \brief Forward dataflow analysis tracking ownership state for
  *        every Own-classified variable.
  *
  * Ownership states (per program point):

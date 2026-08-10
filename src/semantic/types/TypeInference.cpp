@@ -141,7 +141,6 @@ std::shared_ptr<TypeInference> runPoly(ASTProgram *ast, SymbolTable *symbols,
 
   /* Auto-generalize: mark every non-recursive singleton-SCC function as
    * polymorphic so that call sites instantiate fresh type variables.
-   * This replaces the explicit `poly` keyword (Phase 7).
    */
   for (auto f : nonRecursiveFuncs)
     symbols->setPoly(f->getName());

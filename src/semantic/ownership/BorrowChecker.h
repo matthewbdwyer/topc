@@ -23,9 +23,9 @@ class FunctionEffectSummaries;
 class SymbolTable;
 
 /*! \class BorrowChecker
- *  \brief Phase 10 — Borrow/Lifetime Validity.
+ *  \brief Borrow/Lifetime Validity.
  *
- * Enforces the immediate-argument restriction (Q21): a borrow expression
+ * Enforces the immediate-argument restriction: a borrow expression
  * (`&x`) is legal **only** as a direct argument of a function call.
  * Storing a borrow in a variable, using it in a condition, or in any
  * other position is a SemanticError.

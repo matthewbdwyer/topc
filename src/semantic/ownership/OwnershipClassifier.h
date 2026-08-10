@@ -21,7 +21,7 @@ enum class OwnershipClass { Copy, Own };
 
 /*!
  * \class OwnershipClassifier
- * \brief Phase 8 pass: classify every declared variable as Copy or Own.
+ * \brief Classify every declared variable as Copy or Own.
  *
  * Classification rules (from the dev plan):
  * | Type                     | Class                                    |

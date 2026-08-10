@@ -432,7 +432,8 @@ Any ASTBuilder::visitReturnStmt(TOPParser::ReturnStmtContext *ctx) {
   return "";
 } // LCOV_EXCL_LINE
 
-// TOP extensions — Phase 2 AST builder implementations
+// TOP extensions relative to TIP
+
 Any ASTBuilder::visitSumVariant(TOPParser::SumVariantContext *ctx) {
   std::string tag = ctx->CONID()->getText();
   std::vector<std::shared_ptr<ASTDeclNode>> params;

@@ -10,7 +10,7 @@
  *
  * Example: the `x` in `Some(x)`.
  * Embeds an ASTDeclNode so that the symbol table infrastructure can
- * register the binding without pattern-specific changes in Phase B1.
+ * register the binding.
  */
 class ASTVarPattern : public ASTPattern {
   std::shared_ptr<ASTDeclNode> DECL;

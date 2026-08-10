@@ -28,7 +28,7 @@ static void expectErrorParts(std::stringstream &program,
                              const std::vector<std::string> &msgParts) {
   auto ast = ASTHelper::build_ast(program);
   try {
-    SemanticAnalysis::analyze(ast.get());
+    (void)SemanticAnalysis::analyze(ast.get());
     FAIL("expected SemanticError");
   } catch (const SemanticError &err) {
     std::string message = err.what();

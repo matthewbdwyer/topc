@@ -2,6 +2,13 @@ cmake_minimum_required(VERSION 3.15)
 
 project(topc)
 
+if(POLICY CMP0156)
+  cmake_policy(SET CMP0156 NEW)
+endif()
+if(POLICY CMP0179)
+  cmake_policy(SET CMP0179 NEW)
+endif()
+
 # Include CMake modules
 include(FetchContent)
 
@@ -104,8 +111,8 @@ add_definitions(${LLVM_DEFINITIONS})
 
 # Logging.
 add_library(loguru)
-target_sources(loguru PUBLIC ${CMAKE_SOURCE_DIR}/externals/loguru/loguru.cpp
-                             ${CMAKE_SOURCE_DIR}/externals/loguru/loguru.hpp)
+target_sources(loguru PRIVATE ${CMAKE_SOURCE_DIR}/externals/loguru/loguru.cpp
+                              ${CMAKE_SOURCE_DIR}/externals/loguru/loguru.hpp)
 find_package(Threads REQUIRED)
 target_link_libraries(loguru ${CMAKE_THREAD_LIBS_INIT})
 if(NOT WIN32)

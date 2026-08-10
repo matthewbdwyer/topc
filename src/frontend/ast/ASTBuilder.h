@@ -64,7 +64,7 @@ public:
   Any visitErrorStmt(TOPParser::ErrorStmtContext *ctx) override;
   Any visitReturnStmt(TOPParser::ReturnStmtContext *ctx) override;
 
-  // TOP extensions (Phase 1 stubs — AST nodes built in Phase 2)
+  // TOP extensions relative to TIP
   Any visitTypeDecl(TOPParser::TypeDeclContext *ctx) override;
   Any visitSumVariant(TOPParser::SumVariantContext *ctx) override;
   Any visitCaseStmt(TOPParser::CaseStmtContext *ctx) override;

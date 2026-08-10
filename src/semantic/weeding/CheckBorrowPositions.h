@@ -13,7 +13,7 @@
  *   - operand of `return`
  *
  * Borrows as function-call arguments and as the RHS of an assignment are
- * deferred to the type/borrow checker (Phase 10).
+ * deferred to the type/borrow checker.
  */
 class CheckBorrowPositions : public ASTVisitor {
 public:

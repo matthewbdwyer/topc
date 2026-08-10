@@ -380,7 +380,7 @@ void printBorrowConstraints(ASTProgram *ast, std::ostream &os) {
  * using LLVM CommandLine support.  It runs the phases of the compiler in
  * sequence. If an error is detected, via an exception, it reports the error and
  * exits. If there is no error, then the LLVM bitcode is emitted to a file whose
- * name is the providvvved source file suffixed by ".bc".
+ * name is the provided source file suffixed by ".bc".
  */
 int main(int argc, char *argv[]) {
   cl::HideUnrelatedOptions(TOPcat);
@@ -489,7 +489,7 @@ int main(int argc, char *argv[]) {
 
   /*
    * Program representations, e.g., ast, analysis results, etc., are
-   * represented using smart pointers.  The driver "owns" this data and
+   * represented using shared pointers.  The driver "owns" this data and
    * it permits other components to read the contents by passing
    * the underlying pointer, i.e., via a call to get().
    */
@@ -723,13 +723,13 @@ int main(int argc, char *argv[]) {
        * them just in case.  We do not want to count these lines toward
        * coverage goals since a working compiler will never cover these.
        */
-      LOG_S(ERROR) << "topc: " << e.what();   // LCOV_EXCL_LINE
-      LOG_S(ERROR) << "topc: internal error"; // LCOV_EXCL_LINE
-      std::exit(EXIT_FAILURE);                // LCOV_EXCL_LINE
+      LOG_S(ERROR) << "topc: " << e.what();	// LCOV_EXCL_LINE
+      LOG_S(ERROR) << "topc: internal error";	// LCOV_EXCL_LINE
+      std::exit(EXIT_FAILURE);			// LCOV_EXCL_LINE
     }
   } catch (ParseError &e) {
-    LOG_S(ERROR) << "topc: " << e.what();
-    LOG_S(ERROR) << "topc: parse error";
-    std::exit(EXIT_FAILURE);
+    LOG_S(ERROR) << "topc: " << e.what();	// LCOV_EXCL_LINE
+    LOG_S(ERROR) << "topc: parse error";	// LCOV_EXCL_LINE
+    std::exit(EXIT_FAILURE);			// LCOV_EXCL_LINE
   } // LCOV_EXCL_LINE
 } // LCOV_EXCL_LINE

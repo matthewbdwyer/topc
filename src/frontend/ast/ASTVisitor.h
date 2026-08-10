@@ -62,7 +62,9 @@ public:
   virtual void endVisit(ASTBlockStmt *element) {}
   virtual bool visit(ASTDestroyStmt *element) { return true; }
   virtual void endVisit(ASTDestroyStmt *element) {}
-  // TOP/SOP extension nodes
+
+  // TOP extensions relative to TIP
+
   virtual bool visit(ASTSumCtorExpr *element) { return true; }
   virtual void endVisit(ASTSumCtorExpr *element) {}
   virtual bool visit(ASTSumTypeDecl *element) { return true; }
@@ -73,7 +75,6 @@ public:
   virtual void endVisit(ASTCaseStmt *element) {}
   virtual bool visit(ASTCaseArm *element) { return true; }
   virtual void endVisit(ASTCaseArm *element) {}
-  // Pattern visitor hooks (used by Phase B2+ passes; default: visit/no-op)
   virtual bool visit(ASTVarPattern *element) { return true; }
   virtual void endVisit(ASTVarPattern *element) {}
   virtual bool visit(ASTWildcardPattern *element) { return true; }
