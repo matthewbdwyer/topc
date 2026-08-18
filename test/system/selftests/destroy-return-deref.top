@@ -1,0 +1,22 @@
+// Ownership: a function returns a dereference of a value it owns.  The owned
+// allocation must be destroyed only AFTER the return expression is evaluated,
+// so 'return *p' observes the live value.
+//
+// Regression test: the destruction pass previously inserted the free before
+// evaluating the return expression, turning 'return *p' into a use-after-free
+// that returned freed memory.  Unlike the other destroy-* tests, the helper
+// dereferences the owned pointer directly in return position instead of first
+// binding *p to a local.
+derefOwned() {
+  var p;
+  p = alloc 5;
+  *p = *p - 1;   // 4
+  return *p;     // must observe 4, not freed garbage
+}
+
+main() {
+  var r;
+  r = derefOwned();
+  if (r != 4) error r;
+  return 0;
+}

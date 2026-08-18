@@ -376,13 +376,43 @@ llvm::Value *CodeGenVisitor::generate(ASTFunction *node) {
     }
   }
 
-  for (auto stmt : node->getStmts()) {
-    if (dispatch(stmt) == nullptr) {
+  // The destruction pass inserts end-of-scope destroys immediately before the
+  // terminal return.  Emit them AFTER evaluating the return expression: a
+  // 'return *p' must read the value owned by p before p's allocation is freed,
+  // otherwise the free precedes the load and the function returns freed memory.
+  std::vector<ASTStmt *> deferredDestroys;
+  auto emitStmtOrThrow = [&](ASTStmt *s) {
+    if (dispatch(s) == nullptr) {
       TheFunction->eraseFromParent();                    // LCOV_EXCL_LINE
       throw InternalError(                               // LCOV_EXCL_LINE
           "failed to generate bitcode for the function " // LCOV_EXCL_LINE
           "statement");                                  // LCOV_EXCL_LINE
     }
+  };
+
+  for (auto stmt : node->getStmts()) {
+    if (dynamic_cast<ASTDestroyStmt *>(stmt) != nullptr) {
+      deferredDestroys.push_back(stmt); // hold until after the return value
+      continue;
+    }
+    if (auto *ret = dynamic_cast<ASTReturnStmt *>(stmt)) {
+      llvm::Value *retVal = dispatch(ret->getArg());
+      if (retVal == nullptr) {
+        TheFunction->eraseFromParent();                     // LCOV_EXCL_LINE
+        throw InternalError("failed to generate return value"); // LCOV_EXCL_LINE
+      }
+      for (auto *d : deferredDestroys) {
+        emitStmtOrThrow(d);
+      }
+      deferredDestroys.clear();
+      ctx.irBuilder.CreateRet(retVal);
+      continue;
+    }
+    emitStmtOrThrow(stmt);
+  }
+  // Defensive: emit any destroys not followed by a terminal return.
+  for (auto *d : deferredDestroys) {
+    emitStmtOrThrow(d);
   }
 
   verifyFunction(*TheFunction);
