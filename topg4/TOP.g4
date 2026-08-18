@@ -63,6 +63,9 @@ expr : expr '(' (expr (',' expr)*)? ')' 	#funAppExpr
 
 ////////////////////// TOP Statements ////////////////////////// 
 
+// NOTE: returnStmt is deliberately NOT a statement.  A 'return' may appear only
+// as a function's mandatory final statement (see the function rule); there is no
+// nested or early-return form in TOP, so nested returns fail to parse.
 statement : blockStmt
     | assignStmt
     | whileStmt
@@ -70,7 +73,6 @@ statement : blockStmt
     | outputStmt
     | errorStmt
     | caseStmt
-    | returnStmt
 ;
 
 assignStmt : expr '=' expr ';' ;

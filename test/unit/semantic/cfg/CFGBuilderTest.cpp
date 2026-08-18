@@ -566,52 +566,6 @@ TEST_CASE("CFGBuilder: loop body with internal branch still rejoins condition",
   REQUIRE(hasBackEdgePred);
 }
 
-TEST_CASE("CFGBuilder: loop body return reaches exit without back edge",
-          "[cfg][CFGBuilder]") {
-  auto ast = parseProgram(R"(
-    main() {
-      var x;
-      x = 2;
-      while (x) {
-        return x;
-      }
-      return x;
-    }
-  )");
-
-  auto cfgs = IntraproceduralCFGs::build(ast.get());
-  auto *f = ast->findFunctionByName("main");
-  REQUIRE(f != nullptr);
-  const auto &cfg = cfgs->get(f);
-
-  REQUIRE_NOTHROW(cfg.validate());
-
-  auto *whileStmt = findFirstWhileStmt(f);
-  REQUIRE(whileStmt != nullptr);
-
-  const auto *whileBlock = findWhileBlockForStmt(cfg, whileStmt);
-  REQUIRE(whileBlock != nullptr);
-
-  BlockId bodyTarget = 0;
-  for (const auto &edge : whileBlock->getSuccessors()) {
-    if (edge.kind == CFGEdgeKind::TrueBranch) {
-      bodyTarget = edge.target;
-    }
-  }
-  REQUIRE(bodyTarget != 0);
-
-  const auto *bodyBlock = cfg.findBlock(bodyTarget);
-  REQUIRE(bodyBlock != nullptr);
-  REQUIRE(bodyBlock->getTerminatorKind() == CFGTerminatorKind::Return);
-  REQUIRE(bodyBlock->getSuccessors().size() == 1);
-  REQUIRE(bodyBlock->getSuccessors()[0].kind == CFGEdgeKind::ReturnToExit);
-  REQUIRE(bodyBlock->getSuccessors()[0].target == cfg.getExit().getId());
-
-  for (const auto &edge : bodyBlock->getSuccessors()) {
-    REQUIRE(edge.target != whileBlock->getId());
-  }
-}
-
 TEST_CASE("CFGBuilder: nested loops retain separate condition blocks",
           "[cfg][CFGBuilder]") {
   auto ast = parseProgram(R"(
@@ -910,55 +864,3 @@ TEST_CASE("CFGBuilder: nested case preserves outer continuation",
   REQUIRE(innerJoin == outerJoin);
 }
 
-TEST_CASE("CFGBuilder: returning case arm does not join continuation",
-          "[cfg][CFGBuilder]") {
-  auto ast = parseProgram(R"(
-    type Opt = Some(val) | None;
-
-    main() {
-      var o, x;
-      o = Some(1);
-      case o of {
-        Some(v) -> return v;
-        None -> x = 0;
-      }
-      output x;
-      return x;
-    }
-  )");
-
-  auto cfgs = IntraproceduralCFGs::build(ast.get());
-  auto *f = ast->findFunctionByName("main");
-  REQUIRE(f != nullptr);
-  const auto &cfg = cfgs->get(f);
-
-  REQUIRE_NOTHROW(cfg.validate());
-
-  auto *caseStmt = findFirstCaseStmt(f);
-  REQUIRE(caseStmt != nullptr);
-
-  const auto *caseBlock = findCaseBlockForStmt(cfg, caseStmt);
-  REQUIRE(caseBlock != nullptr);
-  REQUIRE(caseBlock->getSuccessors().size() == 2);
-
-  const BasicBlock *someArm = nullptr;
-  const BasicBlock *noneArm = nullptr;
-  for (const auto &edge : caseBlock->getSuccessors()) {
-    if (edge.label == "Some(v)") {
-      someArm = cfg.findBlock(edge.target);
-    } else if (edge.label == "None") {
-      noneArm = cfg.findBlock(edge.target);
-    }
-  }
-
-  REQUIRE(someArm != nullptr);
-  REQUIRE(noneArm != nullptr);
-
-  REQUIRE(someArm->getTerminatorKind() == CFGTerminatorKind::Return);
-  REQUIRE(someArm->getSuccessors().size() == 1);
-  REQUIRE(someArm->getSuccessors()[0].kind == CFGEdgeKind::ReturnToExit);
-  REQUIRE(someArm->getSuccessors()[0].target == cfg.getExit().getId());
-
-  REQUIRE(noneArm->getSuccessors().size() == 1);
-  REQUIRE(noneArm->getSuccessors()[0].kind == CFGEdgeKind::Fallthrough);
-}

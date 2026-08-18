@@ -149,29 +149,22 @@ TEST_CASE("TOP Parser: input", "[TOP Parser]") {
   REQUIRE(ParserHelper::is_parsable(stream));
 }
 
-TEST_CASE("TOP Parser: nested returns in control flow", "[TOP Parser]") {
+TEST_CASE("TOP Parser: nested returns are rejected", "[TOP Parser]") {
+  // A 'return' may appear only as a function's final statement.  Nested or
+  // early returns are not part of the grammar, so they fail to parse.
   std::stringstream stream;
   stream << R"(
-      type Opt = Some(val) | None;
-
       main() {
-        var o, x;
-        o = Some(1);
+        var x;
+        x = 1;
         if (x) {
-          return x;
-        }
-        case o of {
-          Some(v) -> return v;
-          None -> x = 0;
-        }
-        while (x) {
           return x;
         }
         return x;
       }
     )";
 
-  REQUIRE(ParserHelper::is_parsable(stream));
+  REQUIRE_FALSE(ParserHelper::is_parsable(stream));
 }
 
 /* These tests checks for operator precedence. */
@@ -460,5 +453,5 @@ TEST_CASE("TOP Parser: Parsing exceptions are thrown", "[TOP Parser]") {
     )";
 
   REQUIRE_THROWS_WITH(FrontEnd::parse(stream),
-                         Catch::Matchers::ContainsSubstring("no viable alternative"));
+                         Catch::Matchers::ContainsSubstring("missing ';'"));
 }
