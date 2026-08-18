@@ -94,8 +94,29 @@ def _compile(srcfile: Path, out_bc: Path,
     return _run([str(TOPC)] + list(extra_flags) + [str(srcfile), "-o", str(out_bc)])
 
 
+def _macos_sysroot_flags() -> List[str]:
+    """On macOS, Homebrew clang does not locate the system SDK on its own, so
+    the linker fails to find libSystem ("library 'System' not found"). Pass an
+    explicit -isysroot pointing at the active SDK. Returns no flags on other
+    platforms."""
+    if sys.platform != "darwin":
+        return []
+    sdk = os.environ.get("SDKROOT")
+    if not sdk:
+        try:
+            sdk = subprocess.run(["xcrun", "--show-sdk-path"],
+                                 capture_output=True, text=True).stdout.strip()
+        except (OSError, subprocess.SubprocessError):
+            sdk = ""
+    return ["-isysroot", sdk] if sdk else []
+
+
+MACOS_SYSROOT_FLAGS = _macos_sysroot_flags()
+
+
 def _link(bc_files: Sequence[Path], out_exe: Path) -> subprocess.CompletedProcess:
     return _run([TOPCLANG, "-w", "-fsanitize=address"]
+                + MACOS_SYSROOT_FLAGS
                 + [str(b) for b in bc_files]
                 + ["-o", str(out_exe)])
 

@@ -13,6 +13,15 @@ if [ -z "${TOPCLANG}" ]; then
   exit 1
 fi
 
+# On macOS, Homebrew clang does not locate the system SDK on its own; without an
+# explicit -isysroot the link step fails with "library 'System' not found".
+# Resolve the active SDK once (honoring SDKROOT if set).
+SYSROOT_FLAGS=""
+if [ "$(uname -s)" = "Darwin" ]; then
+  SDK="${SDKROOT:-$(xcrun --show-sdk-path 2>/dev/null)}"
+  [ -n "${SDK}" ] && SYSROOT_FLAGS="-isysroot ${SDK}"
+fi
+
 # Check if the topc executable exists
 if [ ! -f "${TOPC}" ]; then
   echo "error: topc was not found"
@@ -63,6 +72,6 @@ case "$*" in
       exit 0
     fi
     exe_name="$(basename "${SOURCE_FILE}" .top)"
-    "${TOPCLANG}" -w "${OUTPUT_BC}" "${RTLIB}/top_rtlib.bc" -o "${exe_name}"
+    "${TOPCLANG}" -w ${SYSROOT_FLAGS} "${OUTPUT_BC}" "${RTLIB}/top_rtlib.bc" -o "${exe_name}"
     ;;
 esac
