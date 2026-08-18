@@ -115,7 +115,7 @@ NE  : '!=' ;
 
 NUMBER : [0-9]+ ;
 
-// Existing TOP keywords
+// TOP keywords
 KALLOC  : 'alloc' ;
 KINPUT  : 'input' ;
 KWHILE  : 'while' ;
@@ -123,14 +123,15 @@ KIF     : 'if' ;
 KELSE   : 'else' ;
 KVAR    : 'var' ;
 KRETURN : 'return' ;
-KNULL   : 'null' ;
 KOUTPUT : 'output' ;
 KERROR  : 'error' ;
-
-// TOP keywords
 KTYPE   : 'type' ;
 KCASE   : 'case' ;
 KOF     : 'of' ;
+
+// Excluded keywords: reserved so their use is a clear parse error, not silently
+// treated as an identifier. TOP has no null.
+KNULL	: 'null' ;
 
 // TOP operator tokens (must precede SUB so maximal-munch applies)
 ARROW   : '->' ;
