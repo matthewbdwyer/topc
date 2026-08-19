@@ -210,13 +210,7 @@ MoveAnalysis::StateMap MoveAnalysis::analyzeAssign(ASTAssignStmt *stmt,
       return state;
     }
 
-    auto *rhsCall = dynamic_cast<ASTFunAppExpr *>(rhs);
-    if (rhsCall != nullptr && !callResultIsOwned(rhsCall, lhsIsOwn)) {
-      // Summary says this call result is not an owning transfer.
-      state.erase(lhsDecl);
-      return state;
-    }
-
+    // Trust the solved type: an owning-typed binding receives ownership here.
     auto lhsIt = state.find(lhsDecl);
     if (lhsIt != state.end() && lhsIt->second == OwnershipState::Owned) {
       // Assign-over-live-own: hard error.
@@ -267,44 +261,6 @@ bool MoveAnalysis::actualInstantiatesOwn(
   }
 
   return false;
-}
-
-bool MoveAnalysis::callResultIsOwned(const ASTFunAppExpr *call,
-                                     bool lhsIsOwn) const {
-  auto *calleeVar = dynamic_cast<ASTVariableExpr *>(call->getFunction());
-  ASTDeclNode *calleeDecl =
-      (calleeVar != nullptr) ? sym->getFunction(calleeVar->getName()) : nullptr;
-  const FunctionEffectSummaries::Summary *summary =
-      (calleeDecl != nullptr && functionEffects != nullptr)
-          ? functionEffects->get(calleeDecl)
-          : nullptr;
-
-  if (summary == nullptr) {
-    return lhsIsOwn;
-  }
-
-  switch (summary->returnOrigin) {
-  case FunctionEffectSummaries::ReturnOrigin::PureCopy:
-  case FunctionEffectSummaries::ReturnOrigin::BorrowFromFormal:
-    return false;
-  case FunctionEffectSummaries::ReturnOrigin::FreshOwn:
-    return true;
-  case FunctionEffectSummaries::ReturnOrigin::FromFormal: {
-    int i = summary->returnFormalIndex;
-    auto actuals = call->getActuals();
-    if (i < 0 || static_cast<std::size_t>(i) >= summary->formalModes.size() ||
-        static_cast<std::size_t>(i) >= actuals.size()) {
-      return lhsIsOwn;
-    }
-    return actualInstantiatesOwn(actuals[static_cast<std::size_t>(i)],
-                                 summary->formalModes[static_cast<std::size_t>(i)],
-                                 lhsIsOwn);
-  }
-  case FunctionEffectSummaries::ReturnOrigin::Unknown:
-    return lhsIsOwn;
-  }
-
-  return lhsIsOwn;
 }
 
 void MoveAnalysis::consumeCallArgMoves(ASTNode *node, StateMap &state) {

@@ -899,8 +899,8 @@ Destruction follows structure recursively:
 5. Values classified as `Copy`, including borrows, never release another
   value's storage.
 
-`--pownership` exposes ownership and destruction results. `--asan` instruments
-generated code with AddressSanitizer, which helps reveal leaks, double frees,
+`--pownership` exposes ownership and destruction results. `--san` instruments
+generated code with Address/LeakSanitizer, which helps reveal leaks, double frees,
 and invalid accesses while testing compiler behavior.
 
 For this example, `--pownership` makes the inserted cleanup visible:
@@ -914,7 +914,7 @@ For this example, `--pownership` makes the inserted cleanup visible:
 
 The source contains no destruction statement, but the summary reports one
 destroy inserted for the live value classified as `Own` and bound to `pointer`.
-Compile with `--asan` to have AddressSanitizer check at runtime that the
+Compile with `--san` to have Address/LeakSanitizer check at runtime that the
 generated cleanup does not leak, free an allocation twice, or access it after
 it has been freed.
 

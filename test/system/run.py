@@ -437,6 +437,24 @@ def run_driver_tests(scratch: Path) -> List[TestResult]:
     check("driver.pc_ownership.poly_identity_own",
           lambda: pc_ownership_snapshot("poly-identity-own"))
 
+    # -- interprocedural ownership: owned results returned through higher-order
+    #    calls must be destroyed (Oracle B: --pownership destroy count) ---------
+    def iown_destroys(stem: str, expected: str):
+        src = SELFTESTS_DIR / f"{stem}.top"
+        r = _run([str(TOPC), "--pownership", str(src)])
+        if r.returncode != 0:
+            return f"topc --pownership failed for {src.name}:\n{r.stderr.strip()}"
+        if expected not in r.stdout:
+            return f"expected '{expected}' for {src.name}; got:\n{r.stdout}"
+        return None
+
+    check("driver.iown.return_factory",
+          lambda: iown_destroys("iown-return-factory", "main : 2 destroys"))
+    check("driver.iown.chain_factory",
+          lambda: iown_destroys("iown-chain-factory", "main : 1 destroy"))
+    check("driver.iown.local_factory",
+          lambda: iown_destroys("iown-local-factory", "main : 1 destroy"))
+
     # -- --pborrow --constraint snapshot ---------------------------------------
     def pc_borrow_snapshot(stem: str):
         src = SELFTESTS_DIR / f"{stem}.top"

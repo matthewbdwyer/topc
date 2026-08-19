@@ -170,13 +170,9 @@ DestructionPass::StateMap DestructionPass::analyzeAssign(ASTAssignStmt *stmt,
       return state;
     }
 
-    auto *rhsCall = dynamic_cast<ASTFunAppExpr *>(stmt->getRHS());
-    if (rhsCall != nullptr && !callResultIsOwned(rhsCall, lhsIsOwn)) {
-      state.erase(lhsDecl);
-      return state;
-    }
-
-    // Destination becomes Owned.
+    // Trust the solved type: an owning-typed binding is Owned. Linear ownership
+    // guarantees the call result is uniquely owned; MoveAnalysis invalidates the
+    // source, so no summary re-derivation is needed.
     state[lhsDecl] = OwnershipState::Owned;
   }
 
@@ -208,44 +204,6 @@ bool DestructionPass::actualInstantiatesOwn(
   }
 
   return false;
-}
-
-bool DestructionPass::callResultIsOwned(const ASTFunAppExpr *call,
-                                        bool lhsIsOwn) const {
-  auto *calleeVar = dynamic_cast<ASTVariableExpr *>(call->getFunction());
-  ASTDeclNode *calleeDecl =
-      (calleeVar != nullptr) ? sym->getFunction(calleeVar->getName()) : nullptr;
-  const FunctionEffectSummaries::Summary *summary =
-      (calleeDecl != nullptr && functionEffects != nullptr)
-          ? functionEffects->get(calleeDecl)
-          : nullptr;
-
-  if (summary == nullptr) {
-    return lhsIsOwn;
-  }
-
-  switch (summary->returnOrigin) {
-  case FunctionEffectSummaries::ReturnOrigin::PureCopy:
-  case FunctionEffectSummaries::ReturnOrigin::BorrowFromFormal:
-    return false;
-  case FunctionEffectSummaries::ReturnOrigin::FreshOwn:
-    return true;
-  case FunctionEffectSummaries::ReturnOrigin::FromFormal: {
-    int i = summary->returnFormalIndex;
-    auto actuals = call->getActuals();
-    if (i < 0 || static_cast<std::size_t>(i) >= summary->formalModes.size() ||
-        static_cast<std::size_t>(i) >= actuals.size()) {
-      return lhsIsOwn;
-    }
-    return actualInstantiatesOwn(actuals[static_cast<std::size_t>(i)],
-                                 summary->formalModes[static_cast<std::size_t>(i)],
-                                 lhsIsOwn);
-  }
-  case FunctionEffectSummaries::ReturnOrigin::Unknown:
-    return lhsIsOwn;
-  }
-
-  return lhsIsOwn;
 }
 
 void DestructionPass::consumeCallArgMoves(ASTNode *node, StateMap &state) {

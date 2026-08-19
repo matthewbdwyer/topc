@@ -1,0 +1,14 @@
+// Interprocedural ownership: fresh ownership returned through a CHAINED higher-
+// order call (apply -> call2 -> cell). The owned result must be freed at scope
+// exit. Previously leaked (apply summarized Copy); now the solved type is
+// authoritative. Runs clean under Address/LeakSanitizer.
+call2(h, x) { return h(x); }
+apply(g, v) { return call2(g, v); }
+cell(n) { return alloc n; }
+
+main() {
+  var p;
+  p = apply(cell, 7);
+  if (*p != 7) error *p;
+  return 0;
+}

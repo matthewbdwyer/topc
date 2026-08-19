@@ -86,14 +86,6 @@ private:
    */
   void consumeCallArgMoves(ASTNode *node, StateMap &state);
 
-  /*! \brief Determine whether a call expression result should be tracked as
-   *         owning when assigned.
-   *
-   * Returns true when ownership should be established, false when the result
-   * should be treated as non-owning.
-   */
-  bool callResultIsOwned(const ASTFunAppExpr *call, bool lhsIsOwn) const;
-
   /*! \brief Determine whether the i-th actual instantiates as Own for a formal
    *         mode that depends on instantiation.
    */

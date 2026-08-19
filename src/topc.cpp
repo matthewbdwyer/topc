@@ -78,9 +78,11 @@ static cl::opt<std::string>
         cl::init(""), cl::cat(TOPcat));
 static cl::opt<bool> disopt("do", cl::desc("disable bitcode optimization"),
                             cl::cat(TOPcat));
-static cl::opt<bool> emitAsan("asan",
-                              cl::desc("instrument generated IR with AddressSanitizer"),
-                              cl::cat(TOPcat));
+static cl::opt<bool> emitSan("san",
+                             cl::desc("instrument generated IR with Address/LeakSanitizer"),
+                             cl::cat(TOPcat));
+static cl::alias emitSanAlias("asan", cl::desc("deprecated alias for --san"),
+                              cl::aliasopt(emitSan));
 static cl::opt<int> debug(
     "verbose",
   cl::desc("enable log messages (levels 1-3)\n Level 1 - semantic phase "
@@ -461,7 +463,7 @@ int main(int argc, char *argv[]) {
 
   const bool compileFlagsRequested =
       outputfile.getNumOccurrences() > 0 || emitHrAsm.getNumOccurrences() > 0 ||
-      disopt.getNumOccurrences() > 0 || emitAsan.getNumOccurrences() > 0;
+      disopt.getNumOccurrences() > 0 || emitSan.getNumOccurrences() > 0;
   const bool compileRequested = !hasInspectionRequest || compileFlagsRequested;
 
   loguru::g_preamble = false;
@@ -704,7 +706,7 @@ int main(int argc, char *argv[]) {
                                                   sourceFile);
 
         if (!disopt) {
-          Optimizer::optimize(llvmModule.get(), emitAsan);
+          Optimizer::optimize(llvmModule.get(), emitSan);
         }
 
         if (emitHrAsm) {

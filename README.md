@@ -74,7 +74,7 @@ main() {
 }
 ```
 
-Ownership is linear: assigning an owned pointer _moves_ it; the original binding becomes inaccessible.  The `--asan` flag instruments the generated IR with AddressSanitizer so that correct automatic deallocation can be verified at runtime.
+Ownership is linear: assigning an owned pointer _moves_ it; the original binding becomes inaccessible.  The `--san` flag instruments the generated IR with Address/LeakSanitizer so that correct automatic deallocation can be verified at runtime.
 
 ### Borrows
 
@@ -194,7 +194,7 @@ USAGE: topc [options] <top source file>
 
 OPTIONS:
 
-  --asan                         - instrument generated IR with AddressSanitizer
+  --san                          - instrument generated IR with Address/LeakSanitizer
   --asm                          - emit human-readable LLVM assembly language
   --constraint                   - include constraint/trace details
   --do                           - disable bitcode optimization
@@ -343,7 +343,7 @@ Polymorphic type inference is always on: all non-recursive functions are auto-ge
 
 **Anonymous records replaced by algebraic sum types.**  TIP supports anonymous record expressions `{field: expr, ...}` and field access `expr.field`.  TOP removes this syntax entirely and replaces structured data with algebraic sum types.  The motivation is soundness under unification-based type inference: TIP's record type system uses an *uber-record* strategy — a single global record type is inferred that contains every field name mentioned anywhere in the program.  Fields absent from a given record expression are zero-initialised on heap allocation and undefined otherwise.  This makes it impossible to detect field-name typos at compile time, conflates structurally distinct record uses, and produces misleading inferred types.  Algebraic sum types avoid these problems.  Each `type` declaration introduces a distinct named type, constructor payloads are typed individually, and `case` analysis checks constructor patterns and exhaustive coverage.  Authoritative validation of constructor expressions remains a known gap.
 
-Memory management: unlike TIP, TOP has no source-level manual deallocation. The destruction pass inserts destruction for live owned locals before a function returns, and code generation recursively lowers that destruction to resource cleanup. Run with `--asan` to check the generated cleanup for leaks, double frees, and invalid accesses.
+Memory management: unlike TIP, TOP has no source-level manual deallocation. The destruction pass inserts destruction for live owned locals before a function returns, and code generation recursively lowers that destruction to resource cleanup. Run with `--san` to check the generated cleanup for leaks, double frees, and invalid accesses.
 
 
 ## Resources

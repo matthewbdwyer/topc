@@ -1,0 +1,16 @@
+// Interprocedural ownership: a factory reaches a higher-order call through a
+// local binding (mk = cell; apply(mk, ...)). The owned result must be freed at
+// scope exit. Also exercises a Copy-returning use of the same generic apply.
+apply(f, x) { return f(x); }
+inc(n) { return n + 1; }
+cell(n) { return alloc n; }
+
+main() {
+  var mk, a, p;
+  a = apply(inc, 41);   // Copy result
+  mk = cell;
+  p = apply(mk, 42);    // Own result through a local-bound factory
+  if (a != 42) error a;
+  if (*p != 42) error *p;
+  return 0;
+}
