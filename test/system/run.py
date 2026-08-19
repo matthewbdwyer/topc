@@ -60,6 +60,8 @@ EXPECTED_ERROR_SUBSTRINGS = {
         "Cannot unify Own with Borrow",
     "recursive-function-unsupported-error.top":
         "recursive types are not yet supported in ownership analysis",
+    "owned-move-then-use-error.top":
+        "used after move",
 }
 
 # ---------------------------------------------------------------------------

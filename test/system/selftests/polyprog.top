@@ -3,8 +3,9 @@ ident(p){
 }
 
 main(){
-    var n;
+    var n, v;
     n=alloc 42;
-    if (ident(n) != 42) error ident(n);
+    v = ident(n);          // move n into ident; ident reads it and owns/frees it
+    if (v != 42) error v;
     return 0;
 }

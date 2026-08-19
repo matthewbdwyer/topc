@@ -1,0 +1,10 @@
+// Step 1: after an owned value is moved (passed by value), it may not be used
+// again. This must be rejected at compile time.
+sink(p) { var d; d = *p; return d; }
+main() {
+  var x, a, b;
+  x = alloc 5;
+  a = sink(x);
+  b = sink(x);   // x already moved -> error
+  return a + b;
+}

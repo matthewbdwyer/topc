@@ -86,6 +86,7 @@ MoveAnalysis::StateMap MoveAnalysis::analyzeStmt(ASTStmt *stmt, StateMap state) 
   // If statement
   if (auto *ifStmt = dynamic_cast<ASTIfStmt *>(stmt)) {
     checkExprForMoved(ifStmt->getCondition(), state);
+    consumeCallArgMoves(ifStmt->getCondition(), state);
     auto thenState = analyzeStmt(ifStmt->getThen(), state);
     StateMap elseState =
         (ifStmt->getElse() != nullptr)
@@ -98,6 +99,7 @@ MoveAnalysis::StateMap MoveAnalysis::analyzeStmt(ASTStmt *stmt, StateMap state) 
   // While loop: body may not change any Own variable's state
   if (auto *whileStmt = dynamic_cast<ASTWhileStmt *>(stmt)) {
     checkExprForMoved(whileStmt->getCondition(), state);
+    consumeCallArgMoves(whileStmt->getCondition(), state);
     auto bodyState = analyzeStmt(whileStmt->getBody(), state);
     // Collect all keys in bodyState that differ from preState
     for (auto &[decl, s] : bodyState) {
@@ -117,6 +119,7 @@ MoveAnalysis::StateMap MoveAnalysis::analyzeStmt(ASTStmt *stmt, StateMap state) 
   // Return: check expression, mark directly-returned Own variables as Moved
   if (auto *retStmt = dynamic_cast<ASTReturnStmt *>(stmt)) {
     checkExprForMoved(retStmt->getArg(), state);
+    consumeCallArgMoves(retStmt->getArg(), state);
     auto *retVar = dynamic_cast<ASTVariableExpr *>(retStmt->getArg());
     if (retVar) {
       ASTDeclNode *decl = resolveVar(retVar->getName());
@@ -130,16 +133,19 @@ MoveAnalysis::StateMap MoveAnalysis::analyzeStmt(ASTStmt *stmt, StateMap state) 
   // Output / Error: check expression, no ownership state change
   if (auto *outputStmt = dynamic_cast<ASTOutputStmt *>(stmt)) {
     checkExprForMoved(outputStmt->getArg(), state);
+    consumeCallArgMoves(outputStmt->getArg(), state);
     return state;
   }
   if (auto *errorStmt = dynamic_cast<ASTErrorStmt *>(stmt)) {
     checkExprForMoved(errorStmt->getArg(), state);
+    consumeCallArgMoves(errorStmt->getArg(), state);
     return state;
   }
 
   // Case statement: pattern-match on sum type
   if (auto *caseStmt = dynamic_cast<ASTCaseStmt *>(stmt)) {
     checkExprForMoved(caseStmt->getCaseExpr(), state);
+    consumeCallArgMoves(caseStmt->getCaseExpr(), state);
     std::vector<StateMap> armStates;
     for (auto *arm : caseStmt->getArms()) {
       armStates.push_back(analyzeStmt(arm->getBody(), state));

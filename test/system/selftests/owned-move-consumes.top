@@ -1,0 +1,10 @@
+// Step 1: passing an owned value by value MOVES it into the callee, which then
+// owns and destroys it at scope exit. sink reads *p and drops it.
+sink(p) { var d; d = *p; return d; }
+main() {
+  var x, r;
+  x = alloc 5;
+  r = sink(x);        // move x into sink; sink owns and frees it
+  if (r != 5) error r;
+  return 0;
+}

@@ -7,9 +7,11 @@
 #include "ASTBlockStmt.h"
 #include "ASTCaseStmt.h"
 #include "ASTDestroyStmt.h"
+#include "ASTErrorStmt.h"
 #include "ASTFunction.h"
 #include "ASTFunAppExpr.h"
 #include "ASTIfStmt.h"
+#include "ASTOutputStmt.h"
 #include "ASTProgram.h"
 #include "ASTReturnStmt.h"
 #include "ASTVariableExpr.h"
@@ -48,21 +50,25 @@ void DestructionPass::processFunction(ASTFunction *f) {
     currentFormals.insert(param);
   }
 
-  // Initial state: Own locals have no entry (they are uninitialized until
-  // first assigned, which sets them to Owned). Formals are excluded from
-  // destruction tracking.
+  // Initial state: Own locals have no entry (uninitialized until first
+  // assigned). An owned formal is owned by the callee (the caller moved it in
+  // by value); destroy it at scope exit unless it is moved out.
   StateMap state;
+  for (auto *param : f->getFormals()) {
+    if (classifier->classify(param) == OwnershipClass::Own) {
+      state[param] = OwnershipState::Owned;
+    }
+  }
 
   // Forward-simulate ownership through all statements (including return).
   for (auto *stmt : f->getStmts()) {
     state = analyzeStmt(stmt, std::move(state));
   }
 
-  // Collect every Own variable that is still Owned at function exit.
+  // Collect every Own variable (local or consumed formal) still Owned at exit.
   std::vector<ASTDeclNode *> toDestroy;
   for (auto &[decl, s] : state) {
-    if (s == OwnershipState::Owned &&
-        currentFormals.find(decl) == currentFormals.end()) {
+    if (s == OwnershipState::Owned) {
       toDestroy.push_back(decl);
     }
   }
@@ -102,18 +108,21 @@ DestructionPass::StateMap DestructionPass::analyzeStmt(ASTStmt *stmt,
 
   // If statement — MoveAnalysis guarantees both branches agree at the join.
   if (auto *ifStmt = dynamic_cast<ASTIfStmt *>(stmt)) {
+    consumeCallArgMoves(ifStmt->getCondition(), state);
     auto thenState = analyzeStmt(ifStmt->getThen(), state);
     // Either branch is equivalent at the join; return thenState.
     return thenState;
   }
 
   // While — MoveAnalysis guarantees the body does not change Own state.
-  if (dynamic_cast<ASTWhileStmt *>(stmt)) {
+  if (auto *whileStmt = dynamic_cast<ASTWhileStmt *>(stmt)) {
+    consumeCallArgMoves(whileStmt->getCondition(), state);
     return state;
   }
 
   // Return: if the returned value is a direct Own variable, mark it Moved.
   if (auto *retStmt = dynamic_cast<ASTReturnStmt *>(stmt)) {
+    consumeCallArgMoves(retStmt->getArg(), state);
     auto *retVar = dynamic_cast<ASTVariableExpr *>(retStmt->getArg());
     if (retVar) {
       ASTDeclNode *decl = resolveVar(retVar->getName());
@@ -126,6 +135,7 @@ DestructionPass::StateMap DestructionPass::analyzeStmt(ASTStmt *stmt,
 
   // Case statement: all arms must agree (guaranteed by MoveAnalysis).
   if (auto *caseStmt = dynamic_cast<ASTCaseStmt *>(stmt)) {
+    consumeCallArgMoves(caseStmt->getCaseExpr(), state);
     auto arms = caseStmt->getArms();
     if (!arms.empty()) {
       return analyzeStmt(arms[0]->getBody(), state);
@@ -133,7 +143,17 @@ DestructionPass::StateMap DestructionPass::analyzeStmt(ASTStmt *stmt,
     return state;
   }
 
-  // Output, Error, ASTDestroyStmt, DeclStmt, etc.: no ownership state change.
+  // Output / Error: consume owned call-argument moves in the expression.
+  if (auto *outputStmt = dynamic_cast<ASTOutputStmt *>(stmt)) {
+    consumeCallArgMoves(outputStmt->getArg(), state);
+    return state;
+  }
+  if (auto *errorStmt = dynamic_cast<ASTErrorStmt *>(stmt)) {
+    consumeCallArgMoves(errorStmt->getArg(), state);
+    return state;
+  }
+
+  // ASTDestroyStmt, DeclStmt, etc.: no ownership state change.
   return state;
 }
 
