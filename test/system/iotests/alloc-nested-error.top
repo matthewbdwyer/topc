@@ -1,0 +1,10 @@
+// A directly nested allocation `alloc (alloc 5)` produces own&own&int, an
+// owned pointer to an owned value.  TOP rejects this: an owned pointer's
+// payload must be a non-owning (Copy) value so that every owned resource has
+// exactly one owner and is freed exactly once.
+main() {
+  var y;
+  y = alloc (alloc 5);
+  if (**y != 5) error **y;
+  return 0;
+}

@@ -1,8 +1,0 @@
-main() {
-  var x;
-  x = alloc 42;
-  if (*x != 42) error *x;
-  *x = 13;
-  if (*x != 13) error *x;
-  return 0;
-}

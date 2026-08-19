@@ -62,6 +62,10 @@ EXPECTED_ERROR_SUBSTRINGS = {
         "recursive types are not yet supported in ownership analysis",
     "owned-move-then-use-error.top":
         "used after move",
+    "alloc-owned-error.top":
+        "owned pointers cannot nest",
+    "alloc-nested-error.top":
+        "owned pointers cannot nest",
 }
 
 # ---------------------------------------------------------------------------
@@ -84,11 +88,20 @@ def _run(cmd: Sequence, *,
      timeout: int = TIMEOUT,
      args: Sequence[str] = (),
      cwd: Optional[Path] = None,
+     env: Optional[dict] = None,
      input_text: Optional[str] = None) -> subprocess.CompletedProcess:
     """Run *cmd* and return the CompletedProcess; never raises on non-zero exit."""
     full = list(cmd) + list(args)
     return subprocess.run(full, capture_output=True, text=True,
-                          timeout=timeout, cwd=cwd, input=input_text)
+                          timeout=timeout, cwd=cwd, env=env, input=input_text)
+
+
+# Environment for running *compiled TOP programs*: enable LeakSanitizer so that
+# any owned value the program fails to free is reported as a test failure. The
+# programs are linked with -fsanitize=address; on macOS LeakSanitizer is opt-in
+# via ASAN_OPTIONS. This applies only to the compiled program runs, not to topc
+# itself.
+LSAN_ENV = {**os.environ, "ASAN_OPTIONS": "detect_leaks=1"}
 
 
 def _compile(srcfile: Path, out_bc: Path,
@@ -162,7 +175,7 @@ def run_selftest(srcfile: Path, scratch: Path,
                           time.monotonic() - t0)
 
     try:
-        r = _run([str(exe)], timeout=TIMEOUT)
+        r = _run([str(exe)], timeout=TIMEOUT, env=LSAN_ENV)
     except subprocess.TimeoutExpired:
         return TestResult(name, False, "timeout", time.monotonic() - t0)
 
@@ -209,7 +222,7 @@ def run_iotest(expected_file: Path, scratch: Path) -> TestResult:
         cmd = [str(exe)] + ([prog_arg] if prog_arg else [])
         stdin_fixture = expected_file.with_suffix(".stdin")
         stdin_text = stdin_fixture.read_text() if stdin_fixture.exists() else None
-        r = _run(cmd, timeout=TIMEOUT, input_text=stdin_text)
+        r = _run(cmd, timeout=TIMEOUT, env=LSAN_ENV, input_text=stdin_text)
     except subprocess.TimeoutExpired:
         return TestResult(name, False, "timeout", time.monotonic() - t0)
 
@@ -281,7 +294,7 @@ def run_polytest(srcfile: Path, scratch: Path) -> List[TestResult]:
         return results
 
     try:
-        r = _run([str(exe)], timeout=TIMEOUT)
+        r = _run([str(exe)], timeout=TIMEOUT, env=LSAN_ENV)
         if r.returncode != 0:
             results.append(TestResult(f"{base}.run", False,
                                       f"exit {r.returncode}",

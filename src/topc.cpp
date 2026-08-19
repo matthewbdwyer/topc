@@ -8,6 +8,7 @@
 #include "SemanticError.h"
 #include "TypeConstraintCollectVisitor.h"
 #include "SyntaxTree.h"
+#include "CheckAllocPayload.h"
 #include "CheckAssignable.h"
 #include "CheckBorrowPositions.h"
 #include "CheckCaseCompleteness.h"
@@ -564,6 +565,7 @@ int main(int argc, char *argv[]) {
         ensureCallGraphResult();
         typeResults = TypeInference::run(ast.get(), callGraph.get(),
                                          symTable.get());
+        CheckAllocPayload::check(ast.get(), typeResults.get());
       };
 
       auto ensureFunctionEffects = [&]() {
