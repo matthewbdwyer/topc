@@ -58,13 +58,14 @@ TEST_CASE("OwnershipClassifier: TopBorrowRef is Copy",
         REQUIRE(OwnershipClassifier::classifyType(&borrow) == OwnershipClass::Copy);
       }
 
-TEST_CASE("OwnershipClassifier: TopSumType all-Copy payloads is Copy",
+TEST_CASE("OwnershipClassifier: TopSumType is Own (heap-boxed resource)",
           "[OwnershipClassifier]") {
   auto intT = std::make_shared<TopInt>();
-  // Option type with two ctors: None() and Some(int)
+  // Even with only Copy payloads the constructor value is heap-boxed, so the
+  // box is an owned resource.
   TopSumType sum("Option", {"None", "Some"}, {intT},
                  {{"None", 0}, {"Some", 1}});
-  REQUIRE(OwnershipClassifier::classifyType(&sum) == OwnershipClass::Copy);
+  REQUIRE(OwnershipClassifier::classifyType(&sum) == OwnershipClass::Own);
 }
 
 TEST_CASE("OwnershipClassifier: TopSumType with Own payload is Own",

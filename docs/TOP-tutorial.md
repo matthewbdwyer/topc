@@ -569,7 +569,15 @@ classifications, not a second source-level type system.
 | Function type | `Copy` |
 | `borrow&T` | `Copy` |
 | `own&T` | `Own` |
-| Algebraic data | `Own` if an inferred payload can be `Own`; otherwise `Copy` |
+| Algebraic (sum) data | `Own` — a constructor value is heap-boxed, so the box is an owned resource |
+
+Because owned values are linear, passing one to a function **by value moves it**:
+the callee takes ownership and destroys it when it is done, unless it moves the
+value out again (returns it or passes it on). To let a function read (or modify
+in place) a value without taking ownership, pass a **borrow** (`&x`); the caller
+keeps ownership and may lend the value repeatedly. Matching an owned value with
+`case` consumes it, moving its payloads into the arm bindings; traverse a value
+you want to keep by borrowing it (`case *p`).
 
 The following example contrasts copying a value classified as `Copy` with
 moving one classified as `Own`:

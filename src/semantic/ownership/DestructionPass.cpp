@@ -136,6 +136,15 @@ DestructionPass::StateMap DestructionPass::analyzeStmt(ASTStmt *stmt,
   // Case statement: all arms must agree (guaranteed by MoveAnalysis).
   if (auto *caseStmt = dynamic_cast<ASTCaseStmt *>(stmt)) {
     consumeCallArgMoves(caseStmt->getCaseExpr(), state);
+    // An owned by-value scrutinee is consumed by the match (its box is freed by
+    // code generation), so it must not also be destroyed at scope exit.
+    auto *scrutVar =
+        dynamic_cast<ASTVariableExpr *>(caseStmt->getCaseExpr());
+    ASTDeclNode *scrutDecl =
+        scrutVar ? resolveVar(scrutVar->getName()) : nullptr;
+    if (scrutDecl && classifier->classify(scrutDecl) == OwnershipClass::Own) {
+      state[scrutDecl] = OwnershipState::Moved;
+    }
     auto arms = caseStmt->getArms();
     if (!arms.empty()) {
       return analyzeStmt(arms[0]->getBody(), state);

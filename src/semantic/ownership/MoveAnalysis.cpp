@@ -146,6 +146,16 @@ MoveAnalysis::StateMap MoveAnalysis::analyzeStmt(ASTStmt *stmt, StateMap state) 
   if (auto *caseStmt = dynamic_cast<ASTCaseStmt *>(stmt)) {
     checkExprForMoved(caseStmt->getCaseExpr(), state);
     consumeCallArgMoves(caseStmt->getCaseExpr(), state);
+    // Matching an owned by-value scrutinee consumes it: its payloads are moved
+    // out into the arm bindings and its box is freed by the match. A borrowed
+    // scrutinee (`case *p`) is not consumed.
+    auto *scrutVar =
+        dynamic_cast<ASTVariableExpr *>(caseStmt->getCaseExpr());
+    ASTDeclNode *scrutDecl =
+        scrutVar ? resolveVar(scrutVar->getName()) : nullptr;
+    if (scrutDecl && classifier->classify(scrutDecl) == OwnershipClass::Own) {
+      state[scrutDecl] = OwnershipState::Moved;
+    }
     std::vector<StateMap> armStates;
     for (auto *arm : caseStmt->getArms()) {
       armStates.push_back(analyzeStmt(arm->getBody(), state));

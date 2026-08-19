@@ -74,7 +74,7 @@ main() {
 }
 ```
 
-Ownership is linear: assigning an owned pointer _moves_ it; the original binding becomes inaccessible.  The `--san` flag instruments the generated IR with Address/LeakSanitizer so that correct automatic deallocation can be verified at runtime.
+Ownership is linear: assigning an owned value _moves_ it; the original binding becomes inaccessible.  The same applies to sum-type values, which are heap-boxed and therefore owned: passing an owned value to a function **by value moves it** (the callee then owns and destroys it unless it moves it out), while a **borrow** (`&x`) lets a function read or modify a value in place without taking ownership, so the caller keeps it.  A `case` on an owned value consumes it, moving its payloads into the arm bindings; to traverse a value you want to keep, borrow it (`case *p`).  Destruction is lowered to recursive per-type cleanup, and the `--san` flag instruments the generated IR with Address/LeakSanitizer so that correct automatic deallocation can be verified at runtime.
 
 ### Borrows
 
@@ -112,6 +112,7 @@ main() {
 |---------|------------|
 | Comparisons | Only `>`, `==`, `!=` — no `<`, `<=`, `>=` |
 | `return` | Must be the final statement in a function body — no early return |
+| Ownership | Owned values (including sum-type values) are linear: passing by value moves; use `&x` to borrow for read/write without moving |
 | Borrows | `&expr` must be a direct call argument; borrow-derived results may flow only through nested immediate call arguments |
 | Call statements | Every call result must be assigned — there are no void call statements |
 

@@ -96,15 +96,10 @@ OwnershipClass OwnershipClassifier::classifyType(const TopType *type) {
     return classifyType(mu->getT().get());
   }
 
-  // TopSumType → Own if any constructor payload is Own, else Copy
+  // TopSumType → Own: a constructor value is always heap-boxed (calloc), so the
+  // box is an owned resource that must be freed, regardless of payload class.
   if (dynamic_cast<const TopSumType *>(type) != nullptr) {
-    auto *sum = dynamic_cast<const TopSumType *>(type);
-    for (auto &payload : sum->getArguments()) {
-      if (classifyType(payload.get()) == OwnershipClass::Own) {
-        return OwnershipClass::Own;
-      }
-    }
-    return OwnershipClass::Copy;
+    return OwnershipClass::Own;
   }
 
   // TopAlpha / TopVar (unresolved type variable) → Copy

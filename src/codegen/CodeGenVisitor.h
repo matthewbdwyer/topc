@@ -108,6 +108,12 @@ private:
   void emitDestroyValue(llvm::Value *ptrAsInt, TopType *topType,
                         CodeGenContext &ctx);
 
+  /*! \brief Get or lazily generate the recursive destroy function for a sum
+   *         type, keyed by type name. Reads the tag, recursively destroys owned
+   *         payload fields, then frees the box. Returns null for non-sum types.
+   */
+  llvm::Function *getOrCreateSumDestroyFn(TopType *sumType, CodeGenContext &ctx);
+
   /*! \brief Emit code to match a single pattern position within an arm.
    *
    * \p basePtr    Opaque pointer to the containing sum-type or record struct.
