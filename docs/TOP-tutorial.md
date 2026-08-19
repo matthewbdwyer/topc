@@ -490,6 +490,12 @@ owning reference, while `&` creates a borrowing reference. The expression
 `*pointer` reads through either mode, and an assignment to `*pointer` writes
 through either mode.
 
+An owning reference is **single-level**: the payload of `alloc` must be a
+non-owning (`Copy`) value, so `own&int` is allowed but `own&own&int` is not. An
+owned pointer therefore cannot own another owned pointer. To own structured or
+heap-allocated data, use a sum type instead of nesting `alloc`; Section 15.5
+explains this boundary and shows the intended composition.
+
 ```top
 read(pointer) {
   return *pointer;
@@ -1075,10 +1081,12 @@ in the current compiler implementation.
 | Constructor expressions | Unknown names and extra payloads are not yet rejected consistently |
 | Structured data | Constructor payloads; no tuples, anonymous records, or field projection |
 | References | Created with `alloc` or `&`; no source reference type annotations |
+| Owned pointers | Single-level: an owned pointer's payload must be non-owning; `own&own&T` is rejected — own structured data with a sum type (§15.5) |
 | Reference polymorphism | One helper cannot currently be instantiated at both Own and Borrow within one program |
 | Borrows | Immediate call arguments only; not storable or returnable |
 | Lifetimes | No lifetime syntax or general long-lived borrow inference |
 | Deallocation | Automatic destruction; no source-level `free` |
+| Owned reassignment | Overwriting a variable that still owns a value is rejected; move or restructure first (§15.4) |
 | Null | No null-reference expression |
 | Recursive types | Recursive algebraic data works; recursively self-referential function types do not |
 | Patterns | Constructor, variable, wildcard, and nested patterns |
@@ -1177,6 +1185,116 @@ next = applyToInt(inc, 1);
 This is an implementation boundary, not a claim that lists and integers have
 the same type. Direct polymorphic functions such as `identity` can still be
 used once with a recursive value and once with an integer.
+
+### 15.4 Reassigning an Owned Variable
+
+Assigning to a variable that *still owns* a value is rejected. TOP does not yet
+drop the old value automatically on reassignment, so overwriting a live owner
+would leak it; the compiler refuses instead of leaking:
+
+```top
+main() {
+  var p;
+  p = alloc 1;
+  p = alloc 2;   // rejected: p still owns the first allocation
+  return *p;
+}
+```
+
+```text
+topc: variable 'p' assigned while still owned on line 4 — free or move first
+```
+
+The same applies to owned sum values (`a = A(1); a = A(2);`). This is a sound
+rejection, not a leak: no program miscompiles. It is an ergonomic boundary —
+unlike languages that drop the old value on assignment, TOP asks you to move or
+restructure. Two common ways to satisfy it:
+
+- **Assign once.** Do not pre-initialize a variable you will set in every branch.
+  Instead of `result = Leaf;` followed by a `case` that reassigns `result` in
+  every arm, let the `case` provide the only assignment.
+- **Move the old value out first**, for example by returning or passing it on,
+  before binding a new one.
+
+### 15.5 Owned Pointers Do Not Nest
+
+An owned pointer's payload must be a non-owning value. Allocating an owned value
+— which would produce `own&own&T`, an owned pointer to an owned pointer — is
+rejected:
+
+```top
+main() {
+  var x, y;
+  x = alloc 42;
+  y = alloc x;   // rejected: alloc of an owned value
+  return **y;
+}
+```
+
+```text
+topc: Ownership error on line 4: alloc payload must not be an owned value; owned pointers cannot nest (own&own is not allowed). Use a sum type to own structured or heap data.
+```
+
+The check reads the *inferred* payload type, so it also rejects a directly
+nested `alloc (alloc 5)` and an `alloc f()` whose callee `f` returns an owned
+pointer — not only the literal `alloc <variable>` form. This is what keeps TOP
+leak-free: every owned resource has exactly one owner and is freed exactly once,
+with no nested owner whose inner resource could be dropped.
+
+Structured or heap-owned data is expressed with a sum type, whose payloads are
+typed individually and freed recursively. A mutable cell is an `own&int` (or
+other `own&<Copy>`) payload *inside* such a type. For example, a mutable
+sequence is a `Seq` whose `Cons` carries an `own&int` cell and the rest of the
+sequence:
+
+```top
+type Seq = None | Cons(v, n);
+
+bump(p) {
+  var d;
+  case *p of {
+    None -> d = 0;
+    Cons(v, n) -> { *v = *v + 10; d = bump(&n); }
+  }
+  return d;
+}
+
+total(p) {
+  var t;
+  case *p of {
+    None -> t = 0;
+    Cons(v, n) -> t = *v + total(&n);
+  }
+  return t;
+}
+
+main() {
+  var s, ignored, sum;
+  s = Cons(alloc 1, Cons(alloc 2, Cons(alloc 3, None)));
+  ignored = bump(&s);       // add 10 to every cell, in place
+  sum = total(&s);          // (1+10)+(2+10)+(3+10)
+  output sum;               // 36
+  return 0;
+}
+```
+
+Each `alloc 1` boxes an `int` (a `Copy` payload), so it is a legal single-level
+`own&int`. Inspecting the types confirms the cells are single-level owned
+pointers nested inside the sum type, not owned pointers to owned pointers:
+
+```sh
+build/src/topc --ptype program.top
+```
+
+```text
+s : Seq{None|Cons(own&int, μα.Seq{None|Cons(own&int, α)})}
+```
+
+The sequence is traversed by borrow (`case *p`), so `bump` and `total` read and
+mutate the cells in place without consuming the sequence. The `Seq` value owns
+its `own&int` cells; when `main` returns, the destruction pass frees the whole
+structure recursively. Compiling with `--san` and running under LeakSanitizer
+reports no leaks.
 
 ## 16. End-to-End Example
 

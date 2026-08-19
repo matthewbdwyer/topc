@@ -76,6 +76,8 @@ main() {
 
 Ownership is linear: assigning an owned value _moves_ it; the original binding becomes inaccessible.  The same applies to sum-type values, which are heap-boxed and therefore owned: passing an owned value to a function **by value moves it** (the callee then owns and destroys it unless it moves it out), while a **borrow** (`&x`) lets a function read or modify a value in place without taking ownership, so the caller keeps it.  A `case` on an owned value consumes it, moving its payloads into the arm bindings; to traverse a value you want to keep, borrow it (`case *p`).  Destruction is lowered to recursive per-type cleanup, and the `--san` flag instruments the generated IR with Address/LeakSanitizer so that correct automatic deallocation can be verified at runtime.
 
+An owned pointer is **single-level**: the payload of `alloc expr` must be a non-owning (`Copy`) value, so `own&own&T` is rejected — an owned pointer cannot own another owned pointer.  This keeps every owned resource with exactly one owner and freed exactly once.  To own structured or heap-allocated data, use a sum type, whose payloads are typed individually and freed recursively; a mutable cell inside such a structure is an `own&int` (or other `own&<Copy>`) payload.  For example, a mutable sequence is `type Seq = None | Cons(v, n)` with `v : own&int`, built as `Cons(alloc 1, Cons(alloc 2, None))`, traversed by borrow (`case *p`), mutated in place (`*v = *v + 1`), and freed automatically.
+
 ### Borrows
 
 A borrow `&expr` creates a non-owning reference to a storage location. A borrow expression may **only** appear as an immediate function call argument. A borrow-derived call result may continue through nested immediate call arguments, but it cannot be stored, returned, or used in another expression. Inside the callee, `*p` reads through the reference and `*p = v` writes through it without transferring ownership.
@@ -113,6 +115,7 @@ main() {
 | Comparisons | Only `>`, `==`, `!=` — no `<`, `<=`, `>=` |
 | `return` | Must be the final statement in a function body — no early return |
 | Ownership | Owned values (including sum-type values) are linear: passing by value moves; use `&x` to borrow for read/write without moving |
+| Owned pointers | Single-level: `alloc expr` requires a non-owning payload; `own&own&T` is rejected. Own structured data with a sum type instead |
 | Borrows | `&expr` must be a direct call argument; borrow-derived results may flow only through nested immediate call arguments |
 | Call statements | Every call result must be assigned — there are no void call statements |
 
