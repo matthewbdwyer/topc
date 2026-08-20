@@ -294,8 +294,10 @@ Type and constructor names begin with an uppercase letter. Payload names do not
 declare fields or introduce variables that a function can use. They are
 placeholders that give each positional payload slot a stable identity during
 type inference. Construction and pattern matching constrain the type of that
-slot by position. Pattern validation checks constructor names and arities;
-payload types are checked through inference.
+slot by position. Both are validated the same way: a constructor expression or
+a case arm that names an undeclared constructor, or that supplies the wrong
+number of payloads for its constructor, is rejected. Payload types are checked
+through inference.
 
 A case pattern chooses its own binding names; they do not need to match the
 payload placeholders in the declaration. Above, `radius`, `width`, and
@@ -1038,8 +1040,8 @@ expressions that contributed those incompatible requirements.
 | Diagnostic idea | Meaning |
 | --- | --- |
 | Type mismatch | One inference variable was forced to incompatible types |
-| Unknown constructor pattern | No declared sum alternative has that pattern name |
-| Pattern arity mismatch | A constructor pattern has the wrong payload count |
+| Unknown constructor | A constructor expression or case arm names a constructor no sum type declares |
+| Constructor arity mismatch | A constructor expression or case arm has the wrong payload count for its constructor |
 | Non-exhaustive case | Some top-level constructor is not covered |
 | Redundant case arm | An earlier pattern already covers the arm |
 | Used after move | The value was moved out of this binding earlier |
@@ -1078,7 +1080,6 @@ in the current compiler implementation.
 | Calls | Calls are expressions; no void call statement |
 | Type annotations | Types and generic parameters are inferred, not written |
 | Algebraic data | Concrete sum declarations; no source-level parameterized ADTs |
-| Constructor expressions | Validated like case arms: an unknown constructor or a wrong argument count is rejected |
 | Structured data | Constructor payloads; no tuples, anonymous records, or field projection |
 | References | Created with `alloc` or `&`; no source reference type annotations |
 | Owned pointers | Single-level: an owned pointer's payload must be non-owning; `own&own&T` is rejected — own structured data with a sum type (§15.5) |
