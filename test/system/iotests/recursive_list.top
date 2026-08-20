@@ -1,21 +1,23 @@
 type List = Nil | Cons(head, tail);
 
-length(lst) {
+// Read-only traversals borrow the list (&) so the caller keeps ownership and
+// may traverse repeatedly; the list is freed once when main's owner goes away.
+length(p) {
   var n;
   n = 0;
-  case lst of {
+  case *p of {
     Nil -> n = 0;
-    Cons(h, t) -> n = 1 + length(t);
+    Cons(h, t) -> n = 1 + length(&t);
   }
   return n;
 }
 
-sum(lst) {
+sum(p) {
   var s;
   s = 0;
-  case lst of {
+  case *p of {
     Nil -> s = 0;
-    Cons(h, t) -> s = h + sum(t);
+    Cons(h, t) -> s = h + sum(&t);
   }
   return s;
 }
@@ -23,8 +25,8 @@ sum(lst) {
 main() {
   var lst, n, s, ok;
   lst = Cons(1, Cons(2, Cons(3, Nil)));
-  n = length(lst);
-  s = sum(lst);
+  n = length(&lst);
+  s = sum(&lst);
   ok = 1;
   if (n != 3) { ok = 0; }
   if (s != 6) { ok = 0; }

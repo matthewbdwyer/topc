@@ -54,15 +54,18 @@ bool CFAnalyzer::visit(ASTFunAppExpr *element) {
             fun, getCanonical(element->getFunction()),
             getCanonical(element->getActuals()[i]),
             getCanonicalForFunction(fun->getFormals()[i], fun));
-        auto stmts = fun->getStmts();
-        ASTReturnStmt *ret;
-        if (!(ret = dynamic_cast<ASTReturnStmt *>(stmts[stmts.size() - 1]))) {
-          assert(false); // LCOV_EXCL_LINE
-        }
-        s.addConditionalConstraint(fun, getCanonical(element->getFunction()),
-                                   getCanonicalForFunction(ret->getArg(), fun),
-                                   getCanonical(element));
       }
+      // Return-value flow is arity-independent; keep it outside the formals loop
+      // so zero-parameter callees also propagate their returned value to the
+      // call site (else `f = getf(); f(..)` leaves `f(..)` unresolved).
+      auto stmts = fun->getStmts();
+      ASTReturnStmt *ret;
+      if (!(ret = dynamic_cast<ASTReturnStmt *>(stmts[stmts.size() - 1]))) {
+        assert(false); // LCOV_EXCL_LINE
+      }
+      s.addConditionalConstraint(fun, getCanonical(element->getFunction()),
+                                 getCanonicalForFunction(ret->getArg(), fun),
+                                 getCanonical(element));
     }
   }
   return true;

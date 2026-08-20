@@ -1,0 +1,14 @@
+// A sum value is heap-boxed even with Copy payloads; the box is an owned
+// resource freed when its owner is consumed (here, by the match) or destroyed.
+type T = A(x) | B(y);
+main() {
+  var a, v;
+  a = A(42);
+  v = 0;
+  case a of {
+    A(x) -> v = x;
+    B(y) -> v = y;
+  }
+  if (v != 42) error v;
+  return 0;
+}

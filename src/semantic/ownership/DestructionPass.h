@@ -51,7 +51,6 @@ private:
   void      processFunction(ASTFunction *f);
   StateMap  analyzeStmt(ASTStmt *stmt, StateMap state);
   StateMap  analyzeAssign(ASTAssignStmt *stmt, StateMap state);
-  bool callResultIsOwned(const ASTFunAppExpr *call, bool lhsIsOwn) const;
   bool actualInstantiatesOwn(const ASTExpr *actual,
                              FunctionEffectSummaries::FormalMode mode,
                              bool lhsIsOwnFallback) const;

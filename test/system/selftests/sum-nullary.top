@@ -1,0 +1,14 @@
+// A nullary constructor is still heap-boxed and must be freed.
+type Color = Red | Green | Blue;
+main() {
+  var c, v;
+  c = Green;
+  v = 0;
+  case c of {
+    Red   -> v = 1;
+    Green -> v = 2;
+    Blue  -> v = 3;
+  }
+  if (v != 2) error v;
+  return 0;
+}

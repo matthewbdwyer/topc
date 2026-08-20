@@ -1,8 +1,9 @@
 type Tree = Leaf | Node(val, left, right);
 
+// Consuming insert: takes the tree by value (move), matches (which moves the
+// subtrees out of the old node and frees its shell), and rebuilds.
 insert(t, v) {
   var result;
-  result = Leaf;
   case t of {
     Leaf -> result = Node(v, Leaf, Leaf);
     Node(x, l, r) -> {
@@ -20,10 +21,11 @@ insert(t, v) {
   return result;
 }
 
+// Consuming inorder traversal frees the tree as it goes.
 inorder(t) {
   var dummy;
   case t of {
-    Leaf -> { }
+    Leaf -> { dummy = 0; }
     Node(v, l, r) -> {
       dummy = inorder(l);
       output v;

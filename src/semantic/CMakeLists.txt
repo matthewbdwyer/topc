@@ -27,6 +27,8 @@ target_sources(
                    ${CMAKE_CURRENT_SOURCE_DIR}/ownership/DestructionPass.cpp
                    ${CMAKE_CURRENT_SOURCE_DIR}/ownership/OwnershipClassifier.h
                    ${CMAKE_CURRENT_SOURCE_DIR}/ownership/OwnershipClassifier.cpp
+                   ${CMAKE_CURRENT_SOURCE_DIR}/ownership/CheckAllocPayload.h
+                   ${CMAKE_CURRENT_SOURCE_DIR}/ownership/CheckAllocPayload.cpp
                    ${CMAKE_CURRENT_SOURCE_DIR}/ownership/FunctionEffectSummaries.h
                    ${CMAKE_CURRENT_SOURCE_DIR}/ownership/FunctionEffectSummaries.cpp
                    ${CMAKE_CURRENT_SOURCE_DIR}/ownership/MoveAnalysis.h

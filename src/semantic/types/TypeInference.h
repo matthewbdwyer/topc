@@ -7,6 +7,8 @@
 #include "Unifier.h"
 #include <memory>
 
+class ASTExpr;
+
 /*! \class TypeInference
  *  \brief Perform type inference and checking.
  *
@@ -59,6 +61,20 @@ public:
    * \return A shared pointer to the inferred type for the AST node.
    */
   std::shared_ptr<TopType> getInferredType(ASTDeclNode *node);
+
+  /*! \fn getInferredType
+   *  \brief Returns the type expression inferred for an expression node.
+   *
+   * Unlike the declaration overload, this keys directly on the expression's
+   * own type variable rather than on a canonical declaration.  It is therefore
+   * meaningful only for expression nodes that were assigned a type variable
+   * during constraint generation -- notably an `alloc` expression, whose
+   * solved type is `own&T`.
+   *
+   * \param node An AST expression node.
+   * \return A shared pointer to the inferred type for the expression.
+   */
+  std::shared_ptr<TopType> getInferredType(ASTExpr *node);
 
   /*! \brief Format a sum declaration with its inferred payload types. */
   std::string getInferredTypeDisplay(ASTSumTypeDecl *node);

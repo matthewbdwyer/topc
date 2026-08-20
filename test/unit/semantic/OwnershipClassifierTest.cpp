@@ -8,6 +8,7 @@
 #include "TopInt.h"
 #include "ReferenceMode.h"
 #include "ReferenceType.h"
+#include "TopModeVar.h"
 #include "TopOwningRef.h"
 #include "TopSumType.h"
 #include "TopVar.h"
@@ -58,13 +59,14 @@ TEST_CASE("OwnershipClassifier: TopBorrowRef is Copy",
         REQUIRE(OwnershipClassifier::classifyType(&borrow) == OwnershipClass::Copy);
       }
 
-TEST_CASE("OwnershipClassifier: TopSumType all-Copy payloads is Copy",
+TEST_CASE("OwnershipClassifier: TopSumType is Own (heap-boxed resource)",
           "[OwnershipClassifier]") {
   auto intT = std::make_shared<TopInt>();
-  // Option type with two ctors: None() and Some(int)
+  // Even with only Copy payloads the constructor value is heap-boxed, so the
+  // box is an owned resource.
   TopSumType sum("Option", {"None", "Some"}, {intT},
                  {{"None", 0}, {"Some", 1}});
-  REQUIRE(OwnershipClassifier::classifyType(&sum) == OwnershipClass::Copy);
+  REQUIRE(OwnershipClassifier::classifyType(&sum) == OwnershipClass::Own);
 }
 
 TEST_CASE("OwnershipClassifier: TopSumType with Own payload is Own",
@@ -74,6 +76,22 @@ TEST_CASE("OwnershipClassifier: TopSumType with Own payload is Own",
   // Box type: Wrapped(⭡int)
   TopSumType sum("Box", {"Wrapped"}, {ownRef}, {{"Wrapped", 1}});
   REQUIRE(OwnershipClassifier::classifyType(&sum) == OwnershipClass::Own);
+}
+
+TEST_CASE("OwnershipClassifier: null type is Copy", "[OwnershipClassifier]") {
+  // A null type carries no owned resource; classifying it must not crash.
+  REQUIRE(OwnershipClassifier::classifyType(nullptr) == OwnershipClass::Copy);
+}
+
+TEST_CASE("OwnershipClassifier: mode-polymorphic reference is Copy",
+          "[OwnershipClassifier][ReferenceMode]") {
+  // A reference whose mode is still a mode variable (ref&alpha, e.g. the
+  // principal type of a helper that only dereferences its parameter) is not yet
+  // known to own; it is conservatively Copy until the mode is resolved.
+  auto intType = std::make_shared<TopInt>();
+  ReferenceType modePolymorphic(std::make_shared<TopModeVar>(), intType);
+  REQUIRE(OwnershipClassifier::classifyType(&modePolymorphic) ==
+          OwnershipClass::Copy);
 }
 
 TEST_CASE("OwnershipClassifier: TopVar / TopAlpha is Copy",

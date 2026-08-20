@@ -1,6 +1,7 @@
 #include "CheckCaseCompleteness.h"
 #include "../SemanticLogging.h"
 #include "ASTCtorPattern.h"
+#include "ASTSumCtorExpr.h"
 #include "ASTVarPattern.h"
 #include "ASTWildcardPattern.h"
 #include "PrettyPrinter.h"
@@ -134,10 +135,12 @@ void CheckCaseCompleteness::endVisit(ASTCaseStmt *element) {
   // We determine which sum type is being matched by looking at the first arm's
   // constructor (if any arms exist).
   if (element->getArms().empty()) {
+    // LCOV_EXCL_START -- unreachable: the grammar requires at least one CONID arm
     std::ostringstream oss;
     oss << "Case error on line " << element->getLine()
         << ": case statement has no arms\n";
     throw SemanticError(oss.str());
+    // LCOV_EXCL_STOP
   }
 
   // Find which type the arms belong to (use first arm's tag).
@@ -172,6 +175,30 @@ void CheckCaseCompleteness::endVisit(ASTCaseStmt *element) {
           << "' but other arms use type '" << typeName << "'\n";
       throw SemanticError(oss.str());
     }
+  }
+}
+
+void CheckCaseCompleteness::endVisit(ASTSumCtorExpr *element) {
+  const std::string &tag = element->getTag();
+
+  // Rule 5: the tag must be a declared constructor.
+  auto it = constructorArity.find(tag);
+  if (it == constructorArity.end()) {
+    std::ostringstream oss;
+    oss << "Constructor error on line " << element->getLine()
+        << ": unknown constructor '" << tag << "' in constructor expression\n";
+    throw SemanticError(oss.str());
+  }
+
+  // Rule 6: the number of arguments must equal the constructor's arity.
+  int declArity = it->second;
+  int exprArity = static_cast<int>(element->getArgs().size());
+  if (exprArity != declArity) {
+    std::ostringstream oss;
+    oss << "Constructor error on line " << element->getLine()
+        << ": constructor '" << tag << "' expects " << declArity
+        << " argument(s) but expression provides " << exprArity << "\n";
+    throw SemanticError(oss.str());
   }
 }
 

@@ -62,6 +62,13 @@ fi
 # Execute topc with the provided arguments
 "${TOPC}" "$@"
 
+# Link the sanitizer runtime when the IR was instrumented (--san / --asan alias),
+# otherwise the instrumented bitcode leaves __asan_init unresolved at link time.
+SAN_FLAGS=""
+case "$*" in
+  *--san*|*--asan*) SAN_FLAGS="-fsanitize=address";;
+esac
+
 # Only perform link step if bitcode has been generated
 case "$*" in
   *--help*|*--asm*)
@@ -72,6 +79,6 @@ case "$*" in
       exit 0
     fi
     exe_name="$(basename "${SOURCE_FILE}" .top)"
-    "${TOPCLANG}" -w ${SYSROOT_FLAGS} "${OUTPUT_BC}" "${RTLIB}/top_rtlib.bc" -o "${exe_name}"
+    "${TOPCLANG}" -w ${SAN_FLAGS} ${SYSROOT_FLAGS} "${OUTPUT_BC}" "${RTLIB}/top_rtlib.bc" -o "${exe_name}"
     ;;
 esac

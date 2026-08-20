@@ -40,6 +40,10 @@ struct CodeGenContext {
   // Per-function local variable bindings
   std::map<std::string, llvm::AllocaInst *> namedValues;
 
+  // Lazily generated per-sum-type recursive destroy functions, keyed by the
+  // sum type name (e.g. "List" -> @_top_destroy_List).
+  std::map<std::string, llvm::Function *> sumDestroyFns;
+
   // Global variables emitted into the module
   llvm::GlobalVariable *topFunctionTable = nullptr;
   llvm::GlobalVariable *topNumInputs     = nullptr;

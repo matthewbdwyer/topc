@@ -79,7 +79,10 @@ OwnershipClass OwnershipClassifier::classifyType(const TopType *type) {
     if (std::dynamic_pointer_cast<TopModeVar>(reference->getMode()) != nullptr) {
       return OwnershipClass::Copy;
     }
+    // LCOV_EXCL_START -- defensive: a solved reference always has a concrete or
+    // variable mode; this guards against a malformed type from a future change.
     throw InternalError("reference has unsupported ownership mode");
+    // LCOV_EXCL_STOP
   }
 
   // TopInt → Copy
@@ -96,15 +99,10 @@ OwnershipClass OwnershipClassifier::classifyType(const TopType *type) {
     return classifyType(mu->getT().get());
   }
 
-  // TopSumType → Own if any constructor payload is Own, else Copy
+  // TopSumType → Own: a constructor value is always heap-boxed (calloc), so the
+  // box is an owned resource that must be freed, regardless of payload class.
   if (dynamic_cast<const TopSumType *>(type) != nullptr) {
-    auto *sum = dynamic_cast<const TopSumType *>(type);
-    for (auto &payload : sum->getArguments()) {
-      if (classifyType(payload.get()) == OwnershipClass::Own) {
-        return OwnershipClass::Own;
-      }
-    }
-    return OwnershipClass::Copy;
+    return OwnershipClass::Own;
   }
 
   // TopAlpha / TopVar (unresolved type variable) → Copy
@@ -112,6 +110,9 @@ OwnershipClass OwnershipClassifier::classifyType(const TopType *type) {
     return OwnershipClass::Copy;
   }
 
+  // LCOV_EXCL_START -- defensive: every solved type term is handled above; this
+  // guards against an unhandled type kind introduced by a future change.
   throw InternalError("unsupported type in ownership classification: " +
                       type->toString());
+  // LCOV_EXCL_STOP
 }

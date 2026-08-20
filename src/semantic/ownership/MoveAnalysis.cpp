@@ -86,6 +86,7 @@ MoveAnalysis::StateMap MoveAnalysis::analyzeStmt(ASTStmt *stmt, StateMap state) 
   // If statement
   if (auto *ifStmt = dynamic_cast<ASTIfStmt *>(stmt)) {
     checkExprForMoved(ifStmt->getCondition(), state);
+    consumeCallArgMoves(ifStmt->getCondition(), state);
     auto thenState = analyzeStmt(ifStmt->getThen(), state);
     StateMap elseState =
         (ifStmt->getElse() != nullptr)
@@ -98,6 +99,7 @@ MoveAnalysis::StateMap MoveAnalysis::analyzeStmt(ASTStmt *stmt, StateMap state) 
   // While loop: body may not change any Own variable's state
   if (auto *whileStmt = dynamic_cast<ASTWhileStmt *>(stmt)) {
     checkExprForMoved(whileStmt->getCondition(), state);
+    consumeCallArgMoves(whileStmt->getCondition(), state);
     auto bodyState = analyzeStmt(whileStmt->getBody(), state);
     // Collect all keys in bodyState that differ from preState
     for (auto &[decl, s] : bodyState) {
@@ -117,6 +119,7 @@ MoveAnalysis::StateMap MoveAnalysis::analyzeStmt(ASTStmt *stmt, StateMap state) 
   // Return: check expression, mark directly-returned Own variables as Moved
   if (auto *retStmt = dynamic_cast<ASTReturnStmt *>(stmt)) {
     checkExprForMoved(retStmt->getArg(), state);
+    consumeCallArgMoves(retStmt->getArg(), state);
     auto *retVar = dynamic_cast<ASTVariableExpr *>(retStmt->getArg());
     if (retVar) {
       ASTDeclNode *decl = resolveVar(retVar->getName());
@@ -130,16 +133,29 @@ MoveAnalysis::StateMap MoveAnalysis::analyzeStmt(ASTStmt *stmt, StateMap state) 
   // Output / Error: check expression, no ownership state change
   if (auto *outputStmt = dynamic_cast<ASTOutputStmt *>(stmt)) {
     checkExprForMoved(outputStmt->getArg(), state);
+    consumeCallArgMoves(outputStmt->getArg(), state);
     return state;
   }
   if (auto *errorStmt = dynamic_cast<ASTErrorStmt *>(stmt)) {
     checkExprForMoved(errorStmt->getArg(), state);
+    consumeCallArgMoves(errorStmt->getArg(), state);
     return state;
   }
 
   // Case statement: pattern-match on sum type
   if (auto *caseStmt = dynamic_cast<ASTCaseStmt *>(stmt)) {
     checkExprForMoved(caseStmt->getCaseExpr(), state);
+    consumeCallArgMoves(caseStmt->getCaseExpr(), state);
+    // Matching an owned by-value scrutinee consumes it: its payloads are moved
+    // out into the arm bindings and its box is freed by the match. A borrowed
+    // scrutinee (`case *p`) is not consumed.
+    auto *scrutVar =
+        dynamic_cast<ASTVariableExpr *>(caseStmt->getCaseExpr());
+    ASTDeclNode *scrutDecl =
+        scrutVar ? resolveVar(scrutVar->getName()) : nullptr;
+    if (scrutDecl && classifier->classify(scrutDecl) == OwnershipClass::Own) {
+      state[scrutDecl] = OwnershipState::Moved;
+    }
     std::vector<StateMap> armStates;
     for (auto *arm : caseStmt->getArms()) {
       armStates.push_back(analyzeStmt(arm->getBody(), state));
@@ -210,13 +226,7 @@ MoveAnalysis::StateMap MoveAnalysis::analyzeAssign(ASTAssignStmt *stmt,
       return state;
     }
 
-    auto *rhsCall = dynamic_cast<ASTFunAppExpr *>(rhs);
-    if (rhsCall != nullptr && !callResultIsOwned(rhsCall, lhsIsOwn)) {
-      // Summary says this call result is not an owning transfer.
-      state.erase(lhsDecl);
-      return state;
-    }
-
+    // Trust the solved type: an owning-typed binding receives ownership here.
     auto lhsIt = state.find(lhsDecl);
     if (lhsIt != state.end() && lhsIt->second == OwnershipState::Owned) {
       // Assign-over-live-own: hard error.
@@ -267,44 +277,6 @@ bool MoveAnalysis::actualInstantiatesOwn(
   }
 
   return false;
-}
-
-bool MoveAnalysis::callResultIsOwned(const ASTFunAppExpr *call,
-                                     bool lhsIsOwn) const {
-  auto *calleeVar = dynamic_cast<ASTVariableExpr *>(call->getFunction());
-  ASTDeclNode *calleeDecl =
-      (calleeVar != nullptr) ? sym->getFunction(calleeVar->getName()) : nullptr;
-  const FunctionEffectSummaries::Summary *summary =
-      (calleeDecl != nullptr && functionEffects != nullptr)
-          ? functionEffects->get(calleeDecl)
-          : nullptr;
-
-  if (summary == nullptr) {
-    return lhsIsOwn;
-  }
-
-  switch (summary->returnOrigin) {
-  case FunctionEffectSummaries::ReturnOrigin::PureCopy:
-  case FunctionEffectSummaries::ReturnOrigin::BorrowFromFormal:
-    return false;
-  case FunctionEffectSummaries::ReturnOrigin::FreshOwn:
-    return true;
-  case FunctionEffectSummaries::ReturnOrigin::FromFormal: {
-    int i = summary->returnFormalIndex;
-    auto actuals = call->getActuals();
-    if (i < 0 || static_cast<std::size_t>(i) >= summary->formalModes.size() ||
-        static_cast<std::size_t>(i) >= actuals.size()) {
-      return lhsIsOwn;
-    }
-    return actualInstantiatesOwn(actuals[static_cast<std::size_t>(i)],
-                                 summary->formalModes[static_cast<std::size_t>(i)],
-                                 lhsIsOwn);
-  }
-  case FunctionEffectSummaries::ReturnOrigin::Unknown:
-    return lhsIsOwn;
-  }
-
-  return lhsIsOwn;
 }
 
 void MoveAnalysis::consumeCallArgMoves(ASTNode *node, StateMap &state) {

@@ -1,0 +1,13 @@
+// Two distinct borrow arguments at two call sites. Exercises the borrow
+// checker's provenance recording for more than one borrow (the second record
+// is compared against the first before being kept).
+read(p) { return *p; }
+main() {
+  var x, y, a, b;
+  x = 5;
+  y = 7;
+  a = read(&x);
+  b = read(&y);
+  if (a + b != 12) error a + b;
+  return 0;
+}

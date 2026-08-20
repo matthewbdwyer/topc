@@ -8,9 +8,14 @@ HTML_OUTPUT="${ROOT_DIR}/coverage.out"
 # Flags to suppress clang/lcov version mismatch warnings on macOS.
 LCOV_IGNORE="--ignore-errors inconsistent,unsupported,format,empty"
 
+# Read clang-instrumented coverage data with clang's own gcov reader
+# (llvm-cov gcov). Using the system gcov produces "cannot merge previous GCDA
+# file: corrupt" and yields no usable data.
+GCOV_TOOL="--gcov-tool ${ROOT_DIR}/bin/llvm-gcov.sh"
+
 # Capture coverage data
 # shellcheck disable=SC2086
-lcov --capture --directory "${ROOT_DIR}" --no-external --output-file "${COV_OUTPUT}" ${LCOV_IGNORE}
+lcov --capture --directory "${ROOT_DIR}" --no-external --output-file "${COV_OUTPUT}" ${GCOV_TOOL} ${LCOV_IGNORE}
 
 # Remove unwanted coverage data
 # shellcheck disable=SC2086
@@ -22,9 +27,10 @@ lcov --remove "${COV_OUTPUT}" '*.h' -o "${COV_OUTPUT}" ${LCOV_IGNORE}
 # shellcheck disable=SC2086
 lcov --remove "${COV_OUTPUT}" '*.hpp' -o "${COV_OUTPUT}" ${LCOV_IGNORE}
 
-# Generate HTML report
+# Generate HTML report. genhtml (lcov 2.x) additionally flags an "UNK" line
+# category on some clang-instrumented files; ignore it so the report completes.
 # shellcheck disable=SC2086
-genhtml "${COV_OUTPUT}" --output-directory "${HTML_OUTPUT}" ${LCOV_IGNORE}
+genhtml "${COV_OUTPUT}" --output-directory "${HTML_OUTPUT}" ${LCOV_IGNORE} --ignore-errors category
 
 # Print messages to the user
 echo "Coverage report has been generated as ${COV_OUTPUT}"

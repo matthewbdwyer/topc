@@ -1,0 +1,8 @@
+// A constructor expression names a constructor that no type declares. Like an
+// unknown constructor in a case arm, this must be rejected.
+type Pair = P(a, b);
+main() {
+  var x;
+  x = Bogus(1);
+  return 0;
+}

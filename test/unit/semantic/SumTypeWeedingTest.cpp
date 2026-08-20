@@ -173,6 +173,55 @@ TEST_CASE("CheckCaseCompleteness: arity mismatch rejected", "[Weeding]") {
     Catch::Matchers::ContainsSubstring("expects 1 binding(s) but arm provides 2"));
 }
 
+TEST_CASE("CheckCaseCompleteness: unknown constructor expression rejected",
+          "[Weeding]") {
+  std::stringstream stream;
+  stream << R"(
+    type Pair = P(a, b);
+    main() {
+      var x;
+      x = Bogus(1);
+      return 0;
+    }
+  )";
+  auto ast = ASTHelper::build_ast(stream);
+  REQUIRE_THROWS_WITH(CheckCaseCompleteness::check(ast.get()),
+    Catch::Matchers::ContainsSubstring(
+      "unknown constructor 'Bogus' in constructor expression"));
+}
+
+TEST_CASE("CheckCaseCompleteness: constructor expression arity mismatch rejected",
+          "[Weeding]") {
+  std::stringstream stream;
+  stream << R"(
+    type Pair = P(a, b);
+    main() {
+      var x;
+      x = P(1, 2, 3);
+      return 0;
+    }
+  )";
+  auto ast = ASTHelper::build_ast(stream);
+  REQUIRE_THROWS_WITH(CheckCaseCompleteness::check(ast.get()),
+    Catch::Matchers::ContainsSubstring(
+      "expects 2 argument(s) but expression provides 3"));
+}
+
+TEST_CASE("CheckCaseCompleteness: valid constructor expression accepted",
+          "[Weeding]") {
+  std::stringstream stream;
+  stream << R"(
+    type List = Nil | Cons(h, t);
+    main() {
+      var x;
+      x = Cons(1, Cons(2, Nil));
+      return 0;
+    }
+  )";
+  auto ast = ASTHelper::build_ast(stream);
+  REQUIRE_NOTHROW(CheckCaseCompleteness::check(ast.get()));
+}
+
 TEST_CASE("CheckCaseCompleteness: duplicate arm rejected", "[Weeding]") {
   std::stringstream stream;
   stream << R"(

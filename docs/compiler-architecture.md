@@ -91,12 +91,23 @@ a dereference-only function express that it does not require ownership.
 After type inference, `OwnershipClassifier` assigns each inferred type one of
 two classes:
 
-- `Copy`: integers, functions, borrow references, and algebraic values whose
-  payloads are all Copy.
-- `Own`: owning references and algebraic values containing an Own payload.
+- `Copy`: integers, functions, and borrow references.
+- `Own`: owning references and algebraic (sum) values. A constructor value is
+  always heap-boxed, so its box is an owned resource regardless of payload class.
 
 Classification is structural and does not change the inferred type. It supplies
 facts used by effect-summary construction, move analysis, and destruction.
+
+Owned values are linear. Passing one by value **moves** it: the callee takes
+ownership and destroys it at scope exit unless it is moved out again. A callee
+that only needs to read (or write through) a value takes a **borrow** (`&x`),
+which does not move; the caller keeps ownership. Matching an owned by-value
+scrutinee with `case` consumes it — its payloads move into the arm bindings and
+its box is freed by the match.
+
+Destruction of an owned sum is lowered to a per-type recursive destroy function
+that reads the tag, destroys owned payload fields, and frees the box; recursive
+types are handled by runtime recursion.
 
 ## Function-Effect Summaries
 

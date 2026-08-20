@@ -12,7 +12,10 @@
 #include "InternalError.h"
 #include "OwnershipClassifier.h"
 #include "SemanticAnalysis.h"
+#include "ASTSumTypeDecl.h"
+#include "TopMu.h"
 #include "TopOwningRef.h"
+#include "TopSumType.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Constants.h"
@@ -840,22 +843,116 @@ void CodeGenVisitor::ensureFreeDecl(CodeGenContext &ctx) {
 }
 
 
+// Unwrap a possibly-recursive (TopMu) type to its underlying sum type.
+static TopSumType *asSumType(TopType *t) {
+  if (t == nullptr)
+    return nullptr;
+  if (auto *s = dynamic_cast<TopSumType *>(t))
+    return s;
+  if (auto *mu = dynamic_cast<TopMu *>(t))
+    return asSumType(mu->getT().get());
+  return nullptr;
+}
+
+llvm::Function *CodeGenVisitor::getOrCreateSumDestroyFn(TopType *sumTypeRaw,
+                                                        CodeGenContext &ctx) {
+  TopSumType *sum = asSumType(sumTypeRaw);
+  if (sum == nullptr)
+    return nullptr;
+
+  const std::string &typeName = sum->getTypeName();
+  auto cached = ctx.sumDestroyFns.find(typeName);
+  if (cached != ctx.sumDestroyFns.end())
+    return cached->second;
+
+  auto *voidTy = llvm::Type::getVoidTy(ctx.llvmContext);
+  auto *i64Ty = llvm::Type::getInt64Ty(ctx.llvmContext);
+  auto *ptrTy = llvm::PointerType::get(ctx.llvmContext, 0);
+
+  auto *fnTy = llvm::FunctionType::get(voidTy, {i64Ty}, false);
+  auto *fn = llvm::Function::Create(fnTy, llvm::Function::InternalLinkage,
+                                    "_top_destroy_" + typeName, ctx.module.get());
+  fn->addFnAttr(llvm::Attribute::NoUnwind);
+  // Cache before emitting the body so recursive payloads reuse this function.
+  ctx.sumDestroyFns[typeName] = fn;
+
+  auto savedIP = ctx.irBuilder.saveIP();
+  ensureFreeDecl(ctx);
+
+  auto *entry = llvm::BasicBlock::Create(ctx.llvmContext, "entry", fn);
+  auto *freeBB = llvm::BasicBlock::Create(ctx.llvmContext, "free", fn);
+
+  ctx.irBuilder.SetInsertPoint(entry);
+  auto *boxInt = fn->getArg(0);
+  auto *box = ctx.irBuilder.CreateIntToPtr(boxInt, ptrTy, "box");
+  auto *tag = ctx.irBuilder.CreateLoad(i64Ty, box, "tag");
+
+  auto *symTab = semanticAnalysis_->getSymbolTable();
+  auto *types = semanticAnalysis_->getTypeResults();
+  auto *ownerDecl = sum->getCtorOrder().empty()
+                        ? nullptr
+                        : symTab->getConstructorOwner(sum->getCtorOrder()[0]);
+
+  // A switch on the tag; only variants with owned payloads need a case, the
+  // rest fall through to the default which just frees the box.
+  std::vector<ASTSumVariant *> variants =
+      ownerDecl ? ownerDecl->getVariants() : std::vector<ASTSumVariant *>{};
+  auto *sw = ctx.irBuilder.CreateSwitch(tag, freeBB,
+                                        static_cast<unsigned>(variants.size()));
+
+  int tagIdx = 0;
+  for (auto *v : variants) {
+    auto params = v->getParams();
+    std::vector<std::size_t> ownedFields;
+    for (std::size_t i = 0; i < params.size(); ++i) {
+      auto pType = types->getInferredType(params[i]);
+      if (OwnershipClassifier::classifyType(pType.get()) == OwnershipClass::Own)
+        ownedFields.push_back(i);
+    }
+    if (!ownedFields.empty()) {
+      auto *bb = llvm::BasicBlock::Create(
+          ctx.llvmContext, "ctor" + std::to_string(tagIdx), fn);
+      sw->addCase(llvm::ConstantInt::get(i64Ty, tagIdx), bb);
+      ctx.irBuilder.SetInsertPoint(bb);
+      for (std::size_t i : ownedFields) {
+        auto pType = types->getInferredType(params[i]);
+        auto *fieldGEP = ctx.irBuilder.CreateInBoundsGEP(
+            i64Ty, box, {llvm::ConstantInt::get(i64Ty, i + 1)}, "field.gep");
+        auto *fieldVal = ctx.irBuilder.CreateLoad(i64Ty, fieldGEP, "field.val");
+        emitDestroyValue(fieldVal, pType.get(), ctx);
+      }
+      ctx.irBuilder.CreateBr(freeBB);
+    }
+    ++tagIdx;
+  }
+
+  ctx.irBuilder.SetInsertPoint(freeBB);
+  ctx.irBuilder.CreateCall(ctx.freeFun, {box});
+  ctx.irBuilder.CreateRetVoid();
+
+  ctx.irBuilder.restoreIP(savedIP);
+  return fn;
+}
+
 void CodeGenVisitor::emitDestroyValue(llvm::Value *ptrAsInt, TopType *topType,
                                        CodeGenContext &ctx) {
-  auto *owningRef = dynamic_cast<TopOwningRef *>(topType);
-  if (owningRef == nullptr) {
+  if (OwnershipClassifier::classifyType(topType) != OwnershipClass::Own) {
     return; // Copy type — nothing to free
   }
 
-  auto *ptrTy  = llvm::PointerType::get(ctx.llvmContext, 0);
-  auto *i64Ty  = llvm::Type::getInt64Ty(ctx.llvmContext);
-  auto *i32Ty  = llvm::Type::getInt32Ty(ctx.llvmContext);
-  auto *zeroV  = llvm::ConstantInt::get(i64Ty, 0);
+  ensureFreeDecl(ctx);
 
-  // Convert the int64-encoded pointer to an actual pointer.
+  // Sum value: recursively destroy owned payloads and free the box via the
+  // per-type destroy function (handles recursive types by runtime recursion).
+  if (asSumType(topType) != nullptr) {
+    auto *fn = getOrCreateSumDestroyFn(topType, ctx);
+    ctx.irBuilder.CreateCall(fn, {ptrAsInt});
+    return;
+  }
+
+  // Owning reference (own&T): free the pointer itself.
+  auto *ptrTy = llvm::PointerType::get(ctx.llvmContext, 0);
   auto *ptr = ctx.irBuilder.CreateIntToPtr(ptrAsInt, ptrTy, "destroyPtr");
-
-  // Free the pointer itself.
   ctx.irBuilder.CreateCall(ctx.freeFun, {ptr});
 }
 
@@ -913,14 +1010,14 @@ void CodeGenVisitor::emitPatternMatch(llvm::Value *basePtr, int64_t offset,
     ctx.namedValues[vp->getName()] = alloca;
 
   } else if (dynamic_cast<ASTWildcardPattern *>(pat)) {
-    // Wildcard: if the payload slot is Own, destroy it (prevents leaks).
+    // Wildcard: the payload is discarded, not moved out. If it is owned, free it
+    // here (the box shell free below does not recurse into it).
     if (paramDecl) {
       auto typeShared =
           semanticAnalysis_->getTypeResults()->getInferredType(paramDecl);
       if (typeShared &&
           OwnershipClassifier::classifyType(typeShared.get()) ==
               OwnershipClass::Own) {
-        ensureFreeDecl(ctx);
         emitDestroyValue(fieldVal, typeShared.get(), ctx);
       }
     }
@@ -962,6 +1059,11 @@ void CodeGenVisitor::emitPatternMatch(llvm::Value *basePtr, int64_t offset,
       emitPatternMatch(innerPtr, static_cast<int64_t>(j + 1), subPats[j],
                        subDecl, failBB, func, ctx);
     }
+
+    // The inner sum is consumed by this nested pattern (its owned sub-payloads
+    // were moved into bindings or freed as wildcards); free its box shell.
+    ensureFreeDecl(ctx);
+    builder.CreateCall(ctx.freeFun, {innerPtr});
 
   }
 }
@@ -1142,6 +1244,18 @@ llvm::Value *CodeGenVisitor::generate(ASTCaseStmt *node) {
   // Continue after the case statement.
   TheFunction->insert(TheFunction->end(), MergeBB);
   ctx.irBuilder.SetInsertPoint(MergeBB);
+
+  // A by-value (non-borrowed) sum scrutinee is consumed by the match: its owned
+  // payloads were moved into the arm bindings (or freed as wildcards), so only
+  // the top box remains — free it here. A borrowed scrutinee (`case *p`) is not
+  // consumed and must not be freed.
+  if (dynamic_cast<ASTDeRefExpr *>(node->getCaseExpr()) == nullptr) {
+    ensureFreeDecl(ctx);
+    auto *boxToFree = ctx.irBuilder.CreateIntToPtr(
+        caseExprInt, llvm::PointerType::get(ctx.llvmContext, 0), "case.box");
+    ctx.irBuilder.CreateCall(ctx.freeFun, {boxToFree});
+  }
+
   return ctx.irBuilder.CreateCall(ctx.nop);
 }
 

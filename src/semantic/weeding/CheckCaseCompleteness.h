@@ -19,6 +19,11 @@
  *     the second is also unreachable → error.
  *  4. All constructors of the case expression's sum type must appear in at least
  *     one arm (exhaustiveness).
+ *
+ * The same well-formedness rules are also enforced on constructor *expressions*
+ * (`Tag(e1,...,en)`), which are otherwise unchecked:
+ *  5. A constructor expression's tag must be a declared constructor.
+ *  6. The number of argument expressions must equal the constructor's arity.
  */
 class CheckCaseCompleteness : public ASTVisitor {
 public:
@@ -27,6 +32,7 @@ public:
 
   virtual bool visit(ASTProgram *element) override;
   virtual void endVisit(ASTCaseStmt *element) override;
+  virtual void endVisit(ASTSumCtorExpr *element) override;
 
 private:
   // constructor tag -> arity (0 for no-payload)

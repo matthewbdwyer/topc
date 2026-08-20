@@ -1,0 +1,16 @@
+// Interprocedural ownership: fresh ownership returned through a factory that is
+// itself returned from a zero-parameter function, then called (Mode 2). The
+// owned result must be freed at scope exit. Runs clean under Address/Leak-
+// Sanitizer; a regression reports a leak or a wrong value.
+cell(n) { return alloc n; }
+getf() { return cell; }
+
+main() {
+  var f, p, q;
+  p = getf()(5);        // direct: (getf())(5)
+  f = getf();
+  q = f(7);             // via local: f = getf(); f(7)
+  if (*p != 5) error *p;
+  if (*q != 7) error *q;
+  return 0;
+}

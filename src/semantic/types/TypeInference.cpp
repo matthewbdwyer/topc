@@ -1,6 +1,7 @@
 #include <cassert>
 #include <unordered_set>
 #include "TypeInference.h"
+#include "ASTExpr.h"
 #include "PolyTypeConstraintCollectVisitor.h"
 #include "TopMu.h"
 #include "TopSumType.h"
@@ -212,6 +213,11 @@ std::shared_ptr<TypeInference> TypeInference::run(ASTProgram *ast,
 }
 
 std::shared_ptr<TopType> TypeInference::getInferredType(ASTDeclNode *node) {
+  auto var = std::make_shared<TopVar>(node);
+  return unifier->inferred(var);
+};
+
+std::shared_ptr<TopType> TypeInference::getInferredType(ASTExpr *node) {
   auto var = std::make_shared<TopVar>(node);
   return unifier->inferred(var);
 };

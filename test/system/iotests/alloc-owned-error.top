@@ -1,0 +1,11 @@
+// An owned pointer may not point at another owned value: `alloc x` where x is
+// itself an owned pointer would create a nested owned pointer (own&own&int).
+// TOP rejects this so that every owned value is freed exactly once; structured
+// or heap-owned data is expressed with a sum type instead.
+main() {
+  var x, y;
+  x = alloc 42;
+  y = alloc x;
+  if (**y != 42) error **y;
+  return 0;
+}

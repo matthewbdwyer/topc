@@ -74,7 +74,9 @@ main() {
 }
 ```
 
-Ownership is linear: assigning an owned pointer _moves_ it; the original binding becomes inaccessible.  The `--asan` flag instruments the generated IR with AddressSanitizer so that correct automatic deallocation can be verified at runtime.
+Ownership is linear: assigning an owned value _moves_ it; the original binding becomes inaccessible.  The same applies to sum-type values, which are heap-boxed and therefore owned: passing an owned value to a function **by value moves it** (the callee then owns and destroys it unless it moves it out), while a **borrow** (`&x`) lets a function read or modify a value in place without taking ownership, so the caller keeps it.  A `case` on an owned value consumes it, moving its payloads into the arm bindings; to traverse a value you want to keep, borrow it (`case *p`).  Destruction is lowered to recursive per-type cleanup, and the `--san` flag instruments the generated IR with Address/LeakSanitizer so that correct automatic deallocation can be verified at runtime.
+
+An owned pointer is **single-level**: the payload of `alloc expr` must be a non-owning (`Copy`) value, so `own&own&T` is rejected — an owned pointer cannot own another owned pointer.  This keeps every owned resource with exactly one owner and freed exactly once.  To own structured or heap-allocated data, use a sum type, whose payloads are typed individually and freed recursively; a mutable cell inside such a structure is an `own&int` (or other `own&<Copy>`) payload.  For example, a mutable sequence is `type Seq = None | Cons(v, n)` with `v : own&int`, built as `Cons(alloc 1, Cons(alloc 2, None))`, traversed by borrow (`case *p`), mutated in place (`*v = *v + 1`), and freed automatically.
 
 ### Borrows
 
@@ -112,6 +114,8 @@ main() {
 |---------|------------|
 | Comparisons | Only `>`, `==`, `!=` — no `<`, `<=`, `>=` |
 | `return` | Must be the final statement in a function body — no early return |
+| Ownership | Owned values (including sum-type values) are linear: passing by value moves; use `&x` to borrow for read/write without moving |
+| Owned pointers | Single-level: `alloc expr` requires a non-owning payload; `own&own&T` is rejected. Own structured data with a sum type instead |
 | Borrows | `&expr` must be a direct call argument; borrow-derived results may flow only through nested immediate call arguments |
 | Call statements | Every call result must be assigned — there are no void call statements |
 
@@ -194,7 +198,7 @@ USAGE: topc [options] <top source file>
 
 OPTIONS:
 
-  --asan                         - instrument generated IR with AddressSanitizer
+  --san                          - instrument generated IR with Address/LeakSanitizer
   --asm                          - emit human-readable LLVM assembly language
   --constraint                   - include constraint/trace details
   --do                           - disable bitcode optimization
@@ -341,9 +345,9 @@ The comparison operators are `>`, `==`, and `!=`.  `tipc` added `!=` for conveni
 
 Polymorphic type inference is always on: all non-recursive functions are auto-generalised so call sites instantiate fresh type variables.
 
-**Anonymous records replaced by algebraic sum types.**  TIP supports anonymous record expressions `{field: expr, ...}` and field access `expr.field`.  TOP removes this syntax entirely and replaces structured data with algebraic sum types.  The motivation is soundness under unification-based type inference: TIP's record type system uses an *uber-record* strategy — a single global record type is inferred that contains every field name mentioned anywhere in the program.  Fields absent from a given record expression are zero-initialised on heap allocation and undefined otherwise.  This makes it impossible to detect field-name typos at compile time, conflates structurally distinct record uses, and produces misleading inferred types.  Algebraic sum types avoid these problems.  Each `type` declaration introduces a distinct named type, constructor payloads are typed individually, and `case` analysis checks constructor patterns and exhaustive coverage.  Authoritative validation of constructor expressions remains a known gap.
+**Anonymous records replaced by algebraic sum types.**  TIP supports anonymous record expressions `{field: expr, ...}` and field access `expr.field`.  TOP removes this syntax entirely and replaces structured data with algebraic sum types.  The motivation is soundness under unification-based type inference: TIP's record type system uses an *uber-record* strategy — a single global record type is inferred that contains every field name mentioned anywhere in the program.  Fields absent from a given record expression are zero-initialised on heap allocation and undefined otherwise.  This makes it impossible to detect field-name typos at compile time, conflates structurally distinct record uses, and produces misleading inferred types.  Algebraic sum types avoid these problems.  Each `type` declaration introduces a distinct named type, constructor payloads are typed individually, and `case` analysis checks constructor patterns and exhaustive coverage.  Constructor expressions are validated the same way as case arms: an unknown constructor or a wrong argument count is rejected during weeding.
 
-Memory management: unlike TIP, TOP has no source-level manual deallocation. The destruction pass inserts destruction for live owned locals before a function returns, and code generation recursively lowers that destruction to resource cleanup. Run with `--asan` to check the generated cleanup for leaks, double frees, and invalid accesses.
+Memory management: unlike TIP, TOP has no source-level manual deallocation. The destruction pass inserts destruction for live owned locals before a function returns, and code generation recursively lowers that destruction to resource cleanup. Run with `--san` to check the generated cleanup for leaks, double frees, and invalid accesses.
 
 
 ## Resources

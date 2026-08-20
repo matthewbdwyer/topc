@@ -1,0 +1,15 @@
+// The arms cover every constructor of type A (P and Q), but one arm names a
+// constructor R from an unrelated type C. The case-completeness check rejects
+// mixing constructors of different sum types in one case.
+type A = P | Q;
+type C = R | S;
+main() {
+  var x, r;
+  x = P;
+  case x of {
+    P -> r = 0;
+    Q -> r = 1;
+    R -> r = 2;
+  }
+  return r;
+}

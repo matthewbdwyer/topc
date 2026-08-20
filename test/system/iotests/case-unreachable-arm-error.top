@@ -1,0 +1,14 @@
+// A second arm for a nullary constructor can never be reached: the first arm
+// already fully covers it. The case-completeness check rejects the redundant
+// arm.
+type Bit = Zero | One;
+main() {
+  var x, r;
+  x = Zero;
+  case x of {
+    Zero -> r = 0;
+    Zero -> r = 1;
+    One  -> r = 2;
+  }
+  return r;
+}

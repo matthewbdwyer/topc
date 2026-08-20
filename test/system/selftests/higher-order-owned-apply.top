@@ -1,0 +1,14 @@
+// A polymorphic higher-order function applied with an owned value produced by a
+// call. Whether `apply` moves its second argument depends on how `apply` is
+// instantiated at this call site; move analysis resolves that the owned value
+// from `make()` is moved into `consume`, which frees it. Compiles, runs, and is
+// leak-clean.
+apply(f, x) { return f(x); }
+consume(o) { return *o; }
+make() { return alloc 7; }
+main() {
+  var r;
+  r = apply(consume, make());
+  if (r != 7) error r;
+  return 0;
+}

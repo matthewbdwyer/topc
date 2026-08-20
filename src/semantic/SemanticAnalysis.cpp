@@ -1,5 +1,6 @@
 #include "SemanticAnalysis.h"
 #include "BorrowChecker.h"
+#include "CheckAllocPayload.h"
 #include "CheckAssignable.h"
 #include "CheckBorrowPositions.h"
 #include "CheckCaseCompleteness.h"
@@ -27,6 +28,7 @@ std::shared_ptr<SemanticAnalysis> SemanticAnalysis::analyze(ASTProgram *ast) {
   auto intraproceduralCFGs = IntraproceduralCFGs::build(ast);
   auto callGraph = CallGraph::build(ast, symTable.get());
   auto typeResults = TypeInference::run(ast, callGraph.get(), symTable.get());
+  CheckAllocPayload::check(ast, typeResults.get());
   auto ownershipClassifier = std::make_shared<OwnershipClassifier>(
       symTable.get(), typeResults.get());
   auto functionEffectSummaries = FunctionEffectSummaries::build(

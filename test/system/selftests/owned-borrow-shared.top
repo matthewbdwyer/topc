@@ -1,0 +1,13 @@
+// Step 1: a borrow (&n) does NOT move; the caller keeps ownership and may lend
+// the value repeatedly, then destroys it once at scope exit. peek reads through
+// the borrow (**p) without consuming n.
+peek(p) { return **p; }
+main() {
+  var n, a, b;
+  n = alloc 42;
+  a = peek(&n);
+  b = peek(&n);
+  if (a != 42) error a;
+  if (b != 42) error b;
+  return 0;
+}
