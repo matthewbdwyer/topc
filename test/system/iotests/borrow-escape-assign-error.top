@@ -1,0 +1,11 @@
+// `pick` returns a borrow derived from its parameter. Storing that
+// borrow-derived call result in a variable would let the alias outlive the
+// call, so the borrow checker rejects it. A borrow may only flow through
+// immediate call arguments.
+pick(p) { return p; }
+main() {
+  var x, y;
+  x = 5;
+  y = pick(&x);
+  return 0;
+}

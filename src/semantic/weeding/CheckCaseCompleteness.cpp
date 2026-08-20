@@ -134,10 +134,12 @@ void CheckCaseCompleteness::endVisit(ASTCaseStmt *element) {
   // We determine which sum type is being matched by looking at the first arm's
   // constructor (if any arms exist).
   if (element->getArms().empty()) {
+    // LCOV_EXCL_START -- unreachable: the grammar requires at least one CONID arm
     std::ostringstream oss;
     oss << "Case error on line " << element->getLine()
         << ": case statement has no arms\n";
     throw SemanticError(oss.str());
+    // LCOV_EXCL_STOP
   }
 
   // Find which type the arms belong to (use first arm's tag).

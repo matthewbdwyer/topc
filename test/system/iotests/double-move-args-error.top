@@ -1,0 +1,9 @@
+// Passing the same owned value to two arguments of one call would move it
+// twice. Move analysis rejects the second move of an already-moved value.
+h(a, b) { return 0; }
+main() {
+  var x, r;
+  x = alloc 1;
+  r = h(x, x);
+  return 0;
+}

@@ -79,7 +79,10 @@ OwnershipClass OwnershipClassifier::classifyType(const TopType *type) {
     if (std::dynamic_pointer_cast<TopModeVar>(reference->getMode()) != nullptr) {
       return OwnershipClass::Copy;
     }
+    // LCOV_EXCL_START -- defensive: a solved reference always has a concrete or
+    // variable mode; this guards against a malformed type from a future change.
     throw InternalError("reference has unsupported ownership mode");
+    // LCOV_EXCL_STOP
   }
 
   // TopInt → Copy
@@ -107,6 +110,9 @@ OwnershipClass OwnershipClassifier::classifyType(const TopType *type) {
     return OwnershipClass::Copy;
   }
 
+  // LCOV_EXCL_START -- defensive: every solved type term is handled above; this
+  // guards against an unhandled type kind introduced by a future change.
   throw InternalError("unsupported type in ownership classification: " +
                       type->toString());
+  // LCOV_EXCL_STOP
 }

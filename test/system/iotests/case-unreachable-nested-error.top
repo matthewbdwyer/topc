@@ -1,0 +1,15 @@
+// Two arms use syntactically identical nested constructor patterns. Because the
+// payload pattern is not irrefutable, redundancy is detected by structural
+// pattern equality rather than the nullary shortcut, and the second arm is
+// rejected as unreachable.
+type List = Nil | Cons(h, t);
+main() {
+  var x, r;
+  x = Nil;
+  case x of {
+    Cons(Cons(a, b), t) -> r = 0;
+    Cons(Cons(a, b), t) -> r = 1;
+    Nil                 -> r = 2;
+  }
+  return r;
+}

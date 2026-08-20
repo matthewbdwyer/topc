@@ -66,6 +66,20 @@ EXPECTED_ERROR_SUBSTRINGS = {
         "owned pointers cannot nest",
     "alloc-nested-error.top":
         "owned pointers cannot nest",
+    "case-unknown-ctor-error.top":
+        "unknown constructor",
+    "case-unreachable-arm-error.top":
+        "unreachable case arm",
+    "case-unreachable-nested-error.top":
+        "unreachable case arm",
+    "case-mixed-type-error.top":
+        "belongs to type",
+    "borrow-escape-assign-error.top":
+        "escapes into assignment",
+    "borrow-escape-return-error.top":
+        "escapes into return",
+    "double-move-args-error.top":
+        "moved more than once",
 }
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,10 @@
+// `pick` returns a borrow derived from its parameter. `leak` then returns that
+// borrow-derived call result, which would let the alias escape the function.
+// The borrow checker rejects the escaping return.
+pick(p) { return p; }
+leak() {
+  var x;
+  x = 5;
+  return pick(&x);
+}
+main() { return 0; }

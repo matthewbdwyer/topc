@@ -1,0 +1,11 @@
+// A case arm names a constructor that no type declaration introduces. The
+// case-completeness check rejects the unknown constructor.
+type List = Nil | Cons(h, t);
+main() {
+  var x, r;
+  x = Nil;
+  case x of {
+    Bogus -> r = 0;
+  }
+  return r;
+}
