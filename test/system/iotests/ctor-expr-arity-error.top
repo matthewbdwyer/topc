@@ -1,0 +1,8 @@
+// A constructor expression supplies more arguments than the constructor's
+// declared arity. Like a wrong-arity case arm, this must be rejected.
+type Pair = P(a, b);
+main() {
+  var x;
+  x = P(1, 2, 3);
+  return 0;
+}

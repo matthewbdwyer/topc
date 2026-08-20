@@ -1078,7 +1078,7 @@ in the current compiler implementation.
 | Calls | Calls are expressions; no void call statement |
 | Type annotations | Types and generic parameters are inferred, not written |
 | Algebraic data | Concrete sum declarations; no source-level parameterized ADTs |
-| Constructor expressions | Unknown names and extra payloads are not yet rejected consistently |
+| Constructor expressions | Validated like case arms: an unknown constructor or a wrong argument count is rejected |
 | Structured data | Constructor payloads; no tuples, anonymous records, or field projection |
 | References | Created with `alloc` or `&`; no source reference type annotations |
 | Owned pointers | Single-level: an owned pointer's payload must be non-owning; `own&own&T` is rejected — own structured data with a sum type (§15.5) |

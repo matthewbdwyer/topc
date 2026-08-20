@@ -80,6 +80,10 @@ EXPECTED_ERROR_SUBSTRINGS = {
         "escapes into return",
     "double-move-args-error.top":
         "moved more than once",
+    "ctor-expr-unknown-error.top":
+        "unknown constructor",
+    "ctor-expr-arity-error.top":
+        "expects 2 argument(s) but expression provides 3",
 }
 
 # ---------------------------------------------------------------------------
