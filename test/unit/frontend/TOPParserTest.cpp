@@ -124,7 +124,7 @@ TEST_CASE("TOP Parser: block stmts", "[TOP Parser]") {
 TEST_CASE("TOP Parser: identifiers and literals", "[TOP Parser]") {
   std::stringstream stream;
   stream << R"(
-      main() { var __314, __; __314 = 00007; __ = 0000; return __; }
+      main() { var a_314, b_; a_314 = 00007; b_ = 0000; return b_; }
     )";
 
   REQUIRE(ParserHelper::is_parsable(stream));

@@ -4,7 +4,6 @@
 #include "CheckAssignable.h"
 #include "CheckBorrowPositions.h"
 #include "CheckCaseCompleteness.h"
-#include "CheckConstructorCase.h"
 #include "CheckPatternTypes.h"
 #include "CheckSumTypeNames.h"
 #include "DestructionPass.h"
@@ -20,7 +19,6 @@ std::shared_ptr<SemanticAnalysis> SemanticAnalysis::analyze(ASTProgram *ast) {
   BorrowChecker::check(ast);
   CheckSumTypeNames::check(ast);
   CheckCaseCompleteness::check(ast);
-  CheckConstructorCase::check(ast);
   CheckPatternTypes::check(ast);
 
   // Build source-level CFGs before later semantic phases mutate the AST

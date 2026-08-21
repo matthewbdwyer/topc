@@ -7,8 +7,6 @@ target_sources(weeding PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/CheckAssignable.cpp
                                ${CMAKE_CURRENT_SOURCE_DIR}/CheckCaseCompleteness.h
                                ${CMAKE_CURRENT_SOURCE_DIR}/CheckSumTypeNames.cpp
                                ${CMAKE_CURRENT_SOURCE_DIR}/CheckSumTypeNames.h
-                               ${CMAKE_CURRENT_SOURCE_DIR}/CheckConstructorCase.cpp
-                               ${CMAKE_CURRENT_SOURCE_DIR}/CheckConstructorCase.h
                                ${CMAKE_CURRENT_SOURCE_DIR}/CheckPatternTypes.cpp
                                ${CMAKE_CURRENT_SOURCE_DIR}/CheckPatternTypes.h)
 target_include_directories(

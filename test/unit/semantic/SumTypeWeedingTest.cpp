@@ -1,6 +1,5 @@
 #include "CheckBorrowPositions.h"
 #include "CheckCaseCompleteness.h"
-#include "CheckConstructorCase.h"
 #include "CheckSumTypeNames.h"
 #include "ASTHelper.h"
 #include "SemanticError.h"
@@ -296,30 +295,6 @@ TEST_CASE("CheckCaseCompleteness: two refutable ctor arms accepted", "[Weeding]"
   REQUIRE_NOTHROW(CheckCaseCompleteness::check(ast.get()));
 }
 
-// ============================================================
-//  CheckConstructorCase
-// ============================================================
-
-// Note: All casing rules are enforced by the grammar tokenizer (CONID vs
-// IDENTIFIER). Uppercase-starting words are lexed as CONID and lowercase-
-// starting words as IDENTIFIER, so casing violations can never reach the
-// weeding pass. CheckConstructorCase is kept as a defensive layer; these
-// tests confirm it accepts valid programs.
-
-TEST_CASE("CheckConstructorCase: valid casing", "[Weeding]") {
-  std::stringstream stream;
-  stream << R"(
-    type Option = Some(x) | None;
-    main() { var v; return 0; }
-  )";
-  auto ast = ASTHelper::build_ast(stream);
-  REQUIRE_NOTHROW(CheckConstructorCase::check(ast.get()));
-}
-
-TEST_CASE("CheckConstructorCase: TOP program without type declarations is accepted", "[Weeding]") {
-  // Plain TIP (no type decls): pass is silent
-  std::stringstream stream;
-  stream << R"(foo() { var x; return 0; })";
-  auto ast = ASTHelper::build_ast(stream);
-  REQUIRE_NOTHROW(CheckConstructorCase::check(ast.get()));
-}
+// Note: identifier case is enforced lexically (CONID vs IDENTIFIER, with
+// IDENTIFIER restricted to a lowercase first letter), so the former
+// CheckConstructorCase naming weeding was redundant and has been removed.

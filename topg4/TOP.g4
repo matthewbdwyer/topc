@@ -145,7 +145,13 @@ CONID : [A-Z][a-zA-Z0-9_]* ;
 // pattern and must not be lexed as an IDENTIFIER.
 KWILDCARD : '_' ;
 
-IDENTIFIER : [a-zA-Z][a-zA-Z0-9_]* | '_' [a-zA-Z0-9_]+ ;
+// Identifier case is enforced lexically: user identifiers begin with a
+// lowercase letter.  Uppercase-first words are CONID (type/constructor names);
+// a leading underscore is reserved for compiler-synthesized names (e.g. the
+// synthetic functions and temporaries a desugaring pass introduces, which are
+// constructed after parsing and never lexed).  This replaces the redundant
+// CheckConstructorCase weeding pass.
+IDENTIFIER : [a-z][a-zA-Z0-9_]* ;
 
 // ANTLR4 has a nice mechanism for specifying the characters that should
 // skipped during parsing.  You write "-> skip" after the pattern and

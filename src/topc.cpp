@@ -12,7 +12,6 @@
 #include "CheckAssignable.h"
 #include "CheckBorrowPositions.h"
 #include "CheckCaseCompleteness.h"
-#include "CheckConstructorCase.h"
 #include "CheckPatternTypes.h"
 #include "CheckSumTypeNames.h"
 #include "iterators/Iterator.h"
@@ -526,7 +525,6 @@ int main(int argc, char *argv[]) {
         CheckBorrowPositions::check(ast.get());
         CheckSumTypeNames::check(ast.get());
         CheckCaseCompleteness::check(ast.get());
-        CheckConstructorCase::check(ast.get());
         CheckPatternTypes::check(ast.get());
         structuralChecked = true;
       };
