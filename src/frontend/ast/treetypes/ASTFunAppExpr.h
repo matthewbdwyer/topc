@@ -16,6 +16,12 @@ public:
   std::vector<ASTExpr *> getActuals() const;
   void accept(ASTVisitor *visitor) override;
 
+  bool replaceChild(ASTNode *oldChild,
+                    std::shared_ptr<ASTNode> newChild) override {
+    return astReplaceSlot(FUN, oldChild, newChild) ||
+           astReplaceVec(ACTUALS, oldChild, newChild);
+  }
+
 protected:
   std::ostream &print(std::ostream &out) const override;
 };

@@ -14,6 +14,11 @@ public:
   ASTExpr *getArg() const { return ARG.get(); }
   void accept(ASTVisitor *visitor) override;
 
+  bool replaceChild(ASTNode *oldChild,
+                    std::shared_ptr<ASTNode> newChild) override {
+    return astReplaceSlot(ARG, oldChild, newChild);
+  }
+
 protected:
   std::ostream &print(std::ostream &out) const override;
 };

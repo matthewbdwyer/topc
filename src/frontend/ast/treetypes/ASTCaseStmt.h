@@ -27,6 +27,11 @@ public:
   std::vector<ASTCaseArm *> getArms() const;
   void accept(ASTVisitor *visitor) override;
 
+  bool replaceChild(ASTNode *oldChild,
+                    std::shared_ptr<ASTNode> newChild) override {
+    return astReplaceSlot(CASE_EXPR, oldChild, newChild);
+  }
+
 protected:
   std::ostream &print(std::ostream &out) const override;
 };

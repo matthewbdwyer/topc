@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cassert>
 #include <memory>
 #include <ostream>
 #include <string>
@@ -57,6 +58,25 @@ public:
    * \return a collection of the nodes children.
    */
   virtual std::vector<std::shared_ptr<ASTNode>> getChildren() { return {}; }
+
+  /*! \fn replaceChild
+   *  \brief Replace a direct child of this node, identified by raw pointer.
+   *
+   * Used by AST-lowering passes to swap a child in place. Overridden by any node
+   * that holds an expression or statement child. The default does nothing and
+   * returns false so nodes without replaceable children need no override.
+   *
+   * \param oldChild raw pointer to the current child to replace.
+   * \param newChild the replacement node (must be assignable to the slot's type).
+   * \return true if a child was replaced.
+   */
+  virtual bool replaceChild(ASTNode *oldChild,
+                            std::shared_ptr<ASTNode> newChild) {
+    (void)oldChild;
+    (void)newChild;
+    return false;
+  }
+
   void setLocation(int l, int c) {
     line = l;
     column = c;
@@ -71,3 +91,36 @@ public:
 protected:
   virtual std::ostream &print(std::ostream &out) const = 0;
 };
+
+/*! \brief Replace a single typed child slot if it holds \p oldChild.
+ *
+ * Helper for ASTNode::replaceChild overrides. \p T is the slot's element type
+ * (e.g. ASTExpr or ASTStmt); the incoming replacement is retyped to match. The
+ * replacement is slot-compatible by construction in the lowering passes, so a
+ * failed cast is a bug -- assert it rather than silently null the slot.
+ */
+template <class T>
+inline bool astReplaceSlot(std::shared_ptr<T> &slot, ASTNode *oldChild,
+                           const std::shared_ptr<ASTNode> &newChild) {
+  if (slot.get() != oldChild)
+    return false;
+  auto retyped = std::dynamic_pointer_cast<T>(newChild);
+  assert(retyped && "replaceChild: replacement has incompatible node type");
+  slot = std::move(retyped);
+  return true;
+}
+
+/*! \brief Replace a child within a vector of typed slots if one holds \p oldChild. */
+template <class T>
+inline bool astReplaceVec(std::vector<std::shared_ptr<T>> &vec,
+                          ASTNode *oldChild,
+                          const std::shared_ptr<ASTNode> &newChild) {
+  for (auto &slot : vec)
+    if (slot.get() == oldChild) {
+      auto retyped = std::dynamic_pointer_cast<T>(newChild);
+      assert(retyped && "replaceChild: replacement has incompatible node type");
+      slot = std::move(retyped);
+      return true;
+    }
+  return false;
+}

@@ -13,6 +13,11 @@ public:
   std::vector<ASTStmt *> getStmts() const;
   void accept(ASTVisitor *visitor) override;
 
+  bool replaceChild(ASTNode *oldChild,
+                    std::shared_ptr<ASTNode> newChild) override {
+    return astReplaceVec(STMTS, oldChild, newChild);
+  }
+
 protected:
   std::ostream &print(std::ostream &out) const override;
 };

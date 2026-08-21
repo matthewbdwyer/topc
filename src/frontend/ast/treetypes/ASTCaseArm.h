@@ -41,6 +41,11 @@ public:
   ASTStmt *getBody() const { return BODY.get(); }
   void accept(ASTVisitor *visitor) override;
 
+  bool replaceChild(ASTNode *oldChild,
+                    std::shared_ptr<ASTNode> newChild) override {
+    return astReplaceSlot(BODY, oldChild, newChild);
+  }
+
 protected:
   std::ostream &print(std::ostream &out) const override;
 };
