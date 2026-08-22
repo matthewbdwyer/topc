@@ -15,6 +15,7 @@ target_sources(
     ${CMAKE_CURRENT_SOURCE_DIR}/concrete/SubstituterTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/concrete/CopierTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/concrete/TypeVarsTest.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/constraints/FunAppTypingTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/constraints/TypeConstraintCollectTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/constraints/PolyTypeConstraintCollectTest.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/constraints/TypeConstraintTest.cpp

@@ -1066,7 +1066,7 @@ Debug these errors from the first relevant event:
 TOP is an intentionally small language that incorporates a number of features of modern languages, like Rust.
 The following table is a quick
 reference for constructs that may be familiar from other languages but are not
-part of TOP. The examples after the table explain two less obvious boundaries
+part of TOP. The examples after the table explain the less obvious boundaries
 in the current compiler implementation.
 
 ### 15.1 Surface and Data-Model Boundaries
@@ -1084,6 +1084,7 @@ in the current compiler implementation.
 | References | Created with `alloc` or `&`; no source reference type annotations |
 | Owned pointers | Single-level: an owned pointer's payload must be non-owning; `own&own&T` is rejected — own structured data with a sum type (§15.5) |
 | Reference polymorphism | One helper cannot currently be instantiated at both Own and Borrow within one program |
+| Function values in cells | Callable, but a function stored in a cell or payload has its type fixed at the call site (§15.6) |
 | Borrows | Immediate call arguments only; not storable or returnable |
 | Lifetimes | No lifetime syntax or general long-lived borrow inference |
 | Deallocation | Automatic destruction; no source-level `free` |
@@ -1296,6 +1297,64 @@ mutate the cells in place without consuming the sequence. The `Seq` value owns
 its `own&int` cells; when `main` returns, the destruction pass frees the whole
 structure recursively. Compiling with `--san` and running under LeakSanitizer
 reports no leaks.
+
+### 15.6 Functions Stored in Cells or Payloads
+
+A function value can be stored in a cell or a constructor payload and called
+back out, and that works:
+
+```text
+inc(x) { return x + 1; }
+
+main() {
+  var p, out;
+  p = alloc inc;
+  out = (*p)(2);        // calls inc through the cell
+  return out - 3;
+}
+```
+
+What such a call gives up is polymorphism. The compiler's control-flow analysis
+follows function values through names, locals, arguments, returns, and nested
+calls, but not through the heap or through constructor payloads. At
+`(*p)(2)` it cannot say which function is being called, so the type checker
+falls back on the rule that the callee must be a function from these argument
+types to this result type. That rule is what rejects nonsense such as
+`v = 5; v(3)`, and it is applied here to the expression `(*p)` itself — which
+fixes the type of whatever function was stored in the cell.
+
+The effect shows only when the same function is *also* used at another type:
+
+```text
+type Box = B(x);
+
+apply(f, v) { return f(v); }
+identity(y) { return y; }
+
+main() {
+  var p, a, b;
+  p = alloc identity;
+  a = (*p)(2);                  // fixes identity at int
+  b = apply(identity, B(1));    // wants identity at Box
+  return a;
+}
+```
+
+```text
+topc: Cannot unify Box{B(⟦x@1:13⟧)} with int: different structure
+topc: semantic error
+```
+
+Each use is a legitimate instance of `identity`'s type `(α) -> α`, so this
+program is well typed in principle; `topc` rejects it. As in §15.3, the
+workaround is to give the unrelated uses separate definitions, or to call the
+function directly rather than through a cell — a direct call site still
+instantiates a fresh copy of the function's type, so `identity(2)` and
+`identity(B(1))` in the same program are fine.
+
+This is a deliberate trade. The checker will not accept a program that applies
+a non-function, and where the analysis cannot see what is being called it
+chooses the conservative rule.
 
 ## 16. End-to-End Example
 

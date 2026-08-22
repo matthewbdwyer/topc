@@ -68,7 +68,27 @@ void PolyTypeConstraintVisitor::endVisit(ASTFunAppExpr *element) {
   bool isDirectNamedCall = calleeExpr != nullptr &&
                            symbolTable->getFunction(calleeExpr->getName()) != nullptr;
 
-  for (auto f : callGraph->getCalledFuns(element)) {
+  auto calledFuns = callGraph->getCalledFuns(element);
+
+  /* The application rule is a structural invariant of every call site: it holds
+   * regardless of what CFA can resolve for the callee.  When no function flows
+   * to the callee the loop below never executes, so state the monomorphic rule
+   * here.  Without it an applied non-function, e.g. "v = 5; v(3)", is left
+   * entirely unconstrained and the program is accepted.
+   *
+   * CFA cannot follow a function value through a cell or a constructor payload,
+   * so this also fires for calls through those.  The rule then pins the stored
+   * function's type at this call site rather than instantiating it; that is a
+   * known limitation, documented in docs/TOP-tutorial.md.
+   */
+  if (calledFuns.empty()) {
+    constraintHandler->handle(
+        astToVar(element->getFunction()),
+        std::make_shared<TopFunction>(actuals, astToVar(element)));
+    return;
+  }
+
+  for (auto f : calledFuns) {
     auto fName = f->getName();
     auto fDecl = symbolTable->getFunction(fName);
     auto isPoly = symbolTable->getPoly(fName);

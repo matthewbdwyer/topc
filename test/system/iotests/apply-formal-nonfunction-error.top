@@ -1,0 +1,10 @@
+// A higher-order formal is applied, but the actual passed for it is an int.
+// CFA resolves no function for "f", so the application rule for "f(v)" must
+// still be stated for "apply" to be typed as taking a function.
+apply(f, v) {
+  return f(v);
+}
+
+main() {
+  return apply(1, 2);
+}

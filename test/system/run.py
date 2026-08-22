@@ -84,6 +84,10 @@ EXPECTED_ERROR_SUBSTRINGS = {
         "unknown constructor",
     "ctor-expr-arity-error.top":
         "expects 2 argument(s) but expression provides 3",
+    "apply-nonfunction-error.top":
+        "Cannot unify",
+    "apply-formal-nonfunction-error.top":
+        "Cannot unify",
 }
 
 # ---------------------------------------------------------------------------

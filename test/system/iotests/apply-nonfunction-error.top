@@ -1,0 +1,10 @@
+// A non-function value is applied.  "v" is unified with int by "v = 5", so the
+// application "v(3)" cannot be typed and must be rejected.  "main" is
+// non-recursive, so this exercises the polymorphic constraint collector, where
+// an empty CFA may-call set currently suppresses the application rule.
+main() {
+  var v, out;
+  v = 5;
+  out = v(3);
+  return out;
+}
