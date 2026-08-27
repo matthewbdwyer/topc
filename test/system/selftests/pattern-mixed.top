@@ -1,4 +1,3 @@
-// Phase B4: Tests that wildcard at position 0 doesn't shift position 1.
 // Pair(_, y) should bind y to the SECOND payload (offset 2), not the first.
 type Expr = Unit | Lit(n) | Pair(a, b);
 
@@ -14,10 +13,8 @@ tag(e) {
 }
 
 main() {
-  var ok;
-  ok = 1;
-  if (tag(Unit) != 0)       { ok = 0; }
-  if (tag(Lit(7)) != 7)     { ok = 0; }
-  if (tag(Pair(3, 5)) != 5) { ok = 0; }
-  return 1 - ok;
+  if (tag(Unit) != 0) error tag(Unit);
+  if (tag(Lit(7)) != 7) error tag(Lit(7));
+  if (tag(Pair(3, 5)) != 5) error tag(Pair(3,5));
+  return 0;
 }

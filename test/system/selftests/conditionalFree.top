@@ -1,9 +1,4 @@
-/* Phase 11 destruction test: conditional — p is Owned on all paths.
- * Neither branch of the if moves p; p is Owned at return.
- * The destruction pass inserts destroy(p) before return.
- * With ASan, no leak. */
-type Flag = On | Off;
-
+// Tested with LSan and ASan
 main() {
   var c, p;
   c = 1;

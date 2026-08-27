@@ -1,9 +1,5 @@
 type Tree = Leaf | Node(val, left, right);
 
-// height of a tree: an empty tree (Leaf) has height 0, and a Node is one
-// deeper than its taller subtree. Matching a Node moves its subtrees out
-// (and frees the node shell), so the two recursive calls consume them and
-// the whole tree is freed as height is computed.
 height(t) {
   var h, lh, rh;
   case t of {
@@ -22,6 +18,7 @@ height(t) {
 }
 
 main() {
+  // Need a fresh tree for each since the argument to height is moved
   var empty, one, skewed;
 
   // An empty tree has height 0.

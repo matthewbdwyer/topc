@@ -1,9 +1,5 @@
-/* Phase 11 destruction test: move — no double free.
- * p is moved into q; only q is Owned at return.
- * The destruction pass inserts destroy(q) only.
- * With ASan, no double-free and no leak. */
-type Flag = On | Off;
-
+/* p is moved into q; only q is Owned at return.
+ * With LSan and ASan, no double-free and no leak. */
 main() {
   var p, q;
   p = alloc 5;

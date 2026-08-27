@@ -1,9 +1,6 @@
 type Tree = Leaf | Node(val, left, right);
 
-// height through a borrow: p is a borrow of a Tree. Matching *p does not
-// consume the tree (a borrowed scrutinee is never moved), and the subtrees are
-// re-borrowed with &l/&r for the recursive calls. The tree is therefore left
-// intact and freed exactly once by its owner, so it can be measured repeatedly.
+// Here the left and right children need to be reborrowed.
 height(p) {
   var h, lh, rh;
   case *p of {
@@ -23,21 +20,8 @@ height(p) {
 
 main() {
   var t;
-
-  // The same unbalanced tree as the consuming variant (tree.top):
-  //        Node(1)
-  //        /      \
-  //     Node(2)   Leaf         height(right) = 0
-  //     /    \
-  //  Leaf   Node(3)            height(left)  = 2
-  //         /    \
-  //      Leaf    Leaf
-  // height = 1 + max(2, 0) = 3
   t = Node(1, Node(2, Leaf, Node(3, Leaf, Leaf)), Leaf);
-
-  // Borrowing does not destroy the tree, so we can measure it twice.
-  if (height(&t) != 3) error 3;
-  if (height(&t) != 3) error 4;
-
+  if (height(&t) != 3) error height(&t);
+  if (height(&t) != 3) error height(&t);
   return 0;
 }

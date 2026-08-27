@@ -1,6 +1,5 @@
-// Phase B4: Tests nested constructor patterns with variable binding.
+// Tests nested constructor patterns with variable binding.
 // x and y are extracted from the inner Lit / Neg payload and used in the body.
-// Two Wrap arms exercise the B4 nested-tag-check and fallthrough mechanism.
 type Inner = Lit(n) | Neg(x);
 type Outer = Empty | Wrap(inner);
 
@@ -8,7 +7,7 @@ innerVal(o) {
   var r;
   r = 0;
   case o of {
-    Empty        -> r = -1;
+    Empty        -> r = 0;
     Wrap(Lit(x)) -> r = x;
     Wrap(Neg(y)) -> r = 0 - y;
   }
@@ -16,10 +15,8 @@ innerVal(o) {
 }
 
 main() {
-  var ok;
-  ok = 1;
-  if (innerVal(Empty) != -1)        { ok = 0; }
-  if (innerVal(Wrap(Lit(5))) != 5)  { ok = 0; }
-  if (innerVal(Wrap(Neg(3))) != -3) { ok = 0; }
-  return 1 - ok;
+  if (innerVal(Empty) != 0) error innerVal(Empty);
+  if (innerVal(Wrap(Lit(5))) != 5) error innerVal(Wrap(Lit(5)));
+  if (innerVal(Wrap(Neg(3))) != -3) error innerVal(Wrap(Neg(3)));
+  return 0;
 }

@@ -1,11 +1,5 @@
 type Option = Some(x) | None;
 
-wrap(n) {
-  var r;
-  r = alloc 0;
-  return r;
-}
-
 unwrapOr(opt, def) {
   var result;
   result = def;
@@ -18,7 +12,12 @@ unwrapOr(opt, def) {
 
 main() {
   var x;
+
   x = unwrapOr(None, 42);
-  output x;
+  if (x != 42) error x;
+
+  x = unwrapOr(Some(23), 42);
+  if (x != 23) error x;
+
   return 0;
 }

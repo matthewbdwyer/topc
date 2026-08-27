@@ -1,4 +1,3 @@
-// Ownership: alloc inside a helper called from a loop.
 // Each helper call allocates a value; the destruction pass frees it before
 // the helper returns.  No memory is live between iterations.
 helper(n) {
@@ -16,6 +15,6 @@ main() {
     total = total + helper(i);
     i = i + 1;
   }
-  // total = 0+1+2+3+4 = 10; return 0 if correct
-  return total - 10;
+  if (total != 10) error total;
+  return 0;
 }

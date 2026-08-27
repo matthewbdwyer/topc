@@ -12,7 +12,9 @@ area(s) {
 }
 
 main() {
-  var s, r;
-  r = area(Point);
-  return r;
+  if (area(Point) != 0) error area(Point);
+  if (area(Rect(3,4)) != 12) error area(Rect(3,4));
+  if (area(Circle(5)) != 25) error area(Circle(5));
+  if (area(Circle(area(Circle(2)))) != 16) error area(Circle(area(Circle(2))));
+  return 0;
 }

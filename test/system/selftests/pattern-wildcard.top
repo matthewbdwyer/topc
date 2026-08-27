@@ -1,6 +1,5 @@
-// Phase B1: Tests the wildcard pattern (_) in case arms.
 // The wildcard matches any value and binds nothing.
-type MaybeInt = None | Some(val);
+type Variants = None | Some(val) | Several(variant, value, variant);
 
 isPresent(x) {
   var r;
@@ -8,14 +7,14 @@ isPresent(x) {
   case x of {
     None    -> r = 0;
     Some(_) -> r = 1;
+    Several(_,vi,_) -> r = 2;
   }
   return r;
 }
 
 main() {
-  var ok;
-  ok = 1;
-  if (isPresent(None) != 0) { ok = 0; }
-  if (isPresent(Some(42)) != 1) { ok = 0; }
-  return 1 - ok;
+  if (isPresent(None) != 0) error isPresent(None);
+  if (isPresent(Some(42)) != 1) error isPresent(Some(42));
+  if (isPresent(Several(None,42,Some(42))) != 2) error isPresent(Several(None,42,Some(42)));
+  return 0;
 }

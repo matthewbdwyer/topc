@@ -7,8 +7,8 @@
 
 [ownership-constraints]
   [ownership] - function main : Copy
-  [ownership] 8:6 local main.p : Own
-  [ownership] 8:9 local main.q : Own
-  [move] 9:1 own p (ownership established by assignment)
-  [move] 10:1 move p (ownership moved from RHS variable)
-  [move] 10:1 own q (ownership received via move)
+  [ownership] 4:6 local main.p : Own
+  [ownership] 4:9 local main.q : Own
+  [move] 5:1 own p (ownership established by assignment)
+  [move] 6:1 move p (ownership moved from RHS variable)
+  [move] 6:1 own q (ownership received via move)

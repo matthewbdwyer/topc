@@ -1,5 +1,6 @@
 main() {
   var x;
   x = 42 > 41;
+  if (x == 0) error x;
   return x;
 }

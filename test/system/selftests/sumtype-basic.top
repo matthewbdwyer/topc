@@ -1,5 +1,3 @@
-// Sum type with four no-argument constructors.
-// case-matches each to an integer; verifies the sum is correct.
 type Direction = North | South | East | West;
 
 toInt(d) {
@@ -17,6 +15,6 @@ toInt(d) {
 main() {
   var sum;
   sum = toInt(North) + toInt(South) + toInt(East) + toInt(West);
-  // 1+2+3+4 = 10; return 0 if correct
-  return sum - 10;
+  if (sum != 10) error sum;
+  return 0;
 }
