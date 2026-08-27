@@ -1,15 +1,48 @@
 type Tree = Leaf | Node(val, left, right);
 
+// height of a tree: an empty tree (Leaf) has height 0, and a Node is one
+// deeper than its taller subtree. Matching a Node moves its subtrees out
+// (and frees the node shell), so the two recursive calls consume them and
+// the whole tree is freed as height is computed.
 height(t) {
-  var h;
-  h = 0;
+  var h, lh, rh;
   case t of {
     Leaf -> h = 0;
-    Node(v, l, r) -> h = 1;
+    Node(v, l, r) -> {
+      lh = height(l);
+      rh = height(r);
+      if (lh > rh) {
+        h = 1 + lh;
+      } else {
+        h = 1 + rh;
+      }
+    }
   }
   return h;
 }
 
 main() {
+  var empty, one, skewed;
+
+  // An empty tree has height 0.
+  empty = Leaf;
+  if (height(empty) != 0) error 1;
+
+  // A single node with two empty children has height 1.
+  one = Node(7, Leaf, Leaf);
+  if (height(one) != 1) error 2;
+
+  // An unbalanced tree; the height follows the taller (left) subtree:
+  //        Node(1)
+  //        /      \
+  //     Node(2)   Leaf         height(right) = 0
+  //     /    \
+  //  Leaf   Node(3)            height(left)  = 2
+  //         /    \
+  //      Leaf    Leaf
+  // height = 1 + max(2, 0) = 3
+  skewed = Node(1, Node(2, Leaf, Node(3, Leaf, Leaf)), Leaf);
+  if (height(skewed) != 3) error 3;
+
   return 0;
 }
