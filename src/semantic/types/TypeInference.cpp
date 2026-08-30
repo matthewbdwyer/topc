@@ -260,43 +260,29 @@ void TypeInference::print(std::ostream &s) {
   auto typeNames = symbols->getSumTypes();
   if (!typeNames.empty()) {
     s << "\nTypes : {\n";
-    auto skip = true;
+    const char *sep = "  ";
     for (const auto &name : typeNames) {
       auto *type = symbols->getSumType(name);
-      if (skip) {
-        skip = false;
-        s << "  " << name << " : " << getInferredTypeDisplay(type);
-        continue;
-      }
-      s << ",\n  " << name << " : " << getInferredTypeDisplay(type);
+      s << sep << name << " : " << getInferredTypeDisplay(type);
+      sep = ",\n  ";
     }
     s << "\n}\n";
   }
 
   s << "\nFunctions : {\n";
-  auto skip = true;
+  const char *sep = "  ";
   for (auto f : symbols->getFunctions()) {
-    if (skip) {
-      skip = false;
-      s << "  " << f->getName() << " : " << *getInferredType(f);
-      continue;
-    }
-    s << ",\n  " + f->getName() << " : " << *getInferredType(f);
+    s << sep << f->getName() << " : " << *getInferredType(f);
+    sep = ",\n  ";
   }
   s << "\n}\n";
 
   for (auto f : symbols->getFunctions()) {
     s << "\nLocals for function " + f->getName() + " : {\n";
-    skip = true;
+    sep = "  ";
     for (auto l : symbols->getLocals(f)) {
-      auto lT = getInferredType(l);
-      if (skip) {
-        skip = false;
-        s << "  " << l->getName() << " : " << *lT;
-        continue;
-      }
-      s << ",\n  " + l->getName() << " : " << *lT;
-      s << std::flush;
+      s << sep << l->getName() << " : " << *getInferredType(l);
+      sep = ",\n  ";
     }
     s << "\n}\n";
   }

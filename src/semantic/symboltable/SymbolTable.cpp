@@ -99,27 +99,19 @@ ASTSumTypeDecl *SymbolTable::getConstructorOwner(std::string tag) {
 
 void SymbolTable::print(std::ostream &s) {
   s << "Functions : {";
-  auto skip = true;
-  for (auto e : functionNames) {
-    if (skip) {
-      skip = false;
-      s << e.first;
-      continue;
-    }
-    s << ", " + e.first;
+  const char *sep = "";
+  for (const auto &e : functionNames) {
+    s << sep << e.first;
+    sep = ", ";
   }
   s << "}\n";
 
-  for (auto f : localNames) {
+  for (const auto &f : localNames) {
     s << "Locals for function " + f.first->getName() + " : {";
-    skip = true;
-    for (auto l : f.second) {
-      if (skip) {
-        skip = false;
-        s << l.first;
-        continue;
-      }
-      s << ", " + l.first;
+    sep = "";
+    for (const auto &l : f.second) {
+      s << sep << l.first;
+      sep = ", ";
     }
     s << "}\n";
   }
