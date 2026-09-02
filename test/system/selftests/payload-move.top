@@ -1,0 +1,42 @@
+/* Destruction test: an Own variable placed in a constructor payload is moved --
+ * the box owns it from then on.  Locals, arm bindings, and formals are all
+ * moved this way here.  Every value is freed exactly once; with ASan there is
+ * no double free and no leak.  Exits 0 on success. */
+type E = Num(n) | Add(l, r);
+
+// The formal b is moved into a payload on every arm.
+rewrap(a, b) {
+  var r;
+  case a of {
+    Num(n)    -> r = Add(Num(n), b);
+    Add(p, q) -> r = Add(Add(p, q), b);
+  }
+  return r;
+}
+
+// The formal b is moved on one branch and into a payload on the other.
+pick(n, b) {
+  var r;
+  if (n == 0) { r = b; } else { r = Add(Num(n), b); }
+  return r;
+}
+
+sum(e) {
+  var r;
+  case *e of {
+    Num(n)    -> r = n;
+    Add(a, b) -> r = sum(&a) + sum(&b);
+  }
+  return r;
+}
+
+main() {
+  var local, boxed, x, y, total;
+  local = Num(9);
+  boxed = Add(Num(1), local);            // a local moved into a payload
+  x = rewrap(Add(Num(2), Num(3)), Num(4));
+  y = pick(5, Num(6));
+  total = sum(&boxed) + sum(&x) + sum(&y);
+  if (total != 10 + 9 + 11) error total;
+  return 0;
+}

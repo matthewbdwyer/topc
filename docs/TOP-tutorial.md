@@ -624,6 +624,12 @@ main() {
 Inference determines that `Full` carries an owning reference, so the value
 bound to `box` is classified as `Own` and must eventually be destroyed.
 
+Placing an owned variable in a constructor payload is a move: the box owns the
+payload from then on, the variable is invalidated, and destroying the box
+destroys the payload. Writing `box = Full(pointer);` and then reading
+`pointer` is rejected as a use after move, exactly as if `pointer` had been
+passed to a consuming call.
+
 `--pownership` displays ownership classes and a destruction summary. For the
 move example, it reports:
 

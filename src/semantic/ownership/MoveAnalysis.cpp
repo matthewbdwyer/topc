@@ -1,3 +1,4 @@
+#include "ASTSumCtorExpr.h"
 #include "MoveAnalysis.h"
 #include "../SemanticLogging.h"
 
@@ -55,9 +56,16 @@ void MoveAnalysis::analyzeFunction(ASTFunction *f) {
     currentFormals.insert(param);
   }
 
-  // Initial state: Own locals start uninitialized (no entry in the map).
-  // Formals are treated as non-owning flow inputs for move/destruction.
+  // Initial state: Own locals start uninitialized (no entry in the map). An
+  // owned formal is owned by the callee (the caller moved it in by value), so
+  // it starts Owned -- exactly as the destruction pass models it -- and is
+  // therefore subject to the same double-move and join-agreement checks.
   StateMap state;
+  for (auto *param : f->getFormals()) {
+    if (classifier->classify(param) == OwnershipClass::Own) {
+      state[param] = OwnershipState::Owned;
+    }
+  }
 
   // Analyse each statement in the function body.
   for (auto *stmt : f->getStmts()) {
@@ -345,6 +353,37 @@ void MoveAnalysis::consumeCallArgMoves(ASTNode *node, StateMap &state) {
         SEMANTIC_LOG(2, "move-analysis")
           << "line=" << call->getLine() << " event=move variable="
           << argVar->getName() << " reason=function-argument";
+    }
+  }
+
+
+  // A constructor payload takes ownership of an Own variable: the box owns it
+  // from here on, so the variable is moved exactly as if it were passed to a
+  // consuming call.
+  if (auto *ctor = dynamic_cast<ASTSumCtorExpr *>(node)) {
+    for (auto *payload : ctor->getArgs()) {
+      auto *payloadVar = dynamic_cast<ASTVariableExpr *>(payload);
+      if (payloadVar == nullptr) {
+        continue;
+      }
+      ASTDeclNode *decl = resolveVar(payloadVar->getName());
+      if (decl == nullptr ||
+          classifier->classify(decl) != OwnershipClass::Own) {
+        continue;
+      }
+      auto it = state.find(decl);
+      if (it != state.end() && it->second == OwnershipState::Moved) {
+        std::ostringstream oss;
+        oss << "variable '" << payloadVar->getName()
+            << "' moved more than once on line " << payloadVar->getLine();
+        throw SemanticError(oss.str());
+      }
+      state[decl] = OwnershipState::Moved;
+      trace.push_back({"move", payloadVar->getName(), payloadVar->getLine(),
+                       "ownership moved into constructor payload"});
+      SEMANTIC_LOG(2, "move-analysis")
+          << "line=" << payloadVar->getLine() << " event=move variable="
+          << payloadVar->getName() << " reason=constructor-payload";
     }
   }
 

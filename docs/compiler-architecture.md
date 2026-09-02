@@ -103,7 +103,9 @@ ownership and destroys it at scope exit unless it is moved out again. A callee
 that only needs to read (or write through) a value takes a **borrow** (`&x`),
 which does not move; the caller keeps ownership. Matching an owned by-value
 scrutinee with `case` consumes it — its payloads move into the arm bindings and
-its box is freed by the match.
+its box is freed by the match. Placing an owned variable in a constructor
+payload likewise moves it: the new box owns the payload, and destroying the box
+destroys it.
 
 Destruction of an owned sum is lowered to a per-type recursive destroy function
 that reads the tag, destroys owned payload fields, and frees the box; recursive
@@ -143,9 +145,11 @@ Conflicting origins become `Unknown` rather than being treated as copies.
 ## Move, Borrow, and Destruction Analyses
 
 `MoveAnalysis` applies formal modes at calls and uses return origins to determine
-whether a call result carries ownership. It rejects uses after move, repeated
-moves, overwriting a live owner, and incompatible ownership state at
-control-flow joins.
+whether a call result carries ownership. An owned formal starts the function
+Owned (the caller moved it in), and an owned variable used as a constructor
+payload is moved, so both are tracked exactly like owned locals. It rejects
+uses after move, repeated moves, overwriting a live owner, and incompatible
+ownership state at control-flow joins.
 
 Borrow validation has two responsibilities at different stages:
 

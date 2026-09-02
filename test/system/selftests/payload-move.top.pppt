@@ -1,0 +1,89 @@
+type E = Num(n) | Add(l, r);
+rewrap(a, b)
+{
+  var r;
+  case a of {
+    Num(n) -> r = Add(Num(n), b);
+    Add(p, q) -> r = Add(Add(p, q), b);
+  }
+  return r;
+}
+
+pick(n, b)
+{
+  var r;
+  if ((n == 0))
+    {
+      r = b;
+    }
+  else
+    {
+      r = Add(Num(n), b);
+    }
+  return r;
+}
+
+sum(e)
+{
+  var r;
+  case *e of {
+    Num(n) -> r = n;
+    Add(a, b) -> r = (sum(&a) + sum(&b));
+  }
+  return r;
+}
+
+main()
+{
+  var local, boxed, x, y, total;
+  local = Num(9);
+  boxed = Add(Num(1), local);
+  x = rewrap(Add(Num(2), Num(3)), Num(4));
+  y = pick(5, Num(6));
+  total = ((sum(&boxed) + sum(&x)) + sum(&y));
+  if ((total != ((10 + 9) + 11)))
+    error total;
+  return 0;
+}
+
+Types : {
+  E : Num(int) | Add(E, E)
+}
+
+Functions : {
+  main : () -> int,
+  pick : (int,E{Num(int)|Add(μα<l@5:22>.E{Num(int)|Add(α<l@5:22>,μα<r@5:25>.E{Num(int)|Add(α<l@5:22>,α<r@5:25>)})},μα<r@5:25>.E{Num(int)|Add(μα<l@5:22>.E{Num(int)|Add(α<l@5:22>,α<r@5:25>)},α<r@5:25>)})}) -> E{Num(int)|Add(μα<l@5:22>.E{Num(int)|Add(α<l@5:22>,μα<r@5:25>.E{Num(int)|Add(α<l@5:22>,α<r@5:25>)})},μα<r@5:25>.E{Num(int)|Add(μα<l@5:22>.E{Num(int)|Add(α<l@5:22>,α<r@5:25>)},α<r@5:25>)})},
+  rewrap : (E{Num(int)|Add(μα<l@5:22>.E{Num(int)|Add(α<l@5:22>,μα<r@5:25>.E{Num(int)|Add(α<l@5:22>,α<r@5:25>)})},μα<r@5:25>.E{Num(int)|Add(μα<l@5:22>.E{Num(int)|Add(α<l@5:22>,α<r@5:25>)},α<r@5:25>)})},E{Num(int)|Add(μα<l@5:22>.E{Num(int)|Add(α<l@5:22>,μα<r@5:25>.E{Num(int)|Add(α<l@5:22>,α<r@5:25>)})},μα<r@5:25>.E{Num(int)|Add(μα<l@5:22>.E{Num(int)|Add(α<l@5:22>,α<r@5:25>)},α<r@5:25>)})}) -> E{Num(int)|Add(μα<l@5:22>.E{Num(int)|Add(α<l@5:22>,μα<r@5:25>.E{Num(int)|Add(α<l@5:22>,α<r@5:25>)})},μα<r@5:25>.E{Num(int)|Add(μα<l@5:22>.E{Num(int)|Add(α<l@5:22>,α<r@5:25>)},α<r@5:25>)})},
+  sum : (borrow&E{Num(int)|Add(μα<l@5:22>.E{Num(int)|Add(α<l@5:22>,μα<r@5:25>.E{Num(int)|Add(α<l@5:22>,α<r@5:25>)})},μα<r@5:25>.E{Num(int)|Add(μα<l@5:22>.E{Num(int)|Add(α<l@5:22>,α<r@5:25>)},α<r@5:25>)})}) -> int
+}
+
+Locals for function main : {
+  boxed : E{Num(int)|Add(μα<l@5:22>.E{Num(int)|Add(α<l@5:22>,μα<r@5:25>.E{Num(int)|Add(α<l@5:22>,α<r@5:25>)})},μα<r@5:25>.E{Num(int)|Add(μα<l@5:22>.E{Num(int)|Add(α<l@5:22>,α<r@5:25>)},α<r@5:25>)})},
+  local : E{Num(int)|Add(μα<l@5:22>.E{Num(int)|Add(α<l@5:22>,μα<r@5:25>.E{Num(int)|Add(α<l@5:22>,α<r@5:25>)})},μα<r@5:25>.E{Num(int)|Add(μα<l@5:22>.E{Num(int)|Add(α<l@5:22>,α<r@5:25>)},α<r@5:25>)})},
+  total : int,
+  x : E{Num(int)|Add(μα<l@5:22>.E{Num(int)|Add(α<l@5:22>,μα<r@5:25>.E{Num(int)|Add(α<l@5:22>,α<r@5:25>)})},μα<r@5:25>.E{Num(int)|Add(μα<l@5:22>.E{Num(int)|Add(α<l@5:22>,α<r@5:25>)},α<r@5:25>)})},
+  y : E{Num(int)|Add(μα<l@5:22>.E{Num(int)|Add(α<l@5:22>,μα<r@5:25>.E{Num(int)|Add(α<l@5:22>,α<r@5:25>)})},μα<r@5:25>.E{Num(int)|Add(μα<l@5:22>.E{Num(int)|Add(α<l@5:22>,α<r@5:25>)},α<r@5:25>)})}
+}
+
+Locals for function pick : {
+  b : E{Num(int)|Add(μα<l@5:22>.E{Num(int)|Add(α<l@5:22>,μα<r@5:25>.E{Num(int)|Add(α<l@5:22>,α<r@5:25>)})},μα<r@5:25>.E{Num(int)|Add(μα<l@5:22>.E{Num(int)|Add(α<l@5:22>,α<r@5:25>)},α<r@5:25>)})},
+  n : int,
+  r : E{Num(int)|Add(μα<l@5:22>.E{Num(int)|Add(α<l@5:22>,μα<r@5:25>.E{Num(int)|Add(α<l@5:22>,α<r@5:25>)})},μα<r@5:25>.E{Num(int)|Add(μα<l@5:22>.E{Num(int)|Add(α<l@5:22>,α<r@5:25>)},α<r@5:25>)})}
+}
+
+Locals for function rewrap : {
+  a : E{Num(int)|Add(μα<l@5:22>.E{Num(int)|Add(α<l@5:22>,μα<r@5:25>.E{Num(int)|Add(α<l@5:22>,α<r@5:25>)})},μα<r@5:25>.E{Num(int)|Add(μα<l@5:22>.E{Num(int)|Add(α<l@5:22>,α<r@5:25>)},α<r@5:25>)})},
+  b : E{Num(int)|Add(μα<l@5:22>.E{Num(int)|Add(α<l@5:22>,μα<r@5:25>.E{Num(int)|Add(α<l@5:22>,α<r@5:25>)})},μα<r@5:25>.E{Num(int)|Add(μα<l@5:22>.E{Num(int)|Add(α<l@5:22>,α<r@5:25>)},α<r@5:25>)})},
+  n : int,
+  p : E{Num(int)|Add(μα<l@5:22>.E{Num(int)|Add(α<l@5:22>,μα<r@5:25>.E{Num(int)|Add(α<l@5:22>,α<r@5:25>)})},μα<r@5:25>.E{Num(int)|Add(μα<l@5:22>.E{Num(int)|Add(α<l@5:22>,α<r@5:25>)},α<r@5:25>)})},
+  q : E{Num(int)|Add(μα<l@5:22>.E{Num(int)|Add(α<l@5:22>,μα<r@5:25>.E{Num(int)|Add(α<l@5:22>,α<r@5:25>)})},μα<r@5:25>.E{Num(int)|Add(μα<l@5:22>.E{Num(int)|Add(α<l@5:22>,α<r@5:25>)},α<r@5:25>)})},
+  r : E{Num(int)|Add(μα<l@5:22>.E{Num(int)|Add(α<l@5:22>,μα<r@5:25>.E{Num(int)|Add(α<l@5:22>,α<r@5:25>)})},μα<r@5:25>.E{Num(int)|Add(μα<l@5:22>.E{Num(int)|Add(α<l@5:22>,α<r@5:25>)},α<r@5:25>)})}
+}
+
+Locals for function sum : {
+  a : E{Num(int)|Add(μα<l@5:22>.E{Num(int)|Add(α<l@5:22>,μα<r@5:25>.E{Num(int)|Add(α<l@5:22>,α<r@5:25>)})},μα<r@5:25>.E{Num(int)|Add(μα<l@5:22>.E{Num(int)|Add(α<l@5:22>,α<r@5:25>)},α<r@5:25>)})},
+  b : E{Num(int)|Add(μα<l@5:22>.E{Num(int)|Add(α<l@5:22>,μα<r@5:25>.E{Num(int)|Add(α<l@5:22>,α<r@5:25>)})},μα<r@5:25>.E{Num(int)|Add(μα<l@5:22>.E{Num(int)|Add(α<l@5:22>,α<r@5:25>)},α<r@5:25>)})},
+  e : borrow&E{Num(int)|Add(μα<l@5:22>.E{Num(int)|Add(α<l@5:22>,μα<r@5:25>.E{Num(int)|Add(α<l@5:22>,α<r@5:25>)})},μα<r@5:25>.E{Num(int)|Add(μα<l@5:22>.E{Num(int)|Add(α<l@5:22>,α<r@5:25>)},α<r@5:25>)})},
+  n : int,
+  r : int
+}

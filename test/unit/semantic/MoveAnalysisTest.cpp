@@ -326,3 +326,87 @@ TEST_CASE("MoveAnalysis: polymorphic return from alloc actual remains owning",
 
   expectError(program, "assigned while still owned");
 }
+
+// ---------------------------------------------------------------------------
+// Constructor payloads take ownership; owned formals are tracked like owned
+// locals.
+// ---------------------------------------------------------------------------
+
+TEST_CASE("MoveAnalysis: constructor payload moves an Own variable",
+          "[MoveAnalysis]") {
+  // b is moved into the Add box; using b afterwards is a second move.
+  std::stringstream program;
+  program << R"(
+    type E = Num(n) | Add(l, r);
+    main() {
+      var r, b, x;
+      b = Num(9);
+      r = Add(Num(1), b);
+      x = b;
+      return 0;
+    }
+  )";
+  expectError(program, "moved more than once");
+}
+
+TEST_CASE("MoveAnalysis: owned formal moved twice is rejected",
+          "[MoveAnalysis]") {
+  std::stringstream program;
+  program << R"(
+    type E = Num(n) | Add(l, r);
+    f(b) {
+      var r, x;
+      r = Add(Num(1), b);
+      x = b;
+      return r;
+    }
+    main() {
+      var y;
+      y = f(Num(2));
+      return 0;
+    }
+  )";
+  expectError(program, "moved more than once");
+}
+
+TEST_CASE("MoveAnalysis: owned formal moved on one branch only is rejected",
+          "[MoveAnalysis]") {
+  // Same rule as for locals: ownership state must agree at the join.
+  std::stringstream program;
+  program << R"(
+    type E = Num(n) | Add(l, r);
+    f(n, b) {
+      var r;
+      if (n == 0) { r = Num(0); } else { r = b; }
+      return r;
+    }
+    main() {
+      var y;
+      y = f(0, Num(1));
+      return 0;
+    }
+  )";
+  expectError(program, "disagreement at control-flow join");
+}
+
+TEST_CASE("MoveAnalysis: owned formal moved into a payload on every arm is accepted",
+          "[MoveAnalysis]") {
+  std::stringstream program;
+  program << R"(
+    type E = Num(n) | Add(l, r);
+    rewrap(a, b) {
+      var r;
+      case a of {
+        Num(n)    -> r = Add(Num(n), b);
+        Add(p, q) -> r = Add(Add(p, q), b);
+      }
+      return r;
+    }
+    main() {
+      var x;
+      x = rewrap(Add(Num(1), Num(2)), Num(3));
+      return 0;
+    }
+  )";
+  expectAccepted(program);
+}

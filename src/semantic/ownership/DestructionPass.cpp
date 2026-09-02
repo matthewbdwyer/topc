@@ -1,3 +1,4 @@
+#include "ASTSumCtorExpr.h"
 #include "DestructionPass.h"
 #include "../SemanticLogging.h"
 
@@ -267,6 +268,22 @@ void DestructionPass::consumeCallArgMoves(ASTNode *node, StateMap &state) {
       if (actualDecl != nullptr &&
           classifier->classify(actualDecl) == OwnershipClass::Own) {
         state[actualDecl] = OwnershipState::Moved;
+      }
+    }
+  }
+
+
+  // A constructor payload takes ownership of an Own variable (see
+  // MoveAnalysis::consumeCallArgMoves): the variable is Moved and must not be
+  // destroyed at scope exit.
+  if (auto *ctor = dynamic_cast<ASTSumCtorExpr *>(node)) {
+    for (auto *payload : ctor->getArgs()) {
+      auto *payloadVar = dynamic_cast<ASTVariableExpr *>(payload);
+      ASTDeclNode *decl =
+          payloadVar != nullptr ? resolveVar(payloadVar->getName()) : nullptr;
+      if (decl != nullptr &&
+          classifier->classify(decl) == OwnershipClass::Own) {
+        state[decl] = OwnershipState::Moved;
       }
     }
   }
