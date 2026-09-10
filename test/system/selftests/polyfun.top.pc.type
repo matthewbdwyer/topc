@@ -1,4 +1,27 @@
 
+Functions : {
+  addone : (int) -> int,
+  identity : (α<f@9:9>) -> α<f@9:9>,
+  main : () -> int,
+  square : (int) -> int
+}
+
+Locals for function addone : {
+  x : int
+}
+
+Locals for function identity : {
+  f : α<f@9:9>
+}
+
+Locals for function main : {
+  n : int
+}
+
+Locals for function square : {
+  x : int
+}
+
 [type-constraints]
   [type] - ⟦(49!=identity(square)(n))@17:8⟧ = int
   [type] - ⟦(49!=identity(square)(n))@17:8⟧ = int
@@ -41,10 +64,10 @@
   [scheme] - main : () -> int
 
 [type-instantiations]
-  [instantiation] 16:13 call identity(addone) instantiates identity
-  [instantiation] 16:40 call identity(addone) instantiates identity
-  [instantiation] 17:14 call identity(square) instantiates identity
-  [instantiation] 17:41 call identity(square) instantiates identity
+  [instantiation] 16:13 call identity(addone) instantiates identity at ((int) -> int) -> (int) -> int
+  [instantiation] 16:40 call identity(addone) instantiates identity at ((int) -> int) -> (int) -> int
+  [instantiation] 17:14 call identity(square) instantiates identity at ((int) -> int) -> (int) -> int
+  [instantiation] 17:41 call identity(square) instantiates identity at ((int) -> int) -> (int) -> int
 
 [type-inferred]
   [inferred] - function addone : (int) -> int

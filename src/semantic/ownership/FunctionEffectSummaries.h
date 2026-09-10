@@ -8,7 +8,9 @@
 #include <string>
 #include <vector>
 
+class ASTFunAppExpr;
 class ASTFunction;
+class CallGraph;
 class OwnershipClassifier;
 class SymbolTable;
 class TypeInference;
@@ -27,17 +29,37 @@ public:
 
   struct Summary {
     std::string functionName;
+    std::vector<std::string> formalNames;
     std::vector<FormalMode> formalModes;
+    /*! For each formal: on every path through the body the value is passed on
+     *  as an argument of some call (so a callee takes responsibility for it). */
+    std::vector<bool> formalForwarded;
     ReturnOrigin returnOrigin = ReturnOrigin::Unknown;
     int returnFormalIndex = -1;
   };
 
+  /*! \brief What one call site does to each of its actuals.
+   *
+   * consumes[i] is true when the callee takes ownership of actual i: the
+   * caller must treat an Own variable passed there as moved. Computed once,
+   * from solved types and the callee summaries (via the call graph for calls
+   * through function values), so that MoveAnalysis and DestructionPass read
+   * the same decision.
+   */
+  struct CallEffect {
+    std::vector<bool> consumes;
+  };
+
   static std::shared_ptr<FunctionEffectSummaries>
   build(ASTProgram *ast, SymbolTable *sym, TypeInference *types,
-        OwnershipClassifier *classifier);
+        OwnershipClassifier *classifier, CallGraph *cg);
 
   const Summary *get(ASTDeclNode *functionDecl) const;
 
+  /*! \brief Effect of a call site, or nullptr if the call was not analyzed. */
+  const CallEffect *callEffect(const ASTFunAppExpr *call) const;
+
 private:
   std::map<ASTDeclNode *, Summary> summaries;
+  std::map<const ASTFunAppExpr *, CallEffect> callEffects;
 };

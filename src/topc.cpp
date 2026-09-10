@@ -221,9 +221,11 @@ collectTypeSchemeRecords(SymbolTable *symbols, TypeInference *typeResults) {
 
 std::vector<ConstraintRecord> collectTypeInstantiationRecords(ASTProgram *ast,
                                                               SymbolTable *symbols,
-                                                              CallGraph *cg) {
+                                                              CallGraph *cg,
+                                                              TypeInference *typeResults) {
   std::vector<ConstraintRecord> records;
-  SyntaxTree tree(std::shared_ptr<ASTNode>(ast, [](ASTNode *) {}));
+  for (auto *function : ast->getFunctions()) {
+  SyntaxTree tree(std::shared_ptr<ASTNode>(function, [](ASTNode *) {}));
   for (auto it = tree.begin(""); it != tree.end(""); ++it) {
     auto node = it->getRoot().get();
     auto *call = dynamic_cast<ASTFunAppExpr *>(node);
@@ -248,10 +250,18 @@ std::vector<ConstraintRecord> collectTypeInstantiationRecords(ASTProgram *ast,
 
     for (const auto &target : polyTargets) {
       std::ostringstream text;
-      text << "call " << *call << " instantiates " << target;
+      text << "call " << *call << " instantiates " << target << " at (";
+      const char *sep = "";
+      for (auto *actual : call->getActuals()) {
+        text << sep
+             << *typeResults->getInferredType(actual, function->getDecl());
+        sep = ",";
+      }
+      text << ") -> " << *typeResults->getInferredType(call);
       records.push_back({"instantiation", call->getLine(), call->getColumn(),
                          text.str()});
     }
+  }
   }
   return records;
 }
@@ -295,7 +305,7 @@ void printTypeConstraints(ASTProgram *ast, SymbolTable *symbols,
       "type-schemes", collectTypeSchemeRecords(symbols, typeResults), os);
   ConstraintRenderer::renderSection(
       "type-instantiations",
-      collectTypeInstantiationRecords(ast, symbols, cg), os);
+      collectTypeInstantiationRecords(ast, symbols, cg, typeResults), os);
   ConstraintRenderer::renderSection(
       "type-inferred", collectInferredTypeRecords(symbols, typeResults), os);
 }
@@ -575,7 +585,7 @@ int main(int argc, char *argv[]) {
             symTable.get(), typeResults.get());
         functionEffectSummaries = FunctionEffectSummaries::build(
             ast.get(), symTable.get(), typeResults.get(),
-            ownershipClassifier.get());
+            ownershipClassifier.get(), callGraph.get());
       };
 
       auto ensureInterproceduralBorrowChecker = [&]() {

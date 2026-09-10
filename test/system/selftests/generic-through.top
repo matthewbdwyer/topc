@@ -1,0 +1,14 @@
+/* A generic formal that IS returned transfers ownership through the call:
+ * x is moved into identity and comes back as y, which main frees.
+ * With ASan and LSan, no double free and no leak. Exits 0. */
+identity(p) {
+  return p;
+}
+
+main() {
+  var x, y;
+  x = alloc 1;
+  y = identity(x);
+  if (*y != 1) error *y;
+  return 0;
+}

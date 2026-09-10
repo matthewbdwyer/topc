@@ -257,83 +257,28 @@ MoveAnalysis::StateMap MoveAnalysis::analyzeAssign(ASTAssignStmt *stmt,
   return state;
 }
 
-bool MoveAnalysis::actualInstantiatesOwn(
-    const ASTExpr *actual, FunctionEffectSummaries::FormalMode mode,
-    bool lhsIsOwnFallback) const {
-  switch (mode) {
-  case FunctionEffectSummaries::FormalMode::Own:
-    return true;
-  case FunctionEffectSummaries::FormalMode::Copy:
-    return false;
-  case FunctionEffectSummaries::FormalMode::DependsOnInstantiation: {
-    auto *argVar = dynamic_cast<const ASTVariableExpr *>(actual);
-    ASTDeclNode *argDecl =
-        (argVar != nullptr) ? resolveVar(argVar->getName()) : nullptr;
-    if (argDecl != nullptr) {
-      return classifier->classify(argDecl) == OwnershipClass::Own;
-    }
-
-    // Allocation expressions are always owning in TOP.
-    if (dynamic_cast<const ASTAllocExpr *>(actual) != nullptr) {
-      return true;
-    }
-
-    // For non-variable/non-alloc expressions, fall back to the LHS ownership
-    // expectation to avoid dropping ownership on polymorphic instantiations.
-    return lhsIsOwnFallback;
-  }
-  }
-
-  return false;
-}
-
 void MoveAnalysis::consumeCallArgMoves(ASTNode *node, StateMap &state) {
   if (node == nullptr) {
     return;
   }
 
   if (auto *call = dynamic_cast<ASTFunAppExpr *>(node)) {
-    auto *calleeVar = dynamic_cast<ASTVariableExpr *>(call->getFunction());
-    ASTDeclNode *calleeDecl =
-        (calleeVar != nullptr) ? sym->getFunction(calleeVar->getName()) : nullptr;
-    const FunctionEffectSummaries::Summary *summary =
-        (calleeDecl != nullptr && functionEffects != nullptr)
-            ? functionEffects->get(calleeDecl)
-            : nullptr;
-
+    // Which actuals this call consumes was decided once, from solved types
+    // and callee summaries (FunctionEffectSummaries::callEffect).
+    const FunctionEffectSummaries::CallEffect *effect =
+        functionEffects != nullptr ? functionEffects->callEffect(call) : nullptr;
     auto actuals = call->getActuals();
     std::size_t n =
-        (summary != nullptr) ? std::min(actuals.size(), summary->formalModes.size()) : 0;
+        effect != nullptr ? std::min(actuals.size(), effect->consumes.size()) : 0;
 
     for (std::size_t i = 0; i < n; ++i) {
-      bool shouldConsume = false;
-      switch (summary->formalModes[i]) {
-      case FunctionEffectSummaries::FormalMode::Own:
-        shouldConsume = true;
-        break;
-      case FunctionEffectSummaries::FormalMode::Copy:
-        shouldConsume = false;
-        break;
-      case FunctionEffectSummaries::FormalMode::DependsOnInstantiation: {
-        auto *depVar = dynamic_cast<ASTVariableExpr *>(actuals[i]);
-        ASTDeclNode *depDecl =
-            (depVar != nullptr) ? resolveVar(depVar->getName()) : nullptr;
-        shouldConsume = depDecl != nullptr &&
-                        classifier->classify(depDecl) == OwnershipClass::Own;
-        break;
-      }
-      }
-
-      if (!shouldConsume) {
+      if (!effect->consumes[i]) {
         continue;
       }
-
-      auto *actual = actuals[i];
-      auto *argVar = dynamic_cast<ASTVariableExpr *>(actual);
+      auto *argVar = dynamic_cast<ASTVariableExpr *>(actuals[i]);
       if (argVar == nullptr) {
-        continue;
+        continue; // a temporary: the callee owns it, nothing to track here
       }
-
       ASTDeclNode *decl = resolveVar(argVar->getName());
       if (decl == nullptr || classifier->classify(decl) != OwnershipClass::Own) {
         continue;
@@ -350,12 +295,11 @@ void MoveAnalysis::consumeCallArgMoves(ASTNode *node, StateMap &state) {
       state[decl] = OwnershipState::Moved;
       trace.push_back({"move", argVar->getName(), call->getLine(),
                        "ownership moved via function argument"});
-        SEMANTIC_LOG(2, "move-analysis")
+      SEMANTIC_LOG(2, "move-analysis")
           << "line=" << call->getLine() << " event=move variable="
           << argVar->getName() << " reason=function-argument";
     }
   }
-
 
   // A constructor payload takes ownership of an Own variable: the box owns it
   // from here on, so the variable is moved exactly as if it were passed to a

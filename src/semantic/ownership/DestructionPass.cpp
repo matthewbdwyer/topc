@@ -209,69 +209,32 @@ DestructionPass::StateMap DestructionPass::analyzeAssign(ASTAssignStmt *stmt,
   return state;
 }
 
-bool DestructionPass::actualInstantiatesOwn(
-    const ASTExpr *actual, FunctionEffectSummaries::FormalMode mode,
-    bool lhsIsOwnFallback) const {
-  switch (mode) {
-  case FunctionEffectSummaries::FormalMode::Own:
-    return true;
-  case FunctionEffectSummaries::FormalMode::Copy:
-    return false;
-  case FunctionEffectSummaries::FormalMode::DependsOnInstantiation: {
-    auto *argVar = dynamic_cast<const ASTVariableExpr *>(actual);
-    ASTDeclNode *argDecl =
-        (argVar != nullptr) ? resolveVar(argVar->getName()) : nullptr;
-    if (argDecl != nullptr) {
-      return classifier->classify(argDecl) == OwnershipClass::Own;
-    }
-
-    if (dynamic_cast<const ASTAllocExpr *>(actual) != nullptr) {
-      return true;
-    }
-
-    return lhsIsOwnFallback;
-  }
-  }
-
-  return false;
-}
-
 void DestructionPass::consumeCallArgMoves(ASTNode *node, StateMap &state) {
   if (node == nullptr) {
     return;
   }
 
   if (auto *call = dynamic_cast<ASTFunAppExpr *>(node)) {
-    auto *calleeVar = dynamic_cast<ASTVariableExpr *>(call->getFunction());
-    ASTDeclNode *calleeDecl =
-        calleeVar != nullptr ? sym->getFunction(calleeVar->getName()) : nullptr;
-    const FunctionEffectSummaries::Summary *summary =
-        calleeDecl != nullptr && functionEffects != nullptr
-            ? functionEffects->get(calleeDecl)
-            : nullptr;
-
+    // Same decision MoveAnalysis used: FunctionEffectSummaries::callEffect.
+    const FunctionEffectSummaries::CallEffect *effect =
+        functionEffects != nullptr ? functionEffects->callEffect(call) : nullptr;
     auto actuals = call->getActuals();
-    const std::size_t count =
-        summary != nullptr
-            ? std::min(actuals.size(), summary->formalModes.size())
-            : 0;
-    for (std::size_t index = 0; index < count; ++index) {
-      if (!actualInstantiatesOwn(actuals[index], summary->formalModes[index],
-                                 false)) {
+    std::size_t n =
+        effect != nullptr ? std::min(actuals.size(), effect->consumes.size()) : 0;
+
+    for (std::size_t i = 0; i < n; ++i) {
+      if (!effect->consumes[i]) {
         continue;
       }
-
-      auto *actualVar = dynamic_cast<ASTVariableExpr *>(actuals[index]);
-      ASTDeclNode *actualDecl = actualVar != nullptr
-                                    ? resolveVar(actualVar->getName())
-                                    : nullptr;
+      auto *actualVar = dynamic_cast<ASTVariableExpr *>(actuals[i]);
+      ASTDeclNode *actualDecl =
+          actualVar != nullptr ? resolveVar(actualVar->getName()) : nullptr;
       if (actualDecl != nullptr &&
           classifier->classify(actualDecl) == OwnershipClass::Own) {
         state[actualDecl] = OwnershipState::Moved;
       }
     }
   }
-
 
   // A constructor payload takes ownership of an Own variable (see
   // MoveAnalysis::consumeCallArgMoves): the variable is Moved and must not be

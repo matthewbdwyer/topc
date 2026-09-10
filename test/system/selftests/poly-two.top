@@ -1,0 +1,17 @@
+/* One generic identity instantiated at two different types: int and
+ * (int) -> int. Exits 0. */
+identity(f) {
+  return f;
+}
+
+addone(x) {
+  return x + 1;
+}
+
+main() {
+  var n, g;
+  n = identity(7);
+  g = identity(addone);
+  if (g(n) != 8) error g(n);
+  return 0;
+}

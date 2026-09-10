@@ -1,6 +1,8 @@
 // Passing the same owned value to two arguments of one call would move it
 // twice. Move analysis rejects the second move of an already-moved value.
-h(a, b) { return 0; }
+// (read consumes its owned argument, so both positions of h take ownership.)
+read(p) { return *p; }
+h(a, b) { return read(a) + read(b); }
 main() {
   var x, r;
   x = alloc 1;

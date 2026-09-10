@@ -1,0 +1,20 @@
+/* A formal whose type is a recursive sum type is Own (not "depends on
+ * instantiation"): the list is moved into sum, whose case consumes it.
+ * With ASan and LSan, no double free and no leak. Exits 0. */
+type List = Nil | Cons(head, tail);
+
+sum(list) {
+  var r;
+  case list of {
+    Nil -> r = 0;
+    Cons(h, t) -> r = h + sum(t);
+  }
+  return r;
+}
+
+main() {
+  var l;
+  l = Cons(1, Cons(2, Nil));
+  if (sum(l) != 3) error 3;
+  return 0;
+}

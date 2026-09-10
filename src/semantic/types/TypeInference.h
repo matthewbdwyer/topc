@@ -75,6 +75,9 @@ public:
    * \return A shared pointer to the inferred type for the expression.
    */
   std::shared_ptr<TopType> getInferredType(ASTExpr *node);
+  /*! \brief Inferred type of an expression, resolving a variable reference to
+   *  its declaration in the scope of the given function. */
+    std::shared_ptr<TopType> getInferredType(ASTExpr *node, ASTDeclNode *scope);
 
   /*! \brief Format a sum declaration with its inferred payload types. */
   std::string getInferredTypeDisplay(ASTSumTypeDecl *node);

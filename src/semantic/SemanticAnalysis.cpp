@@ -30,7 +30,8 @@ std::shared_ptr<SemanticAnalysis> SemanticAnalysis::analyze(ASTProgram *ast) {
   auto ownershipClassifier = std::make_shared<OwnershipClassifier>(
       symTable.get(), typeResults.get());
   auto functionEffectSummaries = FunctionEffectSummaries::build(
-      ast, symTable.get(), typeResults.get(), ownershipClassifier.get());
+      ast, symTable.get(), typeResults.get(), ownershipClassifier.get(),
+      callGraph.get());
   BorrowChecker::checkInterprocedural(ast, symTable.get(),
                                       functionEffectSummaries.get());
   MoveAnalysis(ast, symTable.get(), ownershipClassifier.get(),

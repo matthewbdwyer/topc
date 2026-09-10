@@ -1,7 +1,9 @@
 #include <cassert>
 #include <unordered_set>
 #include "TypeInference.h"
+#include "SymbolTable.h"
 #include "ASTExpr.h"
+#include "ASTVariableExpr.h"
 #include "PolyTypeConstraintCollectVisitor.h"
 #include "TopMu.h"
 #include "TopSumType.h"
@@ -220,6 +222,22 @@ std::shared_ptr<TopType> TypeInference::getInferredType(ASTDeclNode *node) {
 std::shared_ptr<TopType> TypeInference::getInferredType(ASTExpr *node) {
   auto var = std::make_shared<TopVar>(node);
   return unifier->inferred(var);
+};
+
+/* A variable reference shares the type variable of its declaration (see
+ * TypeConstraintVisitor::astToVar), so resolve it through the symbol table
+ * in the given function scope before asking the unifier. */
+std::shared_ptr<TopType> TypeInference::getInferredType(ASTExpr *node,
+                                                        ASTDeclNode *scope) {
+  if (auto *ve = dynamic_cast<ASTVariableExpr *>(node)) {
+    if (auto *decl = symbols->getLocal(ve->getName(), scope)) {
+      return getInferredType(decl);
+    }
+    if (auto *decl = symbols->getFunction(ve->getName())) {
+      return getInferredType(decl);
+    }
+  }
+  return getInferredType(node);
 };
 
 std::string TypeInference::getInferredTypeDisplay(ASTSumTypeDecl *node) {

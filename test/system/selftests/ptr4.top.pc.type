@@ -1,5 +1,23 @@
 
+Functions : {
+  increment : (own&int) -> own&int,
+  main : () -> int
+}
+
+Locals for function increment : {
+  p : own&int
+}
+
+Locals for function main : {
+  x : own&int
+}
+
 [type-constraints]
+  [type] - ref&⟦((*p)+1)@3:7⟧ = ⟦p@2:10⟧
+  [type] - ref&⟦(*p)@3:2⟧ = ⟦p@2:10⟧
+  [type] - ref&⟦(*p)@3:7⟧ = ⟦p@2:10⟧
+  [type] - ref&⟦(*x)@11:22⟧ = ⟦x@8:6⟧
+  [type] - ref&⟦(*x)@11:6⟧ = ⟦x@8:6⟧
   [type] - ⟦((*p)+1)@3:7⟧ = int
   [type] - ⟦((*x)!=43)@11:6⟧ = int
   [type] - ⟦((*x)!=43)@11:6⟧ = int
@@ -12,27 +30,22 @@
   [type] - ⟦1@3:12⟧ = int
   [type] - ⟦42@9:12⟧ = int
   [type] - ⟦43@11:12⟧ = int
-  [type] - ⟦alloc 42@9:6⟧ = ⭡⟦42@9:12⟧
+  [type] - ⟦alloc 42@9:6⟧ = own&⟦42@9:12⟧
   [type] - ⟦increment@2:0⟧ = (⟦p@2:10⟧) -> ⟦p@2:10⟧
   [type] - ⟦increment@2:0⟧ = (⟦x@8:6⟧) -> ⟦increment(x)@10:6⟧
   [type] - ⟦main@7:0⟧ = () -> ⟦0@12:9⟧
-  [type] - ⟦p@2:10⟧ = ⭡⟦((*p)+1)@3:7⟧
-  [type] - ⟦p@2:10⟧ = ⭡⟦(*p)@3:2⟧
-  [type] - ⟦p@2:10⟧ = ⭡⟦(*p)@3:7⟧
   [type] - ⟦x@8:6⟧ = ⟦alloc 42@9:6⟧
   [type] - ⟦x@8:6⟧ = ⟦increment(x)@10:6⟧
-  [type] - ⟦x@8:6⟧ = ⭡⟦(*x)@11:22⟧
-  [type] - ⟦x@8:6⟧ = ⭡⟦(*x)@11:6⟧
 
 [type-schemes]
-  [scheme] - increment : (⭡int) -> ⭡int
+  [scheme] - increment : (own&int) -> own&int
   [scheme] - main : () -> int
 
 [type-instantiations]
-  [instantiation] 10:6 call increment(x) instantiates increment
+  [instantiation] 10:6 call increment(x) instantiates increment at (own&int) -> own&int
 
 [type-inferred]
-  [inferred] - function increment : (⭡int) -> ⭡int
-  [inferred] 2:10 local increment.p : ⭡int
+  [inferred] - function increment : (own&int) -> own&int
+  [inferred] 2:10 local increment.p : own&int
   [inferred] - function main : () -> int
-  [inferred] 8:6 local main.x : ⭡int
+  [inferred] 8:6 local main.x : own&int

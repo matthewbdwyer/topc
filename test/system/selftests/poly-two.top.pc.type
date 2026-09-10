@@ -1,0 +1,60 @@
+
+Functions : {
+  addone : (int) -> int,
+  identity : (α<f@3:9>) -> α<f@3:9>,
+  main : () -> int
+}
+
+Locals for function addone : {
+  x : int
+}
+
+Locals for function identity : {
+  f : α<f@3:9>
+}
+
+Locals for function main : {
+  g : (int) -> int,
+  n : int
+}
+
+[type-constraints]
+  [type] - ⟦(g(n)!=8)@15:6⟧ = int
+  [type] - ⟦(g(n)!=8)@15:6⟧ = int
+  [type] - ⟦(x+1)@8:9⟧ = int
+  [type] - ⟦0@16:9⟧ = int
+  [type] - ⟦0@16:9⟧ = int
+  [type] - ⟦1@8:13⟧ = int
+  [type] - ⟦1@8:13⟧ = int
+  [type] - ⟦7@13:15⟧ = int
+  [type] - ⟦8@15:14⟧ = int
+  [type] - ⟦addone@7:0⟧ = (⟦x@7:7⟧) -> ⟦(x+1)@8:9⟧
+  [type] - ⟦g(n)@15:23⟧ = int
+  [type] - ⟦g(n)@15:6⟧ = ⟦8@15:14⟧
+  [type] - ⟦g@12:9⟧ = (⟦n@12:6⟧) -> ⟦g(n)@15:23⟧
+  [type] - ⟦g@12:9⟧ = (⟦n@12:6⟧) -> ⟦g(n)@15:6⟧
+  [type] - ⟦g@12:9⟧ = ⟦identity(addone)@14:6⟧
+  [type] - ⟦identity@3:0⟧ = (⟦7@13:15⟧) -> ⟦identity(7)@13:6⟧
+  [type] - ⟦identity@3:0⟧ = (⟦addone@7:0⟧) -> ⟦identity(addone)@14:6⟧
+  [type] - ⟦identity@3:0⟧ = (⟦f@3:9⟧) -> ⟦f@3:9⟧
+  [type] - ⟦main@11:0⟧ = () -> ⟦0@16:9⟧
+  [type] - ⟦n@12:6⟧ = ⟦identity(7)@13:6⟧
+  [type] - ⟦x@7:7⟧ = int
+
+[type-schemes]
+  [scheme] - identity : (α<f@3:9>) -> α<f@3:9>
+  [scheme] - addone : (int) -> int
+  [scheme] - main : () -> int
+
+[type-instantiations]
+  [instantiation] 13:6 call identity(7) instantiates identity at (int) -> int
+  [instantiation] 14:6 call identity(addone) instantiates identity at ((int) -> int) -> (int) -> int
+
+[type-inferred]
+  [inferred] - function identity : (α<f@3:9>) -> α<f@3:9>
+  [inferred] 3:9 local identity.f : α<f@3:9>
+  [inferred] - function addone : (int) -> int
+  [inferred] 7:7 local addone.x : int
+  [inferred] - function main : () -> int
+  [inferred] 12:6 local main.n : int
+  [inferred] 12:9 local main.g : (int) -> int

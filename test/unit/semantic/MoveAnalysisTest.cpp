@@ -410,3 +410,38 @@ TEST_CASE("MoveAnalysis: owned formal moved into a payload on every arm is accep
   )";
   expectAccepted(program);
 }
+
+TEST_CASE("MoveAnalysis: indirect call through a function-typed parameter moves an Own actual",
+          "[MoveAnalysis]") {
+  std::stringstream program;
+  program << R"(
+    type L = Nil | Cons(h, t);
+    apply(f, v) {
+      return f(v);
+    }
+    len(l) {
+      var r;
+      case l of {
+        Nil -> r = 0;
+        Cons(h, t) -> r = 1 + len(t);
+      }
+      return r;
+    }
+    main() {
+      var l;
+      l = Cons(1, Nil);
+      return apply(len, l) - 1;
+    }
+  )";
+
+  auto ast = ASTHelper::build_ast(program);
+  REQUIRE_NOTHROW(SemanticAnalysis::analyze(ast.get()));
+
+  bool sawMoveV = false;
+  for (const auto &event : MoveAnalysis::getLastTrace()) {
+    if (event.kind == "move" && event.variable == "v") {
+      sawMoveV = true;
+    }
+  }
+  REQUIRE(sawMoveV);
+}

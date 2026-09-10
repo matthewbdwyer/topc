@@ -88,6 +88,10 @@ EXPECTED_ERROR_SUBSTRINGS = {
         "Cannot unify",
     "apply-formal-nonfunction-error.top":
         "Cannot unify",
+    "generic-sink-error.top":
+        "neither returned nor borrowed",
+    "generic-branch-return-error.top":
+        "neither returned on every path nor borrowed",
 }
 
 # ---------------------------------------------------------------------------
@@ -430,7 +434,9 @@ def run_driver_tests(scratch: Path) -> List[TestResult]:
                 return f"missing section {section} in --ptype --constraint output"
         if expected_inferred and expected_inferred not in r.stdout:
             return f"missing inferred record: {expected_inferred}"
-        return None
+        golden = SELFTESTS_DIR / f"{stem}.top.pc.type"
+        diff = _diff_text(r.stdout, golden.read_text(), golden.name)
+        return f"--ptype --constraint snapshot mismatch:\n{diff}" if diff else None
 
     check("driver.pc_type.exprs", lambda: pc_type_snapshot("exprs"))
     check("driver.pc_type.ptr4", lambda: pc_type_snapshot("ptr4"))
@@ -439,6 +445,7 @@ def run_driver_tests(scratch: Path) -> List[TestResult]:
               "sumtype-basic",
               "type Direction : North | South | East | West"))
     check("driver.pc_type.polyfun", lambda: pc_type_snapshot("polyfun"))
+    check("driver.pc_type.poly_two", lambda: pc_type_snapshot("poly-two"))
 
     # -- --pcallgraph --constraint snapshot ------------------------------------
     def pc_cg_snapshot(stem: str):
@@ -473,6 +480,8 @@ def run_driver_tests(scratch: Path) -> List[TestResult]:
     check("driver.pc_ownership.move", lambda: pc_ownership_snapshot("moveNoDoubleFree"))
     check("driver.pc_ownership.poly_identity_own",
           lambda: pc_ownership_snapshot("poly-identity-own"))
+    check("driver.pc_ownership.hof_own_arg",
+          lambda: pc_ownership_snapshot("hof-own-arg"))
 
     # -- interprocedural ownership: owned results returned through higher-order
     #    calls must be destroyed (Oracle B: --pownership destroy count) ---------

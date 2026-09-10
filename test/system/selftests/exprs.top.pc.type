@@ -1,4 +1,27 @@
 
+Functions : {
+  f : () -> int,
+  g : (int) -> int,
+  h : () -> int,
+  main : () -> int
+}
+
+Locals for function f : {
+
+}
+
+Locals for function g : {
+  x : int
+}
+
+Locals for function h : {
+  x : int
+}
+
+Locals for function main : {
+
+}
+
 [type-constraints]
   [type] - ⟦((x+-7)*4)@12:9⟧ = int
   [type] - ⟦(-1*h())@18:31⟧ = int
@@ -62,17 +85,17 @@
   [scheme] - main : () -> int
 
 [type-instantiations]
-  [instantiation] 11:6 call f() instantiates f
-  [instantiation] 16:6 call g(f()) instantiates g
-  [instantiation] 16:8 call f() instantiates f
-  [instantiation] 16:25 call g(f()) instantiates g
-  [instantiation] 16:27 call f() instantiates f
-  [instantiation] 17:6 call h() instantiates h
-  [instantiation] 17:24 call h() instantiates h
-  [instantiation] 18:6 call g((-1*h())) instantiates g
-  [instantiation] 18:11 call h() instantiates h
-  [instantiation] 18:29 call g((-1*h())) instantiates g
-  [instantiation] 18:34 call h() instantiates h
+  [instantiation] 11:6 call f() instantiates f at () -> int
+  [instantiation] 16:6 call g(f()) instantiates g at (int) -> int
+  [instantiation] 16:8 call f() instantiates f at () -> int
+  [instantiation] 16:25 call g(f()) instantiates g at (int) -> int
+  [instantiation] 16:27 call f() instantiates f at () -> int
+  [instantiation] 17:6 call h() instantiates h at () -> int
+  [instantiation] 17:24 call h() instantiates h at () -> int
+  [instantiation] 18:6 call g((-1*h())) instantiates g at (int) -> int
+  [instantiation] 18:11 call h() instantiates h at () -> int
+  [instantiation] 18:29 call g((-1*h())) instantiates g at (int) -> int
+  [instantiation] 18:34 call h() instantiates h at () -> int
 
 [type-inferred]
   [inferred] - function f : () -> int

@@ -1,0 +1,13 @@
+/* An owned value passed to a generic formal that is neither returned nor
+ * borrowed can never be freed by the callee (its type is a variable), so
+ * the call is rejected. */
+sink(p) {
+  return 0;
+}
+
+main() {
+  var x;
+  x = alloc 1;
+  output sink(x);
+  return 0;
+}

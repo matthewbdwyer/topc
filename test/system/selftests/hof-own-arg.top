@@ -1,0 +1,24 @@
+/* An owned sum value passed through a function-typed parameter.
+ * apply must not destroy v after f(v) has consumed it: len's case frees
+ * the box. With ASan, no double free and no leak. Exits 0. */
+type L = Nil | Cons(h, t);
+
+apply(f, v) {
+  return f(v);
+}
+
+len(l) {
+  var r;
+  case l of {
+    Nil -> r = 0;
+    Cons(h, t) -> r = 1 + len(t);
+  }
+  return r;
+}
+
+main() {
+  var l;
+  l = Cons(1, Cons(2, Nil));
+  if (apply(len, l) != 2) error 2;
+  return 0;
+}

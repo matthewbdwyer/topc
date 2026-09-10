@@ -1,0 +1,15 @@
+/* A generic formal returned on only some paths: the summary cannot say which
+ * owned argument comes back, so passing owned values is rejected. */
+pick(a, b, n) {
+  var r;
+  if (n > 0) { r = a; } else { r = b; }
+  return r;
+}
+
+main() {
+  var x, y, z;
+  x = alloc 1;
+  y = alloc 2;
+  z = pick(x, y, 1);
+  return *z - 1;
+}

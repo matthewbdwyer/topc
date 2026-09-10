@@ -89,9 +89,6 @@ private:
   /*! \brief Determine whether the i-th actual instantiates as Own for a formal
    *         mode that depends on instantiation.
    */
-  bool actualInstantiatesOwn(const ASTExpr *actual,
-                             FunctionEffectSummaries::FormalMode mode,
-                             bool lhsIsOwnFallback) const;
 
   /*! \brief Resolve a variable name to its ASTDeclNode in the current function,
    *         falling back to global function names.

@@ -6,10 +6,15 @@
 #include "ASTBlockStmt.h"
 #include "ASTBorrowExpr.h"
 #include "ASTCaseStmt.h"
+#include "ASTFunAppExpr.h"
 #include "ASTFunction.h"
+#include "ASTProgram.h"
+#include "ASTVisitor.h"
+#include "CallGraph.h"
 #include "ASTIfStmt.h"
 #include "ASTReturnStmt.h"
 #include "ASTVariableExpr.h"
+#include "ASTWhileStmt.h"
 #include "OwnershipClassifier.h"
 #include "SemanticError.h"
 #include "SymbolTable.h"
@@ -21,9 +26,13 @@
 #include "TopTypeVisitor.h"
 #include "TopVar.h"
 #include "TypeInference.h"
+#include "TypeVars.h"
 
 #include <algorithm>
+#include <iterator>
 #include <map>
+#include <set>
+#include <sstream>
 
 namespace {
 
@@ -88,29 +97,47 @@ void rejectUnsupportedRecursiveType(TopType *type, const std::string &context) {
   }
 }
 
-bool containsTypeVariable(const TopType *type) {
+bool containsModeVariable(const TopType *type) {
   if (type == nullptr) {
     return false;
   }
-
-  if (dynamic_cast<const TopAlpha *>(type) != nullptr ||
-      dynamic_cast<const TopModeVar *>(type) != nullptr ||
-      dynamic_cast<const TopVar *>(type) != nullptr) {
+  if (dynamic_cast<const TopModeVar *>(type) != nullptr) {
     return true;
   }
-
   if (auto mu = dynamic_cast<const TopMu *>(type)) {
-    return containsTypeVariable(mu->getT().get());
+    return containsModeVariable(mu->getT().get());
   }
-
   for (const auto &child : type->getChildTypes()) {
-    if (containsTypeVariable(child.get())) {
+    if (containsModeVariable(child.get())) {
       return true;
     }
   }
-
   return false;
 }
+
+/* A type still depends on how a call instantiates it when it has a free type
+ * variable or an unresolved reference mode. TypeVars::collect ignores the
+ * bound variable of a recursive (mu) type, so a concrete recursive sum type
+ * does not count. */
+bool containsTypeVariable(TopType *type) {
+  if (type == nullptr) {
+    return false;
+  }
+  return !TypeVars::collect(type).empty() || containsModeVariable(type);
+}
+
+/* Collects every call expression in the program with its enclosing function. */
+struct CallCollector : public ASTVisitor {
+  std::vector<std::pair<ASTFunAppExpr *, ASTDeclNode *>> calls;
+  ASTDeclNode *current = nullptr;
+  bool visit(ASTFunction *element) override {
+    current = element->getDecl();
+    return true;
+  }
+  void endVisit(ASTFunAppExpr *element) override {
+    calls.push_back({element, current});
+  }
+};
 
 struct OriginFact {
   FunctionEffectSummaries::ReturnOrigin origin =
@@ -119,7 +146,20 @@ struct OriginFact {
   bool allowTypeFallback = true;
 };
 
-using OriginState = std::map<ASTDeclNode *, OriginFact>;
+/* A call inside a function body that receives (an alias of) formal `formal`
+ * as its actual number `position`. Used to make "passed on" transitive. */
+struct ForwardRecord {
+  int formal;
+  ASTFunAppExpr *call;
+  std::size_t position;
+};
+
+/* State of the origin walk on one path: where each local's value came from,
+ * and which formals have been passed on to a call so far on this path. */
+struct OriginState {
+  std::map<ASTDeclNode *, OriginFact> origins;
+  std::set<int> forwarded;
+};
 
 bool sameOrigin(const OriginFact &a, const OriginFact &b) {
   return a.origin == b.origin && a.formalIndex == b.formalIndex &&
@@ -148,8 +188,8 @@ OriginFact originForExpr(ASTExpr *expr, const OriginState &state,
                          SymbolTable *sym, ASTDeclNode *functionDecl) {
   if (auto *var = dynamic_cast<ASTVariableExpr *>(expr)) {
     auto *decl = sym->getLocal(var->getName(), functionDecl);
-    auto it = state.find(decl);
-    if (it != state.end()) {
+    auto it = state.origins.find(decl);
+    if (it != state.origins.end()) {
       return it->second;
     }
     return unknownOrigin();
@@ -162,8 +202,8 @@ OriginFact originForExpr(ASTExpr *expr, const OriginState &state,
     }
 
     auto *decl = sym->getLocal(borrowedVar->getName(), functionDecl);
-    auto it = state.find(decl);
-    if (it != state.end() &&
+    auto it = state.origins.find(decl);
+    if (it != state.origins.end() &&
         it->second.origin == FunctionEffectSummaries::ReturnOrigin::FromFormal) {
       return borrowFromFormalOrigin(it->second.formalIndex);
     }
@@ -176,40 +216,73 @@ OriginFact originForExpr(ASTExpr *expr, const OriginState &state,
   return unknownOrigin();
 }
 
+/* Record every call under `node` whose actual is (an alias of) a formal: on
+ * this path that formal has been passed on. */
+void noteForwards(ASTNode *node, OriginState &state,
+                  std::vector<ForwardRecord> &log, SymbolTable *sym,
+                  ASTDeclNode *functionDecl) {
+  if (node == nullptr) {
+    return;
+  }
+  if (auto *call = dynamic_cast<ASTFunAppExpr *>(node)) {
+    auto actuals = call->getActuals();
+    for (std::size_t k = 0; k < actuals.size(); ++k) {
+      auto origin = originForExpr(actuals[k], state, sym, functionDecl);
+      if (origin.origin == FunctionEffectSummaries::ReturnOrigin::FromFormal) {
+        state.forwarded.insert(origin.formalIndex);
+        log.push_back({origin.formalIndex, call, k});
+      }
+    }
+  }
+  for (auto &child : node->getChildren()) {
+    noteForwards(child.get(), state, log, sym, functionDecl);
+  }
+}
+
 OriginState joinStates(const OriginState &left, const OriginState &right) {
   OriginState joined;
-  for (const auto &[decl, leftOrigin] : left) {
-    auto it = right.find(decl);
-    if (it != right.end() && sameOrigin(leftOrigin, it->second)) {
-      joined[decl] = leftOrigin;
+  for (const auto &[decl, leftOrigin] : left.origins) {
+    auto it = right.origins.find(decl);
+    if (it != right.origins.end() && sameOrigin(leftOrigin, it->second)) {
+      joined.origins[decl] = leftOrigin;
     } else {
-      joined[decl] = conflictOrigin();
+      joined.origins[decl] = conflictOrigin();
     }
   }
 
-  for (const auto &[decl, rightOrigin] : right) {
-    if (left.find(decl) == left.end()) {
-      joined[decl] = conflictOrigin();
+  for (const auto &[decl, rightOrigin] : right.origins) {
+    if (left.origins.find(decl) == left.origins.end()) {
+      joined.origins[decl] = conflictOrigin();
     }
   }
+
+  // Passed on only if passed on along both paths.
+  std::set_intersection(left.forwarded.begin(), left.forwarded.end(),
+                        right.forwarded.begin(), right.forwarded.end(),
+                        std::inserter(joined.forwarded, joined.forwarded.end()));
   return joined;
 }
 
 OriginState analyzeStmtOrigins(ASTStmt *stmt, OriginState state,
+                               std::vector<ForwardRecord> &log,
                                SymbolTable *sym, ASTDeclNode *functionDecl);
 
 OriginState analyzeBlockOrigins(const std::vector<ASTStmt *> &stmts,
-                                OriginState state, SymbolTable *sym,
-                                ASTDeclNode *functionDecl) {
+                                OriginState state,
+                                std::vector<ForwardRecord> &log,
+                                SymbolTable *sym, ASTDeclNode *functionDecl) {
   for (auto *stmt : stmts) {
-    state = analyzeStmtOrigins(stmt, std::move(state), sym, functionDecl);
+    state = analyzeStmtOrigins(stmt, std::move(state), log, sym, functionDecl);
   }
   return state;
 }
 
 OriginState analyzeStmtOrigins(ASTStmt *stmt, OriginState state,
+                               std::vector<ForwardRecord> &log,
                                SymbolTable *sym, ASTDeclNode *functionDecl) {
   if (auto *assign = dynamic_cast<ASTAssignStmt *>(stmt)) {
+    noteForwards(assign->getRHS(), state, log, sym, functionDecl);
+
     auto *lhsVar = dynamic_cast<ASTVariableExpr *>(assign->getLHS());
     if (lhsVar == nullptr) {
       return state;
@@ -222,69 +295,110 @@ OriginState analyzeStmtOrigins(ASTStmt *stmt, OriginState state,
 
     auto origin = originForExpr(assign->getRHS(), state, sym, functionDecl);
     if (origin.origin == FunctionEffectSummaries::ReturnOrigin::Unknown) {
-      state.erase(lhsDecl);
+      state.origins.erase(lhsDecl);
     } else {
-      state[lhsDecl] = origin;
+      state.origins[lhsDecl] = origin;
     }
     return state;
   }
 
   if (auto *block = dynamic_cast<ASTBlockStmt *>(stmt)) {
-    return analyzeBlockOrigins(block->getStmts(), std::move(state), sym,
+    return analyzeBlockOrigins(block->getStmts(), std::move(state), log, sym,
                                functionDecl);
   }
 
   if (auto *ifStmt = dynamic_cast<ASTIfStmt *>(stmt)) {
+    noteForwards(ifStmt->getCondition(), state, log, sym, functionDecl);
     auto thenState =
-        analyzeStmtOrigins(ifStmt->getThen(), state, sym, functionDecl);
+        analyzeStmtOrigins(ifStmt->getThen(), state, log, sym, functionDecl);
     auto elseState = ifStmt->getElse() != nullptr
-                         ? analyzeStmtOrigins(ifStmt->getElse(), state, sym,
-                                              functionDecl)
+                         ? analyzeStmtOrigins(ifStmt->getElse(), state, log,
+                                              sym, functionDecl)
                          : state;
     return joinStates(thenState, elseState);
   }
 
+  if (auto *whileStmt = dynamic_cast<ASTWhileStmt *>(stmt)) {
+    // The body may run zero times: what it passes on does not count.
+    noteForwards(whileStmt->getCondition(), state, log, sym, functionDecl);
+    auto bodyState =
+        analyzeStmtOrigins(whileStmt->getBody(), state, log, sym, functionDecl);
+    return joinStates(state, bodyState);
+  }
+
   if (auto *caseStmt = dynamic_cast<ASTCaseStmt *>(stmt)) {
+    noteForwards(caseStmt->getCaseExpr(), state, log, sym, functionDecl);
     auto arms = caseStmt->getArms();
     if (arms.empty()) {
       return state;
     }
 
-    auto joined = analyzeStmtOrigins(arms[0]->getBody(), state, sym,
+    auto joined = analyzeStmtOrigins(arms[0]->getBody(), state, log, sym,
                                      functionDecl);
     for (std::size_t i = 1; i < arms.size(); ++i) {
       auto armState =
-          analyzeStmtOrigins(arms[i]->getBody(), state, sym, functionDecl);
+          analyzeStmtOrigins(arms[i]->getBody(), state, log, sym, functionDecl);
       joined = joinStates(joined, armState);
     }
     return joined;
   }
 
+  // Any other statement (output, error, return, ...): its expressions may
+  // contain calls that pass a formal on.
+  for (auto &child : stmt->getChildren()) {
+    noteForwards(child.get(), state, log, sym, functionDecl);
+  }
   return state;
 }
 
-OriginFact computeReturnOrigin(ASTFunction *f, SymbolTable *sym) {
+struct BodyFacts {
+  OriginFact returned;
+  std::set<int> forwarded;
+  std::vector<ForwardRecord> log;
+};
+
+BodyFacts analyzeBody(ASTFunction *f, SymbolTable *sym) {
+  BodyFacts facts;
   OriginState state;
   auto formals = f->getFormals();
   for (std::size_t i = 0; i < formals.size(); ++i) {
-    state[formals[i]] = fromFormalOrigin(static_cast<int>(i));
+    state.origins[formals[i]] = fromFormalOrigin(static_cast<int>(i));
   }
 
   auto stmts = f->getStmts();
   if (stmts.empty()) {
-    return unknownOrigin();
+    facts.returned = unknownOrigin();
+    return facts;
   }
 
   for (std::size_t i = 0; i + 1 < stmts.size(); ++i) {
-    state = analyzeStmtOrigins(stmts[i], std::move(state), sym, f->getDecl());
+    state = analyzeStmtOrigins(stmts[i], std::move(state), facts.log, sym,
+                               f->getDecl());
   }
 
   auto *ret = dynamic_cast<ASTReturnStmt *>(stmts.back());
   if (ret == nullptr) {
-    return unknownOrigin();
+    facts.returned = unknownOrigin();
+  } else {
+    noteForwards(ret->getArg(), state, facts.log, sym, f->getDecl());
+    facts.returned = originForExpr(ret->getArg(), state, sym, f->getDecl());
   }
+  facts.forwarded = state.forwarded;
+  return facts;
+}
 
-  return originForExpr(ret->getArg(), state, sym, f->getDecl());
+/* A generic formal that receives an owned value must dispose of it on every
+ * path: return it, or pass it on to a call. Otherwise nobody can free it. */
+bool formalDropsOwnedValue(const FunctionEffectSummaries::Summary &s,
+                           std::size_t i) {
+  if (s.formalModes[i] !=
+      FunctionEffectSummaries::FormalMode::DependsOnInstantiation) {
+    return false;
+  }
+  bool returned =
+      s.returnOrigin == FunctionEffectSummaries::ReturnOrigin::FromFormal &&
+      s.returnFormalIndex == static_cast<int>(i);
+  return !returned && !s.formalForwarded[i];
 }
 
 } // namespace
@@ -292,9 +406,32 @@ OriginFact computeReturnOrigin(ASTFunction *f, SymbolTable *sym) {
 std::shared_ptr<FunctionEffectSummaries>
 FunctionEffectSummaries::build(ASTProgram *ast, SymbolTable *sym,
                                TypeInference *types,
-                               OwnershipClassifier *classifier) {
+                               OwnershipClassifier *classifier, CallGraph *cg) {
   SEMANTIC_LOG(1, "function-effects") << "start";
   auto result = std::make_shared<FunctionEffectSummaries>();
+  std::map<ASTDeclNode *, std::vector<ForwardRecord>> forwardLogs;
+
+  // Possible callees of a call: the named function, else the call graph.
+  auto targetsOf = [&](ASTFunAppExpr *call) {
+    std::vector<Summary *> targets;
+    if (auto *calleeVar = dynamic_cast<ASTVariableExpr *>(call->getFunction())) {
+      if (auto *decl = sym->getFunction(calleeVar->getName())) {
+        auto it = result->summaries.find(decl);
+        if (it != result->summaries.end()) {
+          targets.push_back(&it->second);
+        }
+      }
+    }
+    if (targets.empty() && cg != nullptr) {
+      for (auto *g : cg->getCalledFuns(call)) {
+        auto it = result->summaries.find(g->getDecl());
+        if (it != result->summaries.end()) {
+          targets.push_back(&it->second);
+        }
+      }
+    }
+    return targets;
+  };
 
   for (auto *f : ast->getFunctions()) {
     Summary summary;
@@ -304,24 +441,38 @@ FunctionEffectSummaries::build(ASTProgram *ast, SymbolTable *sym,
                                    "function " + f->getName());
 
     for (auto *formal : f->getFormals()) {
+      summary.formalNames.push_back(formal->getName());
       auto inferred = types->getInferredType(formal);
       rejectUnsupportedRecursiveType(inferred.get(),
                                      "parameter " + formal->getName() +
                                          " of function " + f->getName());
-      if (containsTypeVariable(inferred.get())) {
-        summary.formalModes.push_back(FormalMode::DependsOnInstantiation);
-      } else if (classifier->classify(formal) == OwnershipClass::Own) {
+      // Own: the callee owns (and frees) the value, even when its type still
+      // has variables inside (an owning reference's payload is always Copy).
+      // DependsOnInstantiation: the formal's type is not yet known to own
+      // anything, so what the call does is decided per call site.
+      if (classifier->classify(formal) == OwnershipClass::Own) {
         summary.formalModes.push_back(FormalMode::Own);
+      } else if (containsTypeVariable(inferred.get())) {
+        summary.formalModes.push_back(FormalMode::DependsOnInstantiation);
       } else {
         summary.formalModes.push_back(FormalMode::Copy);
       }
     }
 
+    auto facts = analyzeBody(f, sym);
+    summary.formalForwarded.assign(summary.formalModes.size(), false);
+    for (int i : facts.forwarded) {
+      if (i >= 0 && static_cast<std::size_t>(i) < summary.formalForwarded.size()) {
+        summary.formalForwarded[i] = true;
+      }
+    }
+    forwardLogs[f->getDecl()] = std::move(facts.log);
+
     auto stmts = f->getStmts();
     auto *ret =
         stmts.empty() ? nullptr : dynamic_cast<ASTReturnStmt *>(stmts.back());
     if (ret != nullptr) {
-      auto origin = computeReturnOrigin(f, sym);
+      auto origin = facts.returned;
       summary.returnOrigin = origin.origin;
       summary.returnFormalIndex = origin.formalIndex;
 
@@ -346,14 +497,117 @@ FunctionEffectSummaries::build(ASTProgram *ast, SymbolTable *sym,
     for (std::size_t i = 0; i < summary.formalModes.size(); ++i) {
       SEMANTIC_LOG(2, "function-effects")
           << "function=" << summary.functionName << " formal=" << i
-          << " mode=" << formalModeName(summary.formalModes[i]);
+          << " mode=" << formalModeName(summary.formalModes[i])
+          << " passed-on=" << (summary.formalForwarded[i] ? "yes" : "no");
     }
     result->summaries[f->getDecl()] = std::move(summary);
   }
 
+  // "Passed on" is only a disposal if the receiving formal disposes of the
+  // value in turn. Propagate drops backwards through generic callees until
+  // nothing changes.
+  bool changed = true;
+  while (changed) {
+    changed = false;
+    for (auto &[decl, summary] : result->summaries) {
+      for (const auto &record : forwardLogs[decl]) {
+        if (!summary.formalForwarded[record.formal]) {
+          continue;
+        }
+        for (Summary *target : targetsOf(record.call)) {
+          if (record.position < target->formalModes.size() &&
+              formalDropsOwnedValue(*target, record.position)) {
+            summary.formalForwarded[record.formal] = false;
+            changed = true;
+          }
+        }
+      }
+    }
+  }
+
+  // Call-site effects: which actuals each call consumes. Named callees use
+  // their summary directly; calls through function values (a formal, a local
+  // holding a function) use the call graph's possible targets.
+  CallCollector collector;
+  ast->accept(&collector);
+  for (auto &[call, scope] : collector.calls) {
+    auto targets = targetsOf(call);
+
+    auto actuals = call->getActuals();
+    CallEffect effect;
+    effect.consumes.assign(actuals.size(), false);
+    bool first = true;
+    for (const Summary *s : targets) {
+      std::vector<bool> consumes(actuals.size(), false);
+      std::size_t n = std::min(actuals.size(), s->formalModes.size());
+      for (std::size_t i = 0; i < n; ++i) {
+        bool actualOwn =
+            OwnershipClassifier::classifyType(
+                types->getInferredType(actuals[i], scope).get()) ==
+            OwnershipClass::Own;
+        switch (s->formalModes[i]) {
+        case FormalMode::Own:
+          consumes[i] = actualOwn;
+          break;
+        case FormalMode::Copy:
+          consumes[i] = false;
+          break;
+        case FormalMode::DependsOnInstantiation: {
+          if (!actualOwn) {
+            consumes[i] = false;
+            break;
+          }
+          // The callee takes the value, but a generic body cannot free a
+          // value of variable type: it must return it or pass it on.
+          if (!formalDropsOwnedValue(*s, i)) {
+            consumes[i] = true;
+            break;
+          }
+          std::ostringstream oss;
+          oss << "owned value passed to generic formal '" << s->formalNames[i]
+              << "' of '" << s->functionName << "' on line " << call->getLine()
+              << " is neither returned"
+              << (s->returnOrigin == ReturnOrigin::Unknown ? " on every path"
+                                                           : "")
+              << " nor borrowed nor passed on by the callee";
+          throw SemanticError(oss.str());
+        }
+        }
+      }
+      if (first) {
+        effect.consumes = consumes;
+        first = false;
+      } else if (consumes != effect.consumes) {
+        std::ostringstream oss;
+        oss << "call on line " << call->getLine()
+            << " has possible targets that disagree on argument ownership";
+        throw SemanticError(oss.str());
+      }
+    }
+
+    std::ostringstream consumed;
+    for (std::size_t i = 0; i < effect.consumes.size(); ++i) {
+      consumed << (i > 0 ? "," : "") << (effect.consumes[i] ? "1" : "0");
+    }
+    SEMANTIC_LOG(2, "function-effects")
+        << "call line=" << call->getLine() << " targets=" << targets.size()
+        << " consumes={" << consumed.str() << "}";
+    result->callEffects[call] = std::move(effect);
+  }
+
   SEMANTIC_LOG(1, "function-effects")
-      << "complete functions=" << result->summaries.size();
+      << "complete functions=" << result->summaries.size()
+      << " calls=" << result->callEffects.size();
   return result;
+}
+
+const FunctionEffectSummaries::CallEffect *
+FunctionEffectSummaries::callEffect(const ASTFunAppExpr *call) const {
+  auto it = callEffects.find(call);
+  if (it == callEffects.end()) {
+    return nullptr;
+  }
+  return &it->second;
 }
 
 const FunctionEffectSummaries::Summary *

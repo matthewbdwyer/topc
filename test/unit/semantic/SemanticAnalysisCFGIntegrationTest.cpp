@@ -295,3 +295,114 @@ TEST_CASE("SemanticAnalysis: existing borrow diagnostics remain unchanged",
       SemanticAnalysis::analyze(ast.get()),
       Catch::Matchers::ContainsSubstring("immediate function argument"));
 }
+
+// ---------------------------------------------------------------------------
+// Call-site ownership effects (see docs: owned arguments are consumed by the
+// callee; a generic formal transfers ownership only when it is returned).
+// ---------------------------------------------------------------------------
+
+TEST_CASE("SemanticAnalysis: recursive sum formal is Own, not DependsOnInstantiation",
+          "[SemanticAnalysis][FunctionEffectSummaries]") {
+  auto ast = parseProgram(R"(
+    type List = Nil | Cons(head, tail);
+
+    sum(list) {
+      var r;
+      case list of {
+        Nil -> r = 0;
+        Cons(h, t) -> r = h + sum(t);
+      }
+      return r;
+    }
+
+    main() {
+      var l;
+      l = Cons(1, Cons(2, Nil));
+      return sum(l) - 3;
+    }
+  )");
+
+  auto *sum = ast->findFunctionByName("sum");
+  REQUIRE(sum != nullptr);
+
+  auto analysis = SemanticAnalysis::analyze(ast.get());
+  auto *summary = analysis->getFunctionEffectSummaries()->get(sum->getDecl());
+  REQUIRE(summary != nullptr);
+  REQUIRE(summary->formalModes.size() == 1);
+  REQUIRE(summary->formalModes[0] == FunctionEffectSummaries::FormalMode::Own);
+}
+
+TEST_CASE("SemanticAnalysis: owned value through a function-typed parameter is consumed once",
+          "[SemanticAnalysis][FunctionEffectSummaries][DestructionPass]") {
+  auto ast = parseProgram(R"(
+    type L = Nil | Cons(h, t);
+
+    apply(f, v) {
+      return f(v);
+    }
+
+    len(l) {
+      var r;
+      case l of {
+        Nil -> r = 0;
+        Cons(h, t) -> r = 1 + len(t);
+      }
+      return r;
+    }
+
+    main() {
+      var l;
+      l = Cons(1, Nil);
+      return apply(len, l) - 1;
+    }
+  )");
+
+  auto *apply = ast->findFunctionByName("apply");
+  auto *mainFn = ast->findFunctionByName("main");
+  REQUIRE(apply != nullptr);
+  REQUIRE(mainFn != nullptr);
+
+  auto analysis = SemanticAnalysis::analyze(ast.get());
+  REQUIRE(analysis != nullptr);
+  // f(v) hands v to len, whose case frees it; apply must not free it again.
+  REQUIRE(destroyCount(apply) == 0);
+  REQUIRE(destroyCount(mainFn) == 0);
+}
+
+TEST_CASE("SemanticAnalysis: owned value to a non-returning generic formal is rejected",
+          "[SemanticAnalysis][FunctionEffectSummaries][MoveAnalysis]") {
+  auto ast = parseProgram(R"(
+    sink(p) {
+      return 0;
+    }
+
+    main() {
+      var x;
+      x = alloc 1;
+      output sink(x);
+      return 0;
+    }
+  )");
+
+  REQUIRE_THROWS_WITH(
+      SemanticAnalysis::analyze(ast.get()),
+      Catch::Matchers::ContainsSubstring("neither returned nor borrowed"));
+}
+
+TEST_CASE("SemanticAnalysis: borrowed value to a generic formal is accepted",
+          "[SemanticAnalysis][FunctionEffectSummaries][MoveAnalysis]") {
+  auto ast = parseProgram(R"(
+    sink(p) {
+      return 0;
+    }
+
+    main() {
+      var x;
+      x = 1;
+      output sink(&x);
+      return 0;
+    }
+  )");
+
+  REQUIRE_NOTHROW(SemanticAnalysis::analyze(ast.get()));
+}

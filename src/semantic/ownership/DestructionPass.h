@@ -51,9 +51,6 @@ private:
   void      processFunction(ASTFunction *f);
   StateMap  analyzeStmt(ASTStmt *stmt, StateMap state);
   StateMap  analyzeAssign(ASTAssignStmt *stmt, StateMap state);
-  bool actualInstantiatesOwn(const ASTExpr *actual,
-                             FunctionEffectSummaries::FormalMode mode,
-                             bool lhsIsOwnFallback) const;
   void consumeCallArgMoves(ASTNode *node, StateMap &state);
 
   /*! \brief Resolve a variable name to its ASTDeclNode in the current scope. */

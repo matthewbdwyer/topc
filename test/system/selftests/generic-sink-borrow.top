@@ -1,0 +1,12 @@
+/* The accepted way to hand a value to a generic formal that neither returns
+ * nor dereferences it: borrow it. x stays owned by main. Exits 0. */
+sink(p) {
+  return 0;
+}
+
+main() {
+  var x;
+  x = 1;
+  output sink(&x);
+  return x - 1;
+}
