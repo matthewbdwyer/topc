@@ -483,7 +483,7 @@ compiler models both with the conceptual type constructor `Ref(mode, pointee)`.
 | --- | --- |
 | `own&T` | Owning reference to `T` |
 | `borrow&T` | Non-owning reference to `T` |
-| `ref&T` | Reference to `T` whose mode is polymorphic |
+| `ref&T` | Reference to `T` whose mode no use has determined yet |
 
 These spellings appear in compiler output; they are not source annotations.
 
@@ -536,7 +536,7 @@ Ignoring source-origin details on `α`, the salient output is:
 ```text
 Functions : {
   increment : (borrow&int) -> int,
-  read : (ref&α) -> α
+  read : (own&α) -> α
 }
 
 Locals for function main : {
@@ -549,9 +549,12 @@ Locals for function main : {
 
 The call with `&value` fixes `increment`'s parameter mode to `Borrow`, while
 `alloc` gives the reference bound to `owner` mode `Own`. The body of `read`
-only dereferences its parameter and does not require either concrete mode, so
-its principal type remains mode-polymorphic as `ref&α`. The approved borrow
-record points back to the `&value` expression in the example. For now, it is
+only dereferences its parameter, which by itself determines neither mode; the
+call `read(owner)` then fixes the mode to `Own`, giving `(own&α) -> α`. A
+reference's mode is inferred from its uses and is not generalized across call
+sites: if `read` were also called with a borrow, type inference would report
+`Cannot unify Own with Borrow`. The approved borrow record points back to the
+`&value` expression in the example. For now, it is
 enough to recognize these labels in the output: Section 9 explains why a
 reference with mode `Own` is classified as `Own`, and Section 11 explains why
 this borrow is approved and what restrictions apply to borrowed references.
@@ -687,6 +690,24 @@ This explains observable polymorphic behavior: `identity(42)` copies an
 integer, while `identity(pointer)` moves a value classified as `Own` into the
 call and returns ownership with the result. Effect analysis does not change the
 function's principal inferred type.
+
+Two rules govern what a call does with an owned argument:
+
+- An owned argument bound to a formal classified as `Own` is moved into the
+  callee, which frees it (or moves it on) before returning. This holds for a
+  call through a function value too: `apply(f, v) { return f(v); }` hands `v`
+  to whichever function `f` names.
+- An owned argument bound to a generic formal is also moved into the callee,
+  and the callee must dispose of it on every path by returning it or passing
+  it on to another call. A generic body is compiled once for every
+  instantiation and cannot free a value whose type is a variable, so a
+  function such as `sink(p) { return 0; }` may not receive an owned value:
+
+```text
+topc: owned value passed to generic formal 'p' of 'sink' on line 7 is neither returned nor borrowed nor passed on by the callee
+```
+
+Pass `&x` instead when the callee only needs to look at the value.
 
 Inspect the inferred types, ownership classes, move trace, and destruction
 summary together:
@@ -1394,10 +1415,10 @@ readBorrow(pointer) {
 main() {
   var list, total, owner;
   list = Cons(10, Cons(20, Cons(12, Nil)));
-  total = apply(sum, list);
+  total = sum(list);
   owner = alloc total;
-  if (readBorrow(&total) != 42) error total;
-  if (read(owner) != 42) error *owner;
+  if (apply(readBorrow, &total) != 42) error total;
+  if (read(owner) != 42) error total;
   return 0;
 }
 ```
@@ -1405,19 +1426,24 @@ main() {
 What `topc` establishes:
 
 1. `apply` is a higher-order helper with a parametric type shape; this program
-  instantiates it for the recursive `List` type.
+  instantiates it at `((borrow&int) -> int, borrow&int) -> int`.
 2. `List` is recursive, with integer heads and list tails.
-3. Values of this `List` type are classified as `Copy` because none of its
-  payloads is classified as `Own`.
+3. Values of this `List` type are classified as `Own`: a constructor value is
+  always heap-boxed, so the box is an owned resource even though both payloads
+  are `Copy`. `sum(list)` moves the list into `sum`, whose `case` consumes it.
 4. `owner` has inferred type `own&int` and holds a value classified as `Own`.
-5. This program constrains `read` to `(own&int) -> int` and `readBorrow` to
-  `(borrow&int) -> int`. An otherwise unconstrained dereference-only helper can
-  display a principal type such as `(ref&int) -> int`.
-6. `&total` is valid because it is an immediate argument to `readBorrow`.
-7. The value bound to `owner` is not consumed by `read`; dereference does not
-  transfer ownership.
-8. Before `main` exits, the destruction pass destroys the value bound to
-  `owner`, releasing its allocation.
+5. The calls constrain `read` to `(own&int) -> int` and `readBorrow` to
+  `(borrow&int) -> int`. A reference's mode is fixed by its uses; a
+  dereference-only helper that no call constrains would display
+  `(ref&int) -> int`.
+6. `&total` is valid because it is an immediate argument to `apply`; the borrow
+  then flows through `apply`'s parameter into `readBorrow`, and the borrow
+  checker traces that path.
+7. `read(owner)` moves the value into `read`, because its formal has mode
+  `Own`; `read` destroys the value before returning. `readBorrow` lends `total`
+  and consumes nothing.
+8. Because `owner` was moved into `read`, `main` has nothing left to destroy:
+  the destruction summary reports `read : 1 destroy` and `main : 0 destroys`.
 
 Inspect the program with:
 
@@ -1429,18 +1455,22 @@ Across those views, the most relevant lines are:
 
 ```text
 List : Nil | Cons(int, List)
+apply : ((borrow&int) -> int,borrow&int) -> int
 read : (own&int) -> int
 readBorrow : (borrow&int) -> int
+local main.list : Own
 local main.owner : Own
-29:17 &total -> approved
-main : 1 destroy
+29:24 &total -> approved
+read : 1 destroy
+main : 0 destroys
 ```
 
 These lines follow the compiler's reasoning through several phases. Type
 inference determines the recursive `List` shape and the two reference modes.
-Ownership analysis classifies the value bound to `owner` as `Own` and inserts
-its destruction. Borrow analysis approves the temporary alias passed to
-`readBorrow`. Line and column numbers depend on the source file.
+Ownership analysis classifies the list and the value bound to `owner` as `Own`,
+records their moves into `sum` and `read`, and inserts the destruction of the
+latter inside `read`. Borrow analysis approves the temporary alias passed to
+`apply` and follows it into `readBorrow`. Line and column numbers depend on the source file.
 
 The call graph shows which functions may call which other functions:
 

@@ -83,8 +83,14 @@ ref&T
 ```
 
 Allocation generates `Ref(Own, T)`, address-of generates `Ref(Borrow, T)`, and
-dereference uses `Ref(m, T)` when either mode is acceptable. Mode variables let
-a dereference-only function express that it does not require ownership.
+dereference uses `Ref(m, T)` with a fresh mode variable `m`, because reading or
+writing through a reference works for either mode. The mode variable is
+resolved by unification with the references that flow into it. Mode variables
+are **not generalized**: a function's reference formals take one mode for the
+whole program, fixed by whichever use determines it, and a function called with
+an owning reference at one site and a borrow at another is rejected
+(`Cannot unify Own with Borrow`). A dereference-only function that no call
+constrains keeps `Ref(m, T)` and prints as `ref&T`.
 
 ## Ownership Classification
 
@@ -121,8 +127,34 @@ Each formal has one mode:
 
 - `Copy`: passing the actual does not consume ownership.
 - `Own`: passing an owning actual consumes it.
-- `DependsOnInstantiation`: behavior is determined from the call-site
-  instantiation, as with a polymorphic pass-through function.
+- `DependsOnInstantiation`: the formal's type is not yet known to own
+  anything (a type variable, or a reference of unresolved mode); what the
+  call does is decided per call site, as with a polymorphic pass-through
+  function.
+
+A formal whose inferred type classifies as `Own` is `Own` even when the type
+still contains variables (an owning reference's payload is always `Copy`, so
+the callee can free it).
+
+Each summary also records, per formal, whether the body **passes it on**: on
+every path the value (or a local holding it) is an argument of some call. A
+generic formal that receives an owned value must dispose of it, by returning
+it (`FromFormal`) or passing it on, because a body compiled once for every
+instantiation cannot free a value of variable type. Passing on only counts if
+the receiving formal disposes of the value in turn; drops propagate backwards
+through generic callees to a fixed point.
+
+From the summaries, `FunctionEffectSummaries` derives one **call effect** per
+call site: which actuals the call consumes. An actual is classified from its
+solved type (a variable reference resolves to its declaration). For each
+possible callee, a named function or the call graph's targets for a call
+through a function value, formal `i` consumes an owning actual when its mode
+is `Own`, or when it is `DependsOnInstantiation` and the formal is disposed
+of; an owning actual bound to a generic formal that is dropped is rejected
+(`owned value passed to generic formal ... is neither returned nor borrowed
+nor passed on by the callee`). Targets that disagree are rejected. Move
+analysis and the destruction pass both read this table, so they cannot
+diverge on what a call consumes.
 
 Each return has one origin:
 
