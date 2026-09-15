@@ -1,0 +1,25 @@
+// A borrow may not be stored inside a value. `wrap` receives a borrow of the
+// caller's owned int and puts that borrow in a constructor payload, so the
+// chain would hold an alias of `a` after `mk` has freed it. The borrow checker
+// cannot see a borrow-typed *variable*, so the payload's inferred type
+// (borrow&own&int) is what gets rejected.
+type Chain = Nil | Link(head, tail);
+
+wrap(p) { return Link(p, Nil); }
+
+mk() {
+  var a, c;
+  a = alloc 1;
+  c = wrap(&a);
+  return c;
+}
+
+main() {
+  var r, v;
+  r = mk();
+  case r of {
+    Link(h, t) -> v = **h;
+    Nil        -> v = 0;
+  }
+  return v;
+}

@@ -16,6 +16,7 @@
 #include "ASTVariableExpr.h"
 #include "ASTWhileStmt.h"
 #include "OwnershipClassifier.h"
+#include "ReferenceType.h"
 #include "SemanticError.h"
 #include "SymbolTable.h"
 #include "TopFunction.h"
@@ -56,6 +57,25 @@ const char *returnOriginName(FunctionEffectSummaries::ReturnOrigin origin) {
     return "BorrowFromFormal";
   }
   return "Unknown";
+}
+
+const char *requirementName(FunctionEffectSummaries::CopyRequirement req) {
+  switch (req) {
+  case FunctionEffectSummaries::CopyRequirement::None: return "none";
+  case FunctionEffectSummaries::CopyRequirement::Referent: return "referent-copy";
+  case FunctionEffectSummaries::CopyRequirement::Self: return "self-copy";
+  case FunctionEffectSummaries::CopyRequirement::Both: return "referent-and-self-copy";
+  }
+  return "none"; // LCOV_EXCL_LINE -- unreachable: the switch above is exhaustive
+}
+
+FunctionEffectSummaries::CopyRequirement
+joinRequirement(FunctionEffectSummaries::CopyRequirement a,
+                FunctionEffectSummaries::CopyRequirement b) {
+  using R = FunctionEffectSummaries::CopyRequirement;
+  if (a == R::None) return b;
+  if (b == R::None || a == b) return a;
+  return R::Both;
 }
 
 bool containsRecursiveFunctionType(TopType *type) {
@@ -404,12 +424,14 @@ bool formalDropsOwnedValue(const FunctionEffectSummaries::Summary &s,
 } // namespace
 
 std::shared_ptr<FunctionEffectSummaries>
-FunctionEffectSummaries::build(ASTProgram *ast, SymbolTable *sym,
-                               TypeInference *types,
-                               OwnershipClassifier *classifier, CallGraph *cg) {
+FunctionEffectSummaries::build(
+    ASTProgram *ast, SymbolTable *sym, TypeInference *types,
+    OwnershipClassifier *classifier, CallGraph *cg,
+    const std::map<ASTDeclNode *, std::vector<CopyRequirement>> *requirements) {
   SEMANTIC_LOG(1, "function-effects") << "start";
   auto result = std::make_shared<FunctionEffectSummaries>();
   std::map<ASTDeclNode *, std::vector<ForwardRecord>> forwardLogs;
+  std::map<ASTDeclNode *, ASTFunction *> functionsByDecl;
 
   // Possible callees of a call: the named function, else the call graph.
   auto targetsOf = [&](ASTFunAppExpr *call) {
@@ -436,6 +458,7 @@ FunctionEffectSummaries::build(ASTProgram *ast, SymbolTable *sym,
   for (auto *f : ast->getFunctions()) {
     Summary summary;
     summary.functionName = f->getName();
+    functionsByDecl[f->getDecl()] = f;
 
     rejectUnsupportedRecursiveType(types->getInferredType(f->getDecl()).get(),
                                    "function " + f->getName());
@@ -468,6 +491,16 @@ FunctionEffectSummaries::build(ASTProgram *ast, SymbolTable *sym,
     }
     forwardLogs[f->getDecl()] = std::move(facts.log);
 
+    summary.formalRequirement.assign(summary.formalModes.size(),
+                                     CopyRequirement::None);
+    if (requirements != nullptr) {
+      auto it = requirements->find(f->getDecl());
+      if (it != requirements->end() &&
+          it->second.size() == summary.formalRequirement.size()) {
+        summary.formalRequirement = it->second;
+      }
+    }
+
     auto stmts = f->getStmts();
     auto *ret =
         stmts.empty() ? nullptr : dynamic_cast<ASTReturnStmt *>(stmts.back());
@@ -498,7 +531,8 @@ FunctionEffectSummaries::build(ASTProgram *ast, SymbolTable *sym,
       SEMANTIC_LOG(2, "function-effects")
           << "function=" << summary.functionName << " formal=" << i
           << " mode=" << formalModeName(summary.formalModes[i])
-          << " passed-on=" << (summary.formalForwarded[i] ? "yes" : "no");
+          << " passed-on=" << (summary.formalForwarded[i] ? "yes" : "no")
+          << " requires=" << requirementName(summary.formalRequirement[i]);
     }
     result->summaries[f->getDecl()] = std::move(summary);
   }
@@ -530,6 +564,135 @@ FunctionEffectSummaries::build(ASTProgram *ast, SymbolTable *sym,
   // holding a function) use the call graph's possible targets.
   CallCollector collector;
   ast->accept(&collector);
+
+  // A generic body that takes the value behind a borrowed formal (AliasCheck)
+  // is sound only for Copy referents. Decide at each call from the actual's
+  // type; where that type is itself still generic, the requirement moves to
+  // the enclosing function's formal and the loop runs again.
+  enum class Verdict { Satisfied, Violated, Undetermined };
+  auto judgeOne = [&](CopyRequirement req, const TopType *actualType) {
+    const TopType *subject = actualType;
+    if (req == CopyRequirement::Referent) {
+      auto *ref = dynamic_cast<const ReferenceType *>(actualType);
+      if (ref == nullptr) {
+        return containsTypeVariable(const_cast<TopType *>(actualType))
+                   ? Verdict::Undetermined
+                   : Verdict::Satisfied;
+      }
+      subject = ref->getReferencedType().get();
+    }
+    if (OwnershipClassifier::classifyType(subject) == OwnershipClass::Own) {
+      return Verdict::Violated;
+    }
+    if (containsTypeVariable(const_cast<TopType *>(subject))) {
+      return Verdict::Undetermined;
+    }
+    return Verdict::Satisfied;
+  };
+  auto judge = [&](CopyRequirement req, const TopType *actualType) {
+    if (req != CopyRequirement::Both) {
+      return judgeOne(req, actualType);
+    }
+    auto a = judgeOne(CopyRequirement::Referent, actualType);
+    auto b = judgeOne(CopyRequirement::Self, actualType);
+    if (a == Verdict::Violated || b == Verdict::Violated) return Verdict::Violated;
+    if (a == Verdict::Undetermined || b == Verdict::Undetermined) {
+      return Verdict::Undetermined;
+    }
+    return Verdict::Satisfied;
+  };
+  auto formalIndexOf = [&](ASTExpr *expr, ASTDeclNode *scope) -> int {
+    auto *var = dynamic_cast<ASTVariableExpr *>(expr);
+    if (var == nullptr) {
+      return -1;
+    }
+    auto *decl = sym->getLocal(var->getName(), scope);
+    auto formals = functionsByDecl[scope]->getFormals();
+    for (std::size_t j = 0; j < formals.size(); ++j) {
+      if (formals[j] == decl) {
+        return static_cast<int>(j);
+      }
+    }
+    return -1;
+  };
+
+  changed = true;
+  while (changed) {
+    changed = false;
+    for (auto &[call, scope] : collector.calls) {
+      auto actuals = call->getActuals();
+      for (const Summary *s : targetsOf(call)) {
+        std::size_t n = std::min(actuals.size(), s->formalRequirement.size());
+        for (std::size_t i = 0; i < n; ++i) {
+          CopyRequirement req = s->formalRequirement[i];
+          if (req == CopyRequirement::None) {
+            continue;
+          }
+          auto actualType = types->getInferredType(actuals[i], scope);
+          Verdict verdict = judge(req, actualType.get());
+          SEMANTIC_LOG(2, "function-effects")
+              << "call line=" << call->getLine() << " callee="
+              << s->functionName << " formal=" << i << " requires="
+              << requirementName(req) << " actual=" << *actualType
+              << " verdict="
+              << (verdict == Verdict::Satisfied     ? "satisfied"
+                  : verdict == Verdict::Violated    ? "violated"
+                                                    : "undetermined");
+          if (verdict == Verdict::Satisfied) {
+            continue;
+          }
+          if (verdict == Verdict::Violated) {
+            std::ostringstream oss;
+            oss << "call " << *call << " on line " << call->getLine()
+                << " moves an owned value out of the borrow: callee '"
+                << s->functionName << "' "
+                << (req == CopyRequirement::Self
+                        ? "hands a borrow of formal '"
+                        : "dereferences formal '")
+                << s->formalNames[i]
+                << (req == CopyRequirement::Self
+                        ? "' to a callee that takes the value behind it"
+                        : "' in a position that takes ownership");
+            throw SemanticError(oss.str());
+          }
+
+          // Undetermined: the enclosing function is generic here too. Its
+          // callers must decide, so the requirement moves to its formal.
+          CopyRequirement inherited = CopyRequirement::Self;
+          ASTExpr *source = actuals[i];
+          if (req != CopyRequirement::Self) {
+            if (auto *borrow = dynamic_cast<ASTBorrowExpr *>(source)) {
+              source = borrow->getVar(); // &x: x itself must be Copy
+            } else {
+              inherited = req;
+            }
+          }
+          int j = formalIndexOf(source, scope);
+          if (j < 0) {
+            std::ostringstream oss;
+            oss << "call " << *call << " on line " << call->getLine()
+                << ": cannot tell whether argument " << i << " ("
+                << *actuals[i] << ") refers to an owned value that callee '"
+                << s->functionName
+                << "' would take; pass a formal parameter or a borrow of one";
+            throw SemanticError(oss.str());
+          }
+          Summary &caller = result->summaries[scope];
+          CopyRequirement joined =
+              joinRequirement(caller.formalRequirement[j], inherited);
+          if (joined != caller.formalRequirement[j]) {
+            caller.formalRequirement[j] = joined;
+            changed = true;
+            SEMANTIC_LOG(2, "function-effects")
+                << "function=" << caller.functionName << " formal=" << j
+                << " inherits requires=" << requirementName(joined)
+                << " from call line=" << call->getLine();
+          }
+        }
+      }
+    }
+  }
+
   for (auto &[call, scope] : collector.calls) {
     auto targets = targetsOf(call);
 

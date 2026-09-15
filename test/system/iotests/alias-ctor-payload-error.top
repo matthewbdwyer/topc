@@ -1,0 +1,14 @@
+// `*p` on borrow&own&int is an owned value reached through a borrow. Putting it
+// in a constructor payload would make the chain a second owner: destroying the
+// chain and destroying `a` free the same allocation. The deref's type is
+// concrete here, so the rejection is at the definition of `wrap`.
+type Chain = Nil | Link(head, tail);
+
+wrap(p) { return Link(*p, Nil); }
+
+main() {
+  var a, c;
+  a = alloc 1;
+  c = wrap(&a);
+  return 0;
+}

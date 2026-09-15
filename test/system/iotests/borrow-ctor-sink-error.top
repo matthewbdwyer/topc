@@ -1,0 +1,20 @@
+// A borrow-derived call result may only flow into another immediate call
+// argument. Placing `ident(&a)` in a constructor payload would store the alias
+// in a heap box, so the borrow checker rejects the payload position just as
+// it rejects assignment and return.
+type Chain = Nil | Link(head, tail);
+
+ident(x) { return x; }
+
+mk() {
+  var a, c;
+  a = alloc 1;
+  c = Link(ident(&a), Nil);
+  return c;
+}
+
+main() {
+  var r;
+  r = mk();
+  return 0;
+}

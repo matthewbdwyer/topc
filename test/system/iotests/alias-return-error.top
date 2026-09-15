@@ -1,0 +1,15 @@
+// You cannot move an owned value out of a borrow. `take` is generic,
+// (borrow&a) -> a, and returning *p is fine when the referent is Copy. Here
+// the call instantiates a = own&int: the result would alias `a`, and main
+// would free the one allocation twice. The rejection is at the call site,
+// where the actual's type is known.
+type Flag = On | Off;
+
+take(p) { return *p; }
+
+main() {
+  var a, x;
+  a = alloc 1;
+  x = take(&a);
+  return *x;
+}

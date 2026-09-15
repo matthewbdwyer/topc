@@ -29,6 +29,10 @@ target_sources(
                    ${CMAKE_CURRENT_SOURCE_DIR}/ownership/OwnershipClassifier.cpp
                    ${CMAKE_CURRENT_SOURCE_DIR}/ownership/CheckAllocPayload.h
                    ${CMAKE_CURRENT_SOURCE_DIR}/ownership/CheckAllocPayload.cpp
+                   ${CMAKE_CURRENT_SOURCE_DIR}/ownership/CheckBorrowComponents.h
+                   ${CMAKE_CURRENT_SOURCE_DIR}/ownership/CheckBorrowComponents.cpp
+                   ${CMAKE_CURRENT_SOURCE_DIR}/ownership/AliasCheck.h
+                   ${CMAKE_CURRENT_SOURCE_DIR}/ownership/AliasCheck.cpp
                    ${CMAKE_CURRENT_SOURCE_DIR}/ownership/FunctionEffectSummaries.h
                    ${CMAKE_CURRENT_SOURCE_DIR}/ownership/FunctionEffectSummaries.cpp
                    ${CMAKE_CURRENT_SOURCE_DIR}/ownership/MoveAnalysis.h

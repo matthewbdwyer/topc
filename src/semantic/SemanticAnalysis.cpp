@@ -1,7 +1,9 @@
 #include "SemanticAnalysis.h"
+#include "AliasCheck.h"
 #include "BorrowChecker.h"
 #include "CheckAllocPayload.h"
 #include "CheckAssignable.h"
+#include "CheckBorrowComponents.h"
 #include "CheckBorrowPositions.h"
 #include "CheckCaseCompleteness.h"
 #include "CheckPatternTypes.h"
@@ -29,11 +31,15 @@ std::shared_ptr<SemanticAnalysis> SemanticAnalysis::analyze(ASTProgram *ast) {
   CheckAllocPayload::check(ast, typeResults.get());
   auto ownershipClassifier = std::make_shared<OwnershipClassifier>(
       symTable.get(), typeResults.get());
+  auto aliasRequirements = AliasCheck::run(ast, symTable.get(),
+                                           typeResults.get(),
+                                           ownershipClassifier.get());
   auto functionEffectSummaries = FunctionEffectSummaries::build(
       ast, symTable.get(), typeResults.get(), ownershipClassifier.get(),
-      callGraph.get());
+      callGraph.get(), &aliasRequirements);
   BorrowChecker::checkInterprocedural(ast, symTable.get(),
                                       functionEffectSummaries.get());
+  CheckBorrowComponents::check(ast, symTable.get(), typeResults.get());
   MoveAnalysis(ast, symTable.get(), ownershipClassifier.get(),
                functionEffectSummaries.get());
   DestructionPass::run(ast, symTable.get(), ownershipClassifier.get(),

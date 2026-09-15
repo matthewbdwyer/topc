@@ -92,6 +92,18 @@ EXPECTED_ERROR_SUBSTRINGS = {
         "neither returned nor borrowed",
     "generic-branch-return-error.top":
         "neither returned on every path nor borrowed",
+    "borrow-payload-error.top":
+        "holds a borrow",
+    "borrow-ctor-sink-error.top":
+        "escapes into constructor payload",
+    "alias-return-error.top":
+        "moves an owned value out of the borrow",
+    "alias-binder-move-error.top":
+        "can only be reborrowed",
+    "alias-ctor-payload-error.top":
+        "cannot be moved out",
+    "alias-write-own-error.top":
+        "cannot overwrite the owned value",
 }
 
 # ---------------------------------------------------------------------------

@@ -916,6 +916,114 @@ type `own&int` and holds a value classified as `Own`. The approved borrow is
 confined to the call, while `main : 1 destroy` confirms that the returned
 allocation remains live in `pointer` and is destroyed when `main` exits.
 
+### 11.1 Reading Through a Borrow of an Owned Value
+
+Dereferencing a borrow gives the value behind it. When that value is `Copy`
+the result is a copy. When it is `Own` -- a borrow of an owning reference, or
+of an algebraic value -- the result is the *same* owned value, still owned by
+the caller. Taking it would create a second owner.
+
+```top
+take(pointer) {
+  return *pointer;
+}
+
+main() {
+  var value, box, copy, alias;
+  value = 7;
+  copy = take(&value);
+  box = alloc 7;
+  alias = take(&box);
+  return copy;
+}
+```
+
+`take` is generic, `(borrow&α) -> α`, and its definition is fine. The first
+call reads an `int`. The second would return the very allocation `box` owns,
+and `main` would destroy both `box` and `alias`. The compiler decides at the
+call, where the argument's type is known:
+
+```text
+topc: call take(&box) on line 10 moves an owned value out of the borrow: callee
+'take' dereferences formal 'pointer' in a position that takes ownership
+```
+
+The same holds for the bindings a `case` introduces when it matches through a
+borrow. `height` below is the ordinary way to walk a tree without consuming
+it: `case *tree` reads the node, and the subtrees `l` and `r` are passed on as
+`&l` and `&r`. `leftmost` instead tries to hand a subtree back:
+
+```top
+type Tree = Leaf | Node(value, left, right);
+
+height(tree) {
+  var h, lh, rh;
+  case *tree of {
+    Leaf -> h = 0;
+    Node(v, l, r) -> {
+      lh = height(&l);
+      rh = height(&r);
+      if (lh > rh) { h = 1 + lh; } else { h = 1 + rh; }
+    }
+  }
+  return h;
+}
+
+leftmost(tree) {
+  var result;
+  case *tree of {
+    Leaf -> result = Leaf;
+    Node(v, l, r) -> result = l;
+  }
+  return result;
+}
+```
+
+```text
+topc: Ownership error on line 20: 'l' is bound by matching a borrowed value and
+can only be reborrowed (&l).
+```
+
+`v` is an `int` and may be used freely; `l` and `r` name subtrees that `main`
+still owns. Without `leftmost`, the program compiles and `--pownership`
+reports `height : 0 destroys` and `main : 1 destroy`: the tree is walked by
+borrow and freed once. To obtain an independent subtree, rebuild it (as
+`copy` does in the examples) or match the tree by value with `case tree of`,
+which consumes it.
+
+Writing through a borrow is allowed when the slot holds a `Copy` value
+(`increment` above). Overwriting an owned slot through a borrow is rejected,
+because the value being replaced would never be freed.
+
+### 11.2 A Borrow Is Not a Component
+
+A borrow may be a parameter and an argument, but it may not be stored inside
+another value. `wrap` receives a borrow and puts it in a constructor payload:
+
+```top
+type Chain = Nil | Link(head, tail);
+
+wrap(pointer) {
+  return Link(pointer, Nil);
+}
+
+main() {
+  var box, chain;
+  box = alloc 1;
+  chain = wrap(&box);
+  return 0;
+}
+```
+
+```text
+topc: Ownership error on line 1: payload 'head' of constructor Link holds a
+borrow (borrow&own&int); a borrow cannot be stored inside a value — pass it as
+an immediate call argument or store an owned value or a copy instead.
+```
+
+The check is on the inferred payload type, so it applies however the borrow
+got there. The same rule covers `alloc` payloads and function results.
+
 ## 12. Automatic Destruction
 
 TOP source has no manual `free`. After move analysis determines which bindings

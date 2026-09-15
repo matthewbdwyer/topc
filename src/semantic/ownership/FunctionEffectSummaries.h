@@ -27,6 +27,15 @@ public:
     BorrowFromFormal,
   };
 
+  /*! \brief What a generic body needs of an actual, decided per call site.
+   *
+   * A body that dereferences a borrowed formal in a position that takes the
+   * value (`read(p) { return *p; }`) is sound only when the referent is Copy;
+   * one that passes `&x` on to such a callee needs `x` itself to be Copy.
+   * The type is a variable at the definition, so the check moves to the call.
+   */
+  enum class CopyRequirement { None, Referent, Self, Both };
+
   struct Summary {
     std::string functionName;
     std::vector<std::string> formalNames;
@@ -34,6 +43,8 @@ public:
     /*! For each formal: on every path through the body the value is passed on
      *  as an argument of some call (so a callee takes responsibility for it). */
     std::vector<bool> formalForwarded;
+    /*! For each formal: what its actual must be for the body to be sound. */
+    std::vector<CopyRequirement> formalRequirement;
     ReturnOrigin returnOrigin = ReturnOrigin::Unknown;
     int returnFormalIndex = -1;
   };
@@ -50,9 +61,13 @@ public:
     std::vector<bool> consumes;
   };
 
+  /*! \param requirements Per-function requirements seeded by AliasCheck;
+   *  may be null. Propagated to callers and checked at every call site. */
   static std::shared_ptr<FunctionEffectSummaries>
   build(ASTProgram *ast, SymbolTable *sym, TypeInference *types,
-        OwnershipClassifier *classifier, CallGraph *cg);
+        OwnershipClassifier *classifier, CallGraph *cg,
+        const std::map<ASTDeclNode *, std::vector<CopyRequirement>>
+            *requirements = nullptr);
 
   const Summary *get(ASTDeclNode *functionDecl) const;
 

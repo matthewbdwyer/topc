@@ -10,6 +10,7 @@
 #include "ASTOutputStmt.h"
 #include "ASTProgram.h"
 #include "ASTReturnStmt.h"
+#include "ASTSumCtorExpr.h"
 #include "ASTVariableExpr.h"
 #include "ASTWhileStmt.h"
 #include "FunctionEffectSummaries.h"
@@ -161,6 +162,18 @@ void BorrowChecker::endVisit(ASTReturnStmt *element) {
   if (exprReturnsBorrow(element->getArg())) {
     rejectBorrowEscape(element->getArg(), "return");
   } // LCOV_EXCL_LINE -- unreachable brace: rejectBorrowEscape always throws
+}
+
+void BorrowChecker::endVisit(ASTSumCtorExpr *element) {
+  if (!checkCallReturns) {
+    return;
+  }
+  // A payload lives in a heap box that outlives the call: one more sink.
+  for (auto *payload : element->getArgs()) {
+    if (exprReturnsBorrow(payload)) {
+      rejectBorrowEscape(payload, "constructor payload");
+    } // LCOV_EXCL_LINE -- unreachable brace: rejectBorrowEscape always throws
+  }
 }
 
 void BorrowChecker::endVisit(ASTIfStmt *element) {

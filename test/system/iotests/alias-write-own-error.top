@@ -1,0 +1,16 @@
+// Writing a Copy through a borrow is legal (borrow-write.top). Writing an
+// *owned* value through a borrow is not: the old owned slot value would never
+// be freed. Here `set` would overwrite the int box `a` owns and leak it.
+type Flag = On | Off;
+
+set(p) {
+  *p = alloc 2;
+  return 0;
+}
+
+main() {
+  var a, d;
+  a = alloc 1;
+  d = set(&a);
+  return *a - 2;
+}

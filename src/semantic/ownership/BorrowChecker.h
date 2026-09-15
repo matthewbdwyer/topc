@@ -18,6 +18,7 @@ class ASTFunction;
 class ASTIfStmt;
 class ASTOutputStmt;
 class ASTReturnStmt;
+class ASTSumCtorExpr;
 class ASTWhileStmt;
 class FunctionEffectSummaries;
 class SymbolTable;
@@ -102,6 +103,7 @@ private:
   void endVisit(ASTOutputStmt *element) override;
   void endVisit(ASTErrorStmt *element) override;
   void endVisit(ASTReturnStmt *element) override;
+  void endVisit(ASTSumCtorExpr *element) override;
   void endVisit(ASTIfStmt *element) override;
   void endVisit(ASTWhileStmt *element) override;
 

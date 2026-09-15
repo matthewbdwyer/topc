@@ -1,0 +1,21 @@
+// Arm binders of `case *p` are aliases of payloads the caller still owns.
+// Binding x to a local moves it out of the borrowed cell: r would be freed by
+// `main` and again when `c` is destroyed. Reborrowing (&x) or reading through
+// it (*x) is fine; storing it is not.
+type Cell = Val(x) | Empty;
+
+get(p) {
+  var r;
+  case *p of {
+    Val(x) -> r = x;
+    Empty  -> r = alloc 0;
+  }
+  return r;
+}
+
+main() {
+  var c, x;
+  c = Val(alloc 1);
+  x = get(&c);
+  return *x;
+}

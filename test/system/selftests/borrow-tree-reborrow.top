@@ -1,0 +1,85 @@
+// Ownership: everything a borrowed structure permits, in one program.
+//
+// `size`, `sum`, and `copy` walk a borrowed tree with `case *e`. Their Own
+// arm binders are aliases of subtrees the caller still owns, so they are only
+// ever reborrowed (&a, &b) or read through; `copy` rebuilds a fresh tree from
+// Copy payloads and reborrowed subtrees. `consume` takes a tree by value with
+// `case e of`, so its binders are moved payloads and may be moved on. `peek`
+// reads a Copy through a borrow of an owned int with **p. `setVal` writes a
+// Copy through a borrow.
+//
+// Regression test: each of these idioms sits one step away from a rejected
+// program (moving an alias out, rewrapping a binder, storing a borrow) and
+// must stay accepted. The expected values are checked in place; LeakSanitizer
+// checks that every tree is freed exactly once.
+type Expr = Num(n) | X | Add(l, r);
+
+size(e) {
+  var r;
+  case *e of {
+    Num(n)    -> r = 1;
+    X         -> r = 1;
+    Add(a, b) -> r = 1 + size(&a) + size(&b);
+  }
+  return r;
+}
+
+sum(e, x) {
+  var r;
+  case *e of {
+    Num(n)    -> r = n;
+    X         -> r = x;
+    Add(a, b) -> r = sum(&a, x) + sum(&b, x);
+  }
+  return r;
+}
+
+copy(e) {
+  var r;
+  case *e of {
+    Num(n)    -> r = Num(n);
+    X         -> r = X;
+    Add(a, b) -> r = Add(copy(&a), copy(&b));
+  }
+  return r;
+}
+
+// Consumes its argument: by-value case moves the payloads out of the box.
+consume(e) {
+  var r;
+  case e of {
+    Num(n)    -> r = n;
+    X         -> r = 0;
+    Add(a, b) -> r = consume(a) + consume(b);
+  }
+  return r;
+}
+
+peek(p) { return **p; }
+
+setVal(p, v) { *p = v; return 0; }
+
+main() {
+  var f, g, n, k, d;
+
+  f = Add(Num(1), Add(X, Num(2)));   // 1 + (x + 2): 5 nodes
+  if (size(&f) != 5) error size(&f);
+  if (sum(&f, 10) != 13) error sum(&f, 10);
+
+  g = copy(&f);                      // fresh tree, f still owned and usable
+  if (size(&g) != 5) error size(&g);
+  if (sum(&f, 1) != sum(&g, 1)) error 1;
+
+  if (consume(g) != 3) error 2;      // g moved into consume and freed there
+  if (size(&f) != 5) error 3;        // f untouched by consuming its copy
+
+  n = alloc 42;
+  if (peek(&n) != 42) error peek(&n);
+  if (peek(&n) != 42) error 4;       // borrowing twice does not move n
+
+  k = 1;
+  d = setVal(&k, 9);
+  if (k != 9) error k;
+
+  return 0;                          // f and n destroyed here, once each
+}

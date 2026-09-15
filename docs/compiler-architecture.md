@@ -20,11 +20,14 @@ A full compilation processes a program in this order:
 6. Build the call graph.
 7. Infer types and generalized function schemes.
 8. Classify inferred types for ownership.
-9. Derive function-effect summaries.
-10. Validate interprocedural borrow provenance.
-11. Analyze ownership moves.
-12. Insert automatic destruction.
-13. Generate and optionally optimize LLVM bitcode.
+9. Check that owned values reached through borrows are only reborrowed or read
+   (`AliasCheck`), recording per-formal copy requirements for generic bodies.
+10. Derive function-effect summaries; judge copy requirements at each call.
+11. Validate interprocedural borrow provenance.
+12. Reject borrows stored as components of values or results.
+13. Analyze ownership moves.
+14. Insert automatic destruction.
+15. Generate and optionally optimize LLVM bitcode.
 
 The source CFG is built before destruction insertion so analysis views continue
 to represent the program the student wrote. Inspection-only driver paths run
@@ -164,6 +167,25 @@ Each return has one origin:
 - `BorrowFromFormal(i)`: the result is derived from a borrow of formal `i`.
 - `Unknown`: the analysis cannot establish one of the preceding origins.
 
+When body provenance yields no origin and the return type classifies as
+`Own`, the summary records `FreshOwn`. That fallback is sound only because the
+alias check (below) excludes every way an *alias* of a caller's value -- the
+value behind a borrowed formal, or a payload bound by matching through one --
+could reach a return, an assignment, a payload, or a call argument. With those
+excluded, an owned result of unknown provenance can only be a fresh box or a
+call result whose own summary is sound.
+
+Each formal also carries a **copy requirement**, seeded by `AliasCheck`:
+`Referent` (the value behind a borrowed actual must be `Copy`, because the
+body takes `*p`), `Self` (the actual itself must be `Copy`, because the body
+passes `&p` to a callee with a `Referent` requirement), or both. A generic
+body such as `read(p) { return *p; }` is accepted at its definition; the
+requirement is judged at each call site against the actual's solved type.
+Where the actual's type is still generic, the requirement moves to the
+enclosing function's formal and the loop runs to a fixed point. A concrete
+violation is rejected at the call (`call take(&a) ... moves an owned value out
+of the borrow`).
+
 For example, the principal type of `identity` remains polymorphic. Its summary
 states that the return comes from formal 0. At an `int` instantiation the call
 copies; at an owning-reference instantiation it transfers ownership into the
@@ -183,12 +205,27 @@ payload is moved, so both are tracked exactly like owned locals. It rejects
 uses after move, repeated moves, overwriting a live owner, and incompatible
 ownership state at control-flow joins.
 
-Borrow validation has two responsibilities at different stages:
+Borrow validation has four responsibilities at different stages:
 
 1. The early check enforces the source rule that a direct borrow expression must
    be an immediate call argument.
-2. The summary-aware check follows borrow-derived call results and rejects
-   escape into storage, return, arithmetic, conditions, `output`, or `error`.
+2. `AliasCheck`, after type inference, enforces that an owned value reached
+   through a borrow is never taken. An *alias* is an `Own`-typed dereference
+   of a borrow or an `Own`-typed arm binding of `case *e`. It may appear only
+   under `&` (reborrow), under another `*` (a `Copy` read through it), as a
+   `case *e` scrutinee, or as an assignment target whose slot is `Copy`.
+   Anywhere else -- return, assignment, call argument, constructor payload,
+   by-value `case` -- is rejected. A dereference whose type is still a
+   variable becomes a copy requirement on the formal (see above).
+3. The summary-aware check follows borrow-derived call results and rejects
+   escape into storage, return, constructor payloads, arithmetic, conditions,
+   `output`, or `error`.
+4. `CheckBorrowComponents`, after the summary-aware check, rejects a borrow
+   mode anywhere inside a sum-type payload, an `alloc` payload, or a
+   function's return type. This is a type-level rule: a borrow-typed
+   *variable* stored into a box is invisible to the flow-based checks, but
+   its inferred payload type is not. Formals and locals are not checked;
+   that is where a borrow legitimately lives.
 
 A borrow-derived result may continue through an immediate chain of call
 arguments. A function that receives a borrow may independently return
