@@ -21,6 +21,7 @@
 #include "ASTWhileStmt.h"
 #include "SemanticError.h"
 
+#include <algorithm>
 #include <optional>
 #include <set>
 #include <sstream>
@@ -34,8 +35,7 @@ std::vector<MoveAnalysis::MoveTraceEvent> MoveAnalysis::lastTrace;
 MoveAnalysis::MoveAnalysis(ASTProgram *ast, SymbolTable *sym,
                            OwnershipClassifier *oc,
                            FunctionEffectSummaries *effects)
-  : program(ast), sym(sym), classifier(oc), functionEffects(effects),
-    currentFuncDecl(nullptr) {
+  : sym(sym), classifier(oc), functionEffects(effects) {
   SEMANTIC_LOG(1, "move-analysis") << "start";
   for (auto *f : ast->getFunctions()) {
     analyzeFunction(f);
@@ -55,15 +55,10 @@ const std::vector<MoveAnalysis::MoveTraceEvent> &MoveAnalysis::getLastTrace() {
 
 void MoveAnalysis::analyzeFunction(ASTFunction *f) {
   currentFuncDecl = f->getDecl();
-  currentFormals.clear();
-  for (auto *param : f->getFormals()) {
-    currentFormals.insert(param);
-  }
 
   // Initial state: Own locals start uninitialized (no entry in the map). An
   // owned formal is owned by the callee (the caller moved it in by value), so
-  // it starts Owned -- exactly as the destruction pass models it -- and is
-  // therefore subject to the same double-move and join-agreement checks.
+  // it starts Owned and is subject to the same checks as a local.
   StateMap state;
   for (auto *param : f->getFormals()) {
     if (classifier->classify(param) == OwnershipClass::Own) {
@@ -75,6 +70,18 @@ void MoveAnalysis::analyzeFunction(ASTFunction *f) {
   for (auto *stmt : f->getStmts()) {
     state = analyzeStmt(stmt, std::move(state));
   }
+
+  // Whatever is still Owned at the exit is destroyed there, in name order.
+  std::vector<ASTDeclNode *> owned;
+  for (auto &[decl, s] : state) {
+    if (s == OwnershipState::Owned) {
+      owned.push_back(decl);
+    }
+  }
+  std::sort(owned.begin(), owned.end(), [](ASTDeclNode *a, ASTDeclNode *b) {
+    return a->getName() < b->getName();
+  });
+  plan.atExit.push_back({f, std::move(owned)});
 }
 
 // ---------------------------------------------------------------------------
@@ -106,7 +113,7 @@ MoveAnalysis::StateMap MoveAnalysis::analyzeStmt(ASTStmt *stmt, StateMap state) 
         (ifStmt->getElse() != nullptr)
             ? analyzeStmt(ifStmt->getElse(), state)
             : state; // implicit else: state unchanged
-    return joinStates({thenState, elseState}, true);
+    return joinStates({thenState, elseState});
   }
 
   // While loop: the condition runs once more than the body, so neither may
@@ -169,7 +176,7 @@ MoveAnalysis::StateMap MoveAnalysis::analyzeStmt(ASTStmt *stmt, StateMap state) 
     if (armStates.empty()) {
       return state; // LCOV_EXCL_LINE -- the parser requires at least one arm
     }
-    return joinStates(armStates, true);
+    return joinStates(armStates);
   }
 
   // Unknown statement type: no ownership state change.
@@ -181,8 +188,7 @@ MoveAnalysis::StateMap MoveAnalysis::analyzeStmt(ASTStmt *stmt, StateMap state) 
 // ---------------------------------------------------------------------------
 
 std::vector<ASTDeclNode *>
-MoveAnalysis::ownedBinders(ASTCaseArm *arm, bool byValue,
-                           OwnershipClassifier *classifier) {
+MoveAnalysis::ownedBinders(ASTCaseArm *arm, bool byValue) const {
   std::vector<ASTDeclNode *> binders;
   if (!byValue) {
     return binders; // `case *p` binders are aliases, owned by the scrutinee
@@ -202,7 +208,8 @@ MoveAnalysis::StateMap MoveAnalysis::analyzeArm(ASTCaseArm *arm, bool byValue,
   // the previous entry (an enclosing binder or local of the same name) is
   // restored when the arm ends.
   std::vector<std::pair<ASTDeclNode *, std::optional<OwnershipState>>> saved;
-  for (auto *binder : ownedBinders(arm, byValue, classifier)) {
+  auto binders = ownedBinders(arm, byValue);
+  for (auto *binder : binders) {
     ASTDeclNode *key = resolveVar(binder->getName());
     if (key == nullptr) {
       key = binder; // LCOV_EXCL_LINE -- every binding is registered by name
@@ -216,8 +223,19 @@ MoveAnalysis::StateMap MoveAnalysis::analyzeArm(ASTCaseArm *arm, bool byValue,
                      "ownership received from the matched payload"});
   }
   state = analyzeStmt(arm->getBody(), std::move(state));
-  // A binder goes out of scope at the end of its arm; the destruction pass
-  // frees it there if it is still Owned. It takes no part in the join.
+  // A binder goes out of scope at the end of its arm: if it is still Owned it
+  // is destroyed there, and it takes no part in the join. The destroy names
+  // the arm's own binding, whose storage and type code generation has in scope.
+  std::vector<ASTDeclNode *> owned;
+  for (std::size_t i = 0; i < binders.size(); ++i) {
+    auto it = state.find(saved[i].first);
+    if (it != state.end() && it->second == OwnershipState::Owned) {
+      owned.push_back(binders[i]);
+    }
+  }
+  if (!owned.empty()) {
+    plan.atArmEnd.push_back({arm, std::move(owned)});
+  }
   for (auto &[key, previous] : saved) {
     if (previous.has_value()) {
       state[key] = *previous;
@@ -462,7 +480,7 @@ ASTDeclNode *MoveAnalysis::resolveVar(const std::string &name) const {
 // ---------------------------------------------------------------------------
 
 MoveAnalysis::StateMap
-MoveAnalysis::joinStates(const std::vector<StateMap> &branches, bool check) {
+MoveAnalysis::joinStates(const std::vector<StateMap> &branches) {
   // A variable is Owned after the join only if it is Owned on every branch.
   // Destruction is decided statically, so it may not be Owned on some
   // branches and not others. Not Owned (never assigned, or Moved) on every
@@ -492,7 +510,7 @@ MoveAnalysis::joinStates(const std::vector<StateMap> &branches, bool check) {
       joined[decl] = OwnershipState::Owned;
       continue;
     }
-    if (owned > 0 && check) {
+    if (owned > 0) {
       std::ostringstream oss;
       oss << "ownership state disagreement at control-flow join for "
              "an Own variable: ";

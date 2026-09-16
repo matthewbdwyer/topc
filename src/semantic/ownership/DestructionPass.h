@@ -1,60 +1,21 @@
 #pragma once
 
-#include "ASTDeclNode.h"
-#include "ASTProgram.h"
-#include "FunctionEffectSummaries.h"
 #include "MoveAnalysis.h"
-#include "OwnershipClassifier.h"
-#include "SymbolTable.h"
 
-#include <map>
-#include <set>
-#include <string>
-
-class ASTAssignStmt;
-class ASTBlockStmt;
-class ASTCaseArm;
-class ASTNode;
-class ASTFunction;
-class ASTIfStmt;
-class ASTReturnStmt;
-class ASTStmt;
-class ASTWhileStmt;
+class ASTProgram;
 
 /*!
  * \class DestructionPass
- * \brief Insert ASTDestroyStmt nodes before function returns.
+ * \brief Insert ASTDestroyStmt nodes where MoveAnalysis found owners still
+ *        Owned: before each function's return, and at the end of each case
+ *        arm whose owned binders were not moved on.
  *
- * Re-runs a simplified forward ownership dataflow (without error checking —
- * the program has already been validated by MoveAnalysis) to determine which
- * Own variables are still Owned at each function's return point, then inserts
- * ASTDestroyStmt nodes for each such variable before the return statement.
+ * The decisions come from MoveAnalysis::destructionPlan(), computed by the
+ * walk that checked the program, so there is no second ownership walk to
+ * disagree with the first. This pass only rewrites the AST.
  */
 class DestructionPass {
 public:
-  using OwnershipState = MoveAnalysis::OwnershipState;
-  using StateMap       = MoveAnalysis::StateMap;
-
-  /*! \brief Run the pass over every function in \p ast. */
-  static void run(ASTProgram *ast, SymbolTable *sym, OwnershipClassifier *oc,
-                  FunctionEffectSummaries *effects);
-
-private:
-  SymbolTable *sym;
-  OwnershipClassifier *classifier;
-  FunctionEffectSummaries *functionEffects;
-  ASTDeclNode *currentFuncDecl = nullptr;
-  std::set<ASTDeclNode *> currentFormals;
-
-  DestructionPass(SymbolTable *sym, OwnershipClassifier *oc,
-                  FunctionEffectSummaries *effects);
-
-  void      processFunction(ASTFunction *f);
-  StateMap  analyzeStmt(ASTStmt *stmt, StateMap state);
-  StateMap  analyzeAssign(ASTAssignStmt *stmt, StateMap state);
-  StateMap  processArm(ASTCaseArm *arm, bool byValue, StateMap state);
-  void consumeCallArgMoves(ASTNode *node, StateMap &state);
-
-  /*! \brief Resolve a variable name to its ASTDeclNode in the current scope. */
-  ASTDeclNode *resolveVar(const std::string &name) const;
+  /*! \brief Insert the destroys \p plan calls for. */
+  static void run(ASTProgram *ast, const MoveAnalysis::DestructionPlan &plan);
 };

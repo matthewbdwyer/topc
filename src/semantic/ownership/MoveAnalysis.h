@@ -13,6 +13,7 @@
 #include <vector>
 
 class ASTCaseArm;
+class ASTFunction;
 class ASTVariableExpr;
 
 /*!
@@ -38,6 +39,10 @@ class ASTVariableExpr;
  *   Owned binders of a by-value case are Owned for the arm and go out of
  *   scope at its end (freed there by DestructionPass if still Owned).
  *
+ * The same walk records where destruction is needed (destructionPlan()):
+ * owners still Owned at a function's exit, and owned binders still Owned at
+ * the end of their arm. DestructionPass inserts the destroys.
+ *
  * \throws SemanticError on any violation.
  */
 class MoveAnalysis {
@@ -52,6 +57,16 @@ public:
   enum class OwnershipState { Owned, Moved };
   using StateMap = std::map<ASTDeclNode *, OwnershipState>;
 
+  /*! \brief Where destruction must be inserted, computed by the same walk
+   *  that checks the program, so checking and destruction cannot disagree.
+   *  DestructionPass applies it. */
+  struct DestructionPlan {
+    /// Owners still Owned at each function's exit, sorted by name.
+    std::vector<std::pair<ASTFunction *, std::vector<ASTDeclNode *>>> atExit;
+    /// Owned binders of a by-value case still Owned at the end of each arm.
+    std::vector<std::pair<ASTCaseArm *, std::vector<ASTDeclNode *>>> atArmEnd;
+  };
+
   /*! \brief Run the analysis over every function in \p ast.
    *
    * \throws SemanticError on any ownership violation.
@@ -62,29 +77,16 @@ public:
   /*! \brief Returns retained trace events from the most recent run. */
   static const std::vector<MoveTraceEvent> &getLastTrace();
 
-  /*! \brief Owned binders of \p arm (none for a borrowed scrutinee). */
-  static std::vector<ASTDeclNode *>
-  ownedBinders(ASTCaseArm *arm, bool byValue, OwnershipClassifier *classifier);
-
-  /*! \brief Join branch states. A variable Owned on some branches but not
-   *  all is a disagreement (thrown when \p check); Owned on all stays Owned,
-   *  Moved on any other is Moved, otherwise uninitialized (absent). Shared
-   *  with DestructionPass so the two passes cannot disagree about a join.
-   */
-  static StateMap joinStates(const std::vector<StateMap> &branches, bool check);
-
-  /*! \brief A loop body may not change which Own variables are Owned. */
-  static void assertLoopInvariant(const StateMap &preState,
-                                  const StateMap &bodyState, int line);
+  /*! \brief Where the checked program needs destruction. */
+  const DestructionPlan &destructionPlan() const { return plan; }
 
 private:
-  ASTProgram *program;
   SymbolTable *sym;
   OwnershipClassifier *classifier;
   FunctionEffectSummaries *functionEffects;
-  ASTDeclNode *currentFuncDecl; ///< set while analysing a function
-  std::set<ASTDeclNode *> currentFormals;
+  ASTDeclNode *currentFuncDecl = nullptr; ///< set while analysing a function
   std::vector<MoveTraceEvent> trace;
+  DestructionPlan plan;
   /// Borrowed owners of each call whose actuals are being evaluated.
   std::vector<std::pair<ASTFunAppExpr *, std::set<ASTDeclNode *>>> heldBorrows;
   /// Variables moved so far in the current statement (for the message).
@@ -116,6 +118,18 @@ private:
    *  progress; record the trace event. */
   void consumeVar(ASTVariableExpr *varExpr, ASTDeclNode *decl, StateMap &state,
                   const char *reason);
+
+  /*! \brief Owned binders of \p arm (none for a borrowed scrutinee). */
+  std::vector<ASTDeclNode *> ownedBinders(ASTCaseArm *arm, bool byValue) const;
+
+  /*! \brief Join branch states. A variable Owned on some branches but not
+   *  all is a disagreement; Owned on all stays Owned, Moved on any other is
+   *  Moved, otherwise uninitialized (absent). */
+  static StateMap joinStates(const std::vector<StateMap> &branches);
+
+  /*! \brief A loop body may not change which Own variables are Owned. */
+  static void assertLoopInvariant(const StateMap &preState,
+                                  const StateMap &bodyState, int line);
 
   /*! \brief Owners borrowed (`&x`) anywhere inside \p node. */
   void collectBorrowedOwners(ASTNode *node,

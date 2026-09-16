@@ -39,10 +39,9 @@ std::shared_ptr<SemanticAnalysis> SemanticAnalysis::analyze(ASTProgram *ast) {
   BorrowChecker::checkInterprocedural(ast, symTable.get(),
                                       functionEffectSummaries.get());
   OwnershipTypeRules::checkBorrowComponents(ast, symTable.get(), typeResults.get());
-  MoveAnalysis(ast, symTable.get(), ownershipClassifier.get(),
+  MoveAnalysis moves(ast, symTable.get(), ownershipClassifier.get(),
                functionEffectSummaries.get());
-  DestructionPass::run(ast, symTable.get(), ownershipClassifier.get(),
-                       functionEffectSummaries.get());
+  DestructionPass::run(ast, moves.destructionPlan());
   SEMANTIC_LOG(1, "pipeline") << "complete";
   return std::make_shared<SemanticAnalysis>(symTable, intraproceduralCFGs,
                                             typeResults, callGraph,

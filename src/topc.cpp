@@ -646,10 +646,9 @@ int main(int argc, char *argv[]) {
           return;
         }
         ensureInterproceduralBorrowChecker();
-        MoveAnalysis(ast.get(), symTable.get(), ownershipClassifier.get(),
+        MoveAnalysis moves(ast.get(), symTable.get(), ownershipClassifier.get(),
                      functionEffectSummaries.get());
-        DestructionPass::run(ast.get(), symTable.get(), ownershipClassifier.get(),
-                             functionEffectSummaries.get());
+        DestructionPass::run(ast.get(), moves.destructionPlan());
         ownershipChecked = true;
       };
 
