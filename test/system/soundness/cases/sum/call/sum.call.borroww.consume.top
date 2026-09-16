@@ -1,0 +1,16 @@
+// soundness grid case sum.call.borroww.consume
+// kind=sum context=call op1=borroww op2=consume
+// expect: reject (borrows it; a borrowed owner must stay alive)
+type Cell = Val(n) | Nope;
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+consume(p) { var t; t = 0; case p of { Val(n) -> t = n; Nope -> t = 0; } return t; }
+lookw(q) { var t; t = 0; case *q of { Val(_) -> t = 1; Nope -> t = 0; } return t; }
+pair(a1, a2) { return lookw(a1) + consume(a2); }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = Val(5);
+  r = r + pair(&x, x);
+  return 0;
+}

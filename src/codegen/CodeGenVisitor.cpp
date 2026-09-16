@@ -669,27 +669,14 @@ llvm::Value *CodeGenVisitor::generate(ASTDeRefExpr *node) {
   // directly is never bound to a variable, so no destroy statement will free
   // it. Its referent is always Copy (an owning pointer's payload cannot own),
   // so once the value is read the reference can be freed here.
-  if (isUnboundOwnedReference(node->getPtr())) {
+  const auto *plan = semanticAnalysis_->getDestructionPlan();
+  if (plan != nullptr && plan->freeAfterUse.count(node) > 0) {
     ensureFreeDecl(ctx);
     ctx.irBuilder.CreateCall(ctx.freeFun, {address});
   }
   return value;
 }
 
-bool CodeGenVisitor::isUnboundOwnedReference(ASTExpr *operand) {
-  if (!RuleToggles::enabled("free-unbound-reference")) {
-    return false;
-  }
-  if (dynamic_cast<ASTFunAppExpr *>(operand) == nullptr &&
-      dynamic_cast<ASTAllocExpr *>(operand) == nullptr) {
-    return false;
-  }
-  auto operandType =
-      semanticAnalysis_->getTypeResults()->getInferredType(operand);
-  return operandType != nullptr &&
-         OwnershipClassifier::classifyType(operandType.get()) ==
-             OwnershipClass::Own;
-}
 
 llvm::Value *CodeGenVisitor::generate(ASTDeclNode *node) {
   throw InternalError("Declarations do not emit code");
@@ -743,9 +730,10 @@ llvm::Value *CodeGenVisitor::generate(ASTAssignStmt *node) {
   // `*mk() = v`: an owning reference produced by a call or an alloc is never
   // bound to a variable, so free it once the write is done (see the rvalue
   // case in generate(ASTDeRefExpr)).
-  if (pointerAssign) {
-    auto *target = dynamic_cast<ASTDeRefExpr *>(node->getLHS())->getPtr();
-    if (isUnboundOwnedReference(target)) {
+  const auto *plan = semanticAnalysis_->getDestructionPlan();
+  if (pointerAssign && plan != nullptr) {
+    auto *target = dynamic_cast<ASTDeRefExpr *>(node->getLHS());
+    if (plan->freeAfterUse.count(target) > 0) {
       ensureFreeDecl(ctx);
       ctx.irBuilder.CreateCall(ctx.freeFun, {lValue});
     }
@@ -1076,16 +1064,59 @@ llvm::Value *CodeGenVisitor::generate(ASTDestroyStmt *node) {
 // Pattern matching helper (Phase B4)
 // ---------------------------------------------------------------------------
 
-void CodeGenVisitor::emitPatternMatch(llvm::Value *basePtr, int64_t offset,
-                                       ASTPattern *pat, ASTDeclNode *paramDecl,
-                                       llvm::BasicBlock *failBB,
-                                       llvm::Function *func,
-                                       CodeGenContext &ctx) {
+void CodeGenVisitor::emitPatternTest(llvm::Value *basePtr, int64_t offset,
+                                     ASTPattern *pat, llvm::BasicBlock *failBB,
+                                     llvm::Function *func, CodeGenContext &ctx) {
+  auto *cp = dynamic_cast<ASTCtorPattern *>(pat);
+  if (cp == nullptr) {
+    return; // a variable or wildcard matches anything
+  }
   auto &builder = ctx.irBuilder;
-  auto *i64Ty   = llvm::Type::getInt64Ty(ctx.llvmContext);
-  auto *ptrTy   = llvm::PointerType::get(ctx.llvmContext, 0);
+  auto *i64Ty = llvm::Type::getInt64Ty(ctx.llvmContext);
+  auto *ptrTy = llvm::PointerType::get(ctx.llvmContext, 0);
 
-  // Load the field value at the given offset within basePtr.
+  auto *fieldGEP = builder.CreateInBoundsGEP(
+      i64Ty, basePtr, {llvm::ConstantInt::get(i64Ty, offset)}, "pat.gep");
+  auto *fieldVal = builder.CreateLoad(i64Ty, fieldGEP, "pat.val");
+  auto *innerPtr = builder.CreateIntToPtr(fieldVal, ptrTy, "inner.ptr");
+  auto *innerTag = builder.CreateLoad(i64Ty, innerPtr, "inner.tag");
+
+  // Resolve the inner constructor's tag index.
+  auto *innerOwnerDecl =
+      semanticAnalysis_->getSymbolTable()->getConstructorOwner(cp->getTag());
+  int innerTagIdx = 0;
+  if (innerOwnerDecl) {
+    int idx = 0;
+    for (auto *v : innerOwnerDecl->getVariants()) {
+      if (v->getTag() == cp->getTag()) {
+        innerTagIdx = idx;
+        break;
+      }
+      ++idx;
+    }
+  }
+
+  auto *expected = llvm::ConstantInt::get(i64Ty, innerTagIdx);
+  auto *cond = builder.CreateICmpEQ(innerTag, expected, "ctor.cmp");
+  auto *matchBB = llvm::BasicBlock::Create(ctx.llvmContext, "ctor.ok", func);
+  builder.CreateCondBr(cond, matchBB, failBB);
+  builder.SetInsertPoint(matchBB);
+
+  auto subPats = cp->getSubPatterns();
+  for (std::size_t j = 0; j < subPats.size(); ++j) {
+    emitPatternTest(innerPtr, static_cast<int64_t>(j + 1), subPats[j], failBB,
+                    func, ctx);
+  }
+}
+
+void CodeGenVisitor::emitPatternBind(llvm::Value *basePtr, int64_t offset,
+                                     ASTPattern *pat, ASTDeclNode *paramDecl,
+                                     bool consuming, llvm::Function *func,
+                                     CodeGenContext &ctx) {
+  auto &builder = ctx.irBuilder;
+  auto *i64Ty = llvm::Type::getInt64Ty(ctx.llvmContext);
+  auto *ptrTy = llvm::PointerType::get(ctx.llvmContext, 0);
+
   auto *fieldGEP = builder.CreateInBoundsGEP(
       i64Ty, basePtr, {llvm::ConstantInt::get(i64Ty, offset)}, "pat.gep");
   auto *fieldVal = builder.CreateLoad(i64Ty, fieldGEP, "pat.val");
@@ -1097,61 +1128,40 @@ void CodeGenVisitor::emitPatternMatch(llvm::Value *basePtr, int64_t offset,
     ctx.namedValues[vp->getName()] = alloca;
 
   } else if (dynamic_cast<ASTWildcardPattern *>(pat)) {
-    // Wildcard: the payload is discarded, not moved out. If it is owned, free it
-    // here (the box shell free below does not recurse into it).
-    if (paramDecl) {
+    // Wildcard: the payload is discarded. In a consuming match an owned
+    // payload is destroyed (MoveAnalysis decided which).
+    const auto *plan = semanticAnalysis_->getDestructionPlan();
+    if (paramDecl && plan != nullptr && plan->discardedPayloads.count(pat) > 0) {
       auto typeShared =
           semanticAnalysis_->getTypeResults()->getInferredType(paramDecl);
-      if (typeShared &&
-          OwnershipClassifier::classifyType(typeShared.get()) ==
-              OwnershipClass::Own) {
-        emitDestroyValue(fieldVal, typeShared.get(), ctx);
-      }
+      emitDestroyValue(fieldVal, typeShared.get(), ctx);
     }
 
   } else if (auto *cp = dynamic_cast<ASTCtorPattern *>(pat)) {
-    // Nested constructor pattern: extract inner sum-type pointer, check tag.
     auto *innerPtr = builder.CreateIntToPtr(fieldVal, ptrTy, "inner.ptr");
-    auto *innerTag = builder.CreateLoad(i64Ty, innerPtr, "inner.tag");
-
-    // Resolve the inner constructor's tag index and parameter list.
-    auto *symTab          = semanticAnalysis_->getSymbolTable();
-    auto *innerOwnerDecl  = symTab->getConstructorOwner(cp->getTag());
-    int   innerTagIdx     = 0;
     std::vector<ASTDeclNode *> innerParams;
-    if (innerOwnerDecl) {
-      int idx = 0;
+    if (auto *innerOwnerDecl =
+            semanticAnalysis_->getSymbolTable()->getConstructorOwner(
+                cp->getTag())) {
       for (auto *v : innerOwnerDecl->getVariants()) {
         if (v->getTag() == cp->getTag()) {
-          innerTagIdx  = idx;
-          innerParams  = v->getParams();
+          innerParams = v->getParams();
           break;
         }
-        ++idx;
       }
     }
-
-    // Conditional branch: jump to matchBB if the inner tag matches, failBB if not.
-    auto *expected = llvm::ConstantInt::get(i64Ty, innerTagIdx);
-    auto *cond     = builder.CreateICmpEQ(innerTag, expected, "ctor.cmp");
-    auto *matchBB  = llvm::BasicBlock::Create(ctx.llvmContext, "ctor.ok", func);
-    builder.CreateCondBr(cond, matchBB, failBB);
-    builder.SetInsertPoint(matchBB);
-
-    // Recurse: match sub-patterns against the inner struct's payload slots.
     auto subPats = cp->getSubPatterns();
     for (std::size_t j = 0; j < subPats.size(); ++j) {
-      ASTDeclNode *subDecl =
-          (j < innerParams.size()) ? innerParams[j] : nullptr;
-      emitPatternMatch(innerPtr, static_cast<int64_t>(j + 1), subPats[j],
-                       subDecl, failBB, func, ctx);
+      ASTDeclNode *subDecl = (j < innerParams.size()) ? innerParams[j] : nullptr;
+      emitPatternBind(innerPtr, static_cast<int64_t>(j + 1), subPats[j], subDecl,
+                      consuming, func, ctx);
     }
-
-    // The inner sum is consumed by this nested pattern (its owned sub-payloads
-    // were moved into bindings or freed as wildcards); free its box shell.
-    ensureFreeDecl(ctx);
-    builder.CreateCall(ctx.freeFun, {innerPtr});
-
+    // A consuming match takes the nested sum apart too: its owned payloads
+    // were moved into bindings or destroyed as wildcards; free its box shell.
+    if (consuming) {
+      ensureFreeDecl(ctx);
+      builder.CreateCall(ctx.freeFun, {innerPtr});
+    }
   }
 }
 
@@ -1224,6 +1234,8 @@ llvm::Value *CodeGenVisitor::generate(ASTCaseStmt *node) {
   // Build a variant-name → tag-index map and variant-name → params map.
   auto arms    = node->getArms();
   auto *symTab = semanticAnalysis_->getSymbolTable();
+  const auto *plan = semanticAnalysis_->getDestructionPlan();
+  bool consuming = plan != nullptr && plan->consumingMatches.count(node) > 0;
   auto *ownerDecl = symTab->getConstructorOwner(arms[0]->getTag());
 
   std::map<std::string, int>                    variantIndex;
@@ -1304,13 +1316,19 @@ llvm::Value *CodeGenVisitor::generate(ASTCaseStmt *node) {
         }
       }
 
-      // Emit pattern bindings for each payload position of this arm.
+      // First test every pattern of the arm, with no side effects: a later
+      // pattern can still fail and fall through to the next arm. Only then
+      // bind, and, in a consuming match, free what the arm takes apart.
       auto patterns = arm->getPatterns();
+      for (std::size_t pi = 0; pi < patterns.size(); ++pi) {
+        emitPatternTest(caseExprPtr, static_cast<int64_t>(pi + 1), patterns[pi],
+                        failBB, TheFunction, ctx);
+      }
       for (std::size_t pi = 0; pi < patterns.size(); ++pi) {
         ASTDeclNode *paramDecl =
             (pi < params.size()) ? params[pi] : nullptr;
-        emitPatternMatch(caseExprPtr, static_cast<int64_t>(pi + 1),
-                         patterns[pi], paramDecl, failBB, TheFunction, ctx);
+        emitPatternBind(caseExprPtr, static_cast<int64_t>(pi + 1), patterns[pi],
+                        paramDecl, consuming, TheFunction, ctx);
       }
 
       // Generate the arm body (all pattern tests passed).
@@ -1349,11 +1367,10 @@ llvm::Value *CodeGenVisitor::generate(ASTCaseStmt *node) {
   TheFunction->insert(TheFunction->end(), MergeBB);
   ctx.irBuilder.SetInsertPoint(MergeBB);
 
-  // A by-value (non-borrowed) sum scrutinee is consumed by the match: its owned
-  // payloads were moved into the arm bindings (or freed as wildcards), so only
-  // the top box remains — free it here. A borrowed scrutinee (`case *p`) is not
-  // consumed and must not be freed.
-  if (dynamic_cast<ASTDeRefExpr *>(node->getCaseExpr()) == nullptr) {
+  // A consuming (by-value) match: its owned payloads were moved into the arm
+  // bindings or destroyed as wildcards, so only the top box remains — free it
+  // here. A borrowed scrutinee (`case *p`) is not consumed.
+  if (consuming) {
     ensureFreeDecl(ctx);
     auto *boxToFree = ctx.irBuilder.CreateIntToPtr(
         caseExprInt, llvm::PointerType::get(ctx.llvmContext, 0), "case.box");

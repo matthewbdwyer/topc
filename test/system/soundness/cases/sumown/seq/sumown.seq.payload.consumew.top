@@ -1,0 +1,15 @@
+// soundness grid case sumown.seq.payload.consumew
+// kind=sumown context=seq op1=payload op2=consumew
+// expect: reject (used after move | moved more than once | assigned while still owned)
+type Box = Full(v) | Empty;
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+consumew(p) { var t; t = 0; case p of { Full(_) -> t = 1; Empty -> t = 0; } return t; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = Full(alloc 5);
+  w = Wrap(x);
+  r = r + consumew(x);
+  return 0;
+}

@@ -9,10 +9,10 @@ TOPCLANG=/path/to/clang ./bin/runtests.sh -s -- --soundness -j 10
 RTLIB=build/rtlib TOPCLANG=/path/to/clang python3 test/system/run.py --soundness -j 10
 ```
 
-About 1,100 programs; each is compiled with `--san`, and each accepted
+About 1,550 programs; each is compiled with `--san`, and each accepted
 program is linked with AddressSanitizer and run twice (`main(0)`, `main(1)`)
-with LeakSanitizer on. A full run takes about a minute with `-j 10` on a
-10-core machine (roughly 8 CPU-minutes). Run it before pushing any change to
+with LeakSanitizer on. A full run takes under a minute and a half with `-j 10`
+on a 10-core machine. Run it before pushing any change to
 the ownership passes (`src/semantic/ownership/`), the weeding borrow check,
 or destruction-related code generation.
 
@@ -24,7 +24,7 @@ a **context**:
 | Dimension | Values |
 | --- | --- |
 | kind | `int` (Copy), `own` (`own&int`), `sum` (sum with a Copy payload), `sumown` (sum with an owned payload) |
-| operation | `assign` (`y = x`), `consume` (by-value call), `ident` (generic identity), `borrow` (`look(&x)`), `read` (`*x`), `write` (`*x = 3`), `casev` (by-value `case x of`), `payload` (`Wrap(x)`), `temp` (`*make()`, an unbound owned result) |
+| operation | `assign` (`y = x`), `consume` (by-value call), `ident` (generic identity), `borrow` (`look(&x)`), `read` (`*x`), `write` (`*x = 3`), `casev` (by-value `case x of`), `payload` (`Wrap(x)`), `temp` (`*make()`, an unbound owned result), `consumew` / `borroww` (by-value and borrowed matches that discard the payload with `_`) |
 | context | `seq` (two statements), `expr` (one expression), `call` (two actuals of one call), `if1` / `if2` (one branch / both branches), `loop` (while body), `cond` (while condition), `arm1` (one case arm), `gen` (inside a generic body), `shadow` (inside both arms of a match whose binder has the same name) |
 
 ## The expected verdict comes from the rules, not from the compiler

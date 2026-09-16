@@ -1,0 +1,15 @@
+// soundness grid case sum.shadow.payload.borroww
+// kind=sum context=shadow op1=payload op2=borroww
+// expect: reject (used after move | moved more than once | assigned while still owned)
+type Cell = Val(n) | Nope;
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+lookw(q) { var t; t = 0; case *q of { Val(_) -> t = 1; Nope -> t = 0; } return t; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = Val(5);
+  y = Val(9);
+  case y of { Val(n) -> { w = Wrap(x); r = r + lookw(&x); r = r + n; } Nope -> { w = Wrap(x); r = r + lookw(&x); } }
+  return 0;
+}

@@ -106,9 +106,6 @@ private:
    * \p ptrAsInt  An i64 holding the owning pointer value.
    * \p topType   The TopType of the owned value (expected to be TopOwningRef).
    */
-  /*! \brief True for a call or alloc whose value is an owning reference:
-   *  dereferenced directly, it is never bound, so codegen frees it. */
-  bool isUnboundOwnedReference(ASTExpr *operand);
   llvm::Value *emitCheckedDivision(llvm::Value *L, llvm::Value *R, int line,
                                    CodeGenContext &ctx);
   void emitDestroyValue(llvm::Value *ptrAsInt, TopType *topType,
@@ -130,9 +127,16 @@ private:
    * \p failBB     Where to jump if the pattern test fails (nested-ctor only).
    * \p func       The containing LLVM function (for alloca / BB insertion).
    */
-  void emitPatternMatch(llvm::Value *basePtr, int64_t offset, ASTPattern *pat,
-                        ASTDeclNode *paramDecl,
-                        llvm::BasicBlock *failBB,
-                        llvm::Function *func,
-                        CodeGenContext &ctx);
+  /*! \brief Branch to \p failBB unless \p pat matches the payload at
+   *  \p offset; no bindings, no frees. */
+  void emitPatternTest(llvm::Value *basePtr, int64_t offset, ASTPattern *pat,
+                       llvm::BasicBlock *failBB, llvm::Function *func,
+                       CodeGenContext &ctx);
+
+  /*! \brief Bind the variables of a pattern already known to match; in a
+   *  \p consuming match, destroy discarded owned payloads and free nested
+   *  boxes. */
+  void emitPatternBind(llvm::Value *basePtr, int64_t offset, ASTPattern *pat,
+                       ASTDeclNode *paramDecl, bool consuming,
+                       llvm::Function *func, CodeGenContext &ctx);
 };

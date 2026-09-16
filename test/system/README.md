@@ -47,7 +47,7 @@ Golden reference files:
 
 ### `soundness/` (explicit only)
 
-A generated, bounded-exhaustive grid of about 1,100 ownership programs with
+A generated, bounded-exhaustive grid of about 1,550 ownership programs with
 expected verdicts derived from the ownership rules. Not run by default; run it
 with `run.py --soundness` (or `bin/runtests.sh -s -- --soundness`). See
 `soundness/README.md`.

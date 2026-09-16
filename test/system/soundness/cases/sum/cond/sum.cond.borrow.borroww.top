@@ -1,0 +1,17 @@
+// soundness grid case sum.cond.borrow.borroww
+// kind=sum context=cond op1=borrow op2=borroww
+// expect: accept
+type Cell = Val(n) | Nope;
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+look(q) { var t; t = 0; case *q of { Val(n) -> t = n; Nope -> t = 0; } return t; }
+lookw(q) { var t; t = 0; case *q of { Val(_) -> t = 1; Nope -> t = 0; } return t; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = Val(5);
+  i = 0;
+  while (look(&x) > i) { i = i + 1000; }
+  r = r + lookw(&x);
+  return 0;
+}

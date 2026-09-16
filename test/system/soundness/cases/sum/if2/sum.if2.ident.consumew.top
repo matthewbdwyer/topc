@@ -1,0 +1,16 @@
+// soundness grid case sum.if2.ident.consumew
+// kind=sum context=if2 op1=ident op2=consumew
+// expect: reject (used after move | moved more than once | assigned while still owned)
+type Cell = Val(n) | Nope;
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+ident(z) { return z; }
+consumew(p) { var t; t = 0; case p of { Val(_) -> t = 1; Nope -> t = 0; } return t; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = Val(5);
+  if (c > 0) { y = ident(x); } else { y = ident(x); }
+  r = r + consumew(x);
+  return 0;
+}

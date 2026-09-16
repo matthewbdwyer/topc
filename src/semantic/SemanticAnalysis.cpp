@@ -38,11 +38,14 @@ std::shared_ptr<SemanticAnalysis> SemanticAnalysis::analyze(ASTProgram *ast) {
   MoveAnalysis moves(ast, symTable.get(), ownershipClassifier.get(),
                functionEffectSummaries.get());
   DestructionPass::run(ast, moves.destructionPlan());
+  auto destructionPlan =
+      std::make_shared<MoveAnalysis::DestructionPlan>(moves.destructionPlan());
   SEMANTIC_LOG(1, "pipeline") << "complete";
   return std::make_shared<SemanticAnalysis>(symTable, intraproceduralCFGs,
                                             typeResults, callGraph,
                                             ownershipClassifier,
-                                            functionEffectSummaries);
+                                            functionEffectSummaries,
+                                            destructionPlan);
 }
 
 SymbolTable *SemanticAnalysis::getSymbolTable() { return symTable.get(); };

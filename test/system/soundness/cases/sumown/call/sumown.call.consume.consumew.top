@@ -1,0 +1,16 @@
+// soundness grid case sumown.call.consume.consumew
+// kind=sumown context=call op1=consume op2=consumew
+// expect: reject (used after move | moved more than once)
+type Box = Full(v) | Empty;
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+consume(p) { var t; t = 0; case p of { Full(v) -> t = *v; Empty -> t = 0; } return t; }
+consumew(p) { var t; t = 0; case p of { Full(_) -> t = 1; Empty -> t = 0; } return t; }
+pair(a1, a2) { return consume(a1) + consumew(a2); }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = Full(alloc 5);
+  r = r + pair(x, x);
+  return 0;
+}

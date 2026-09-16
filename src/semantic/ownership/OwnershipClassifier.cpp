@@ -60,6 +60,13 @@ OwnershipClass OwnershipClassifier::classify(ASTDeclNode *node) const {
   return OwnershipClass::Copy;
 }
 
+OwnershipClass OwnershipClassifier::classifyValue(ASTExpr *expr) const {
+  if (types == nullptr || expr == nullptr) {
+    return OwnershipClass::Copy; // LCOV_EXCL_LINE -- defensive
+  }
+  return classifyType(types->getInferredType(expr).get());
+}
+
 OwnershipClass OwnershipClassifier::classifyType(const TopType *type) {
   if (type == nullptr) {
     return OwnershipClass::Copy;

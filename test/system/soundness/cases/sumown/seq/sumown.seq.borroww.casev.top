@@ -1,0 +1,15 @@
+// soundness grid case sumown.seq.borroww.casev
+// kind=sumown context=seq op1=borroww op2=casev
+// expect: accept
+type Box = Full(v) | Empty;
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+lookw(q) { var t; t = 0; case *q of { Full(_) -> t = 1; Empty -> t = 0; } return t; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = Full(alloc 5);
+  r = r + lookw(&x);
+  case x of { Full(v) -> r = r + *v; Empty -> r = r + 0; }
+  return 0;
+}

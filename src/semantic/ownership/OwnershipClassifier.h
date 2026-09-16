@@ -35,6 +35,8 @@ enum class OwnershipClass { Copy, Own };
  *
  * \sa OwnershipClass
  */
+class ASTExpr;
+
 class OwnershipClassifier {
 public:
   /*!
@@ -55,6 +57,10 @@ public:
    * \return The OwnershipClass assigned to \p node.
    */
   OwnershipClass classify(ASTDeclNode *node) const;
+
+  /*! \brief Classify the value of an expression that has its own type
+   *  variable (a call, an alloc, a constructor), not a variable reference. */
+  OwnershipClass classifyValue(ASTExpr *expr) const;
 
   /*!
    * \brief Classify a type term directly (does not consult the stored map).

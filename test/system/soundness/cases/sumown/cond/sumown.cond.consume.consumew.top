@@ -1,0 +1,17 @@
+// soundness grid case sumown.cond.consume.consumew
+// kind=sumown context=cond op1=consume op2=consumew
+// expect: reject (move in while-loop condition)
+type Box = Full(v) | Empty;
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+consume(p) { var t; t = 0; case p of { Full(v) -> t = *v; Empty -> t = 0; } return t; }
+consumew(p) { var t; t = 0; case p of { Full(_) -> t = 1; Empty -> t = 0; } return t; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = Full(alloc 5);
+  i = 0;
+  while (consume(x) > i) { i = i + 1000; }
+  r = r + consumew(x);
+  return 0;
+}

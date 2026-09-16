@@ -13,6 +13,9 @@
 #include <vector>
 
 class ASTCaseArm;
+class ASTCaseStmt;
+class ASTDeRefExpr;
+class ASTPattern;
 class ASTFunction;
 class ASTVariableExpr;
 
@@ -65,6 +68,15 @@ public:
     std::vector<std::pair<ASTFunction *, std::vector<ASTDeclNode *>>> atExit;
     /// Owned binders of a by-value case still Owned at the end of each arm.
     std::vector<std::pair<ASTCaseArm *, std::vector<ASTDeclNode *>>> atArmEnd;
+    /// `*e` where e is an owning reference made by a call or `alloc` and never
+    /// bound: code generation frees it right after the read or write.
+    std::set<const ASTDeRefExpr *> freeAfterUse;
+    /// By-value matches: the match consumes the scrutinee, so the arm taken
+    /// frees nested boxes its patterns match and the box itself after the arm.
+    std::set<const ASTCaseStmt *> consumingMatches;
+    /// Owned payloads a consuming match discards with `_`, destroyed when the
+    /// arm is taken (never while its patterns are still being tested).
+    std::set<const ASTPattern *> discardedPayloads;
   };
 
   /*! \brief Run the analysis over every function in \p ast.
@@ -130,6 +142,14 @@ private:
   /*! \brief A loop body may not change which Own variables are Owned. */
   static void assertLoopInvariant(const StateMap &preState,
                                   const StateMap &bodyState, int line);
+
+  /*! \brief Record the owned payloads \p pat discards with `_` in a
+   *  consuming match; \p payload is the constructor parameter it matches. */
+  void collectDiscardedPayloads(ASTPattern *pat, ASTDeclNode *payload);
+
+  /*! \brief Record `*e` for freeing after use if e is an unbound owning
+   *  reference (a call or alloc). */
+  void noteUnboundReference(ASTDeRefExpr *deref);
 
   /*! \brief Owners borrowed (`&x`) anywhere inside \p node. */
   void collectBorrowedOwners(ASTNode *node,

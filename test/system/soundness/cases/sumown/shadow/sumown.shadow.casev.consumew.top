@@ -1,0 +1,15 @@
+// soundness grid case sumown.shadow.casev.consumew
+// kind=sumown context=shadow op1=casev op2=consumew
+// expect: reject (used after move | moved more than once | assigned while still owned)
+type Box = Full(v) | Empty;
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+consumew(p) { var t; t = 0; case p of { Full(_) -> t = 1; Empty -> t = 0; } return t; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = Full(alloc 5);
+  y = Full(alloc 9);
+  case y of { Full(v) -> { case x of { Full(v) -> r = r + *v; Empty -> r = r + 0; } r = r + consumew(x); r = r + *v; } Empty -> { case x of { Full(v) -> r = r + *v; Empty -> r = r + 0; } r = r + consumew(x); } }
+  return 0;
+}

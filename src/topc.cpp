@@ -550,6 +550,7 @@ int main(int argc, char *argv[]) {
       std::shared_ptr<TypeInference> typeResults;
       std::shared_ptr<OwnershipClassifier> ownershipClassifier;
       std::shared_ptr<FunctionEffectSummaries> functionEffectSummaries;
+      std::shared_ptr<MoveAnalysis::DestructionPlan> destructionPlan;
 
       bool structuralChecked = false;
       bool borrowChecked = false;
@@ -645,6 +646,8 @@ int main(int argc, char *argv[]) {
         MoveAnalysis moves(ast.get(), symTable.get(), ownershipClassifier.get(),
                      functionEffectSummaries.get());
         DestructionPass::run(ast.get(), moves.destructionPlan());
+        destructionPlan =
+            std::make_shared<MoveAnalysis::DestructionPlan>(moves.destructionPlan());
         ownershipChecked = true;
       };
 
@@ -747,7 +750,7 @@ int main(int argc, char *argv[]) {
         ensureOwnershipResult();
         auto analysisResults = std::make_shared<SemanticAnalysis>(
           symTable, cfgs, typeResults, callGraph, ownershipClassifier,
-          functionEffectSummaries);
+          functionEffectSummaries, destructionPlan);
 
         auto llvmModule = CodeGenerator::generate(ast.get(), analysisResults.get(),
                                                   sourceFile);

@@ -1,0 +1,15 @@
+// soundness grid case sumown.if1.assign.borroww
+// kind=sumown context=if1 op1=assign op2=borroww
+// expect: reject (ownership state disagreement at control-flow join)
+type Box = Full(v) | Empty;
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+lookw(q) { var t; t = 0; case *q of { Full(_) -> t = 1; Empty -> t = 0; } return t; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = Full(alloc 5);
+  if (c > 0) { y = x; }
+  r = r + lookw(&x);
+  return 0;
+}

@@ -1,0 +1,16 @@
+// soundness grid case sum.if2.consumew.borrow
+// kind=sum context=if2 op1=consumew op2=borrow
+// expect: reject (used after move | moved more than once | assigned while still owned)
+type Cell = Val(n) | Nope;
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+look(q) { var t; t = 0; case *q of { Val(n) -> t = n; Nope -> t = 0; } return t; }
+consumew(p) { var t; t = 0; case p of { Val(_) -> t = 1; Nope -> t = 0; } return t; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = Val(5);
+  if (c > 0) { r = r + consumew(x); } else { r = r + consumew(x); }
+  r = r + look(&x);
+  return 0;
+}

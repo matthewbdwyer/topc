@@ -1,0 +1,29 @@
+// A wildcard or nested pattern in a borrowed match (`case *p`) only looks at
+// the payload: nothing is freed, so the caller's value survives repeated
+// matches. Exits 0; clean under ASan/LSan (the owned payload under `_` used to
+// be freed by every match: double free).
+type Box = Full(v, k) | Empty;
+type Chain = Nil | Link(head, tail);
+
+peek(p) {
+  var r;
+  r = 0;
+  case *p of { Full(_, k) -> r = k; Empty -> r = 0; }
+  return r;
+}
+
+depth(p) {
+  var r;
+  r = 0;
+  case *p of { Link(h, Link(_, t)) -> r = 2; Link(h, Nil) -> r = 1; Nil -> r = 0; }
+  return r;
+}
+
+main() {
+  var b, c;
+  b = Full(alloc 5, 2);
+  if (peek(&b) + peek(&b) != 4) error 1;
+  c = Link(alloc 1, Link(alloc 2, Nil));
+  if (depth(&c) + depth(&c) != 4) error 2;
+  return 0;
+}

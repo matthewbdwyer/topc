@@ -9,6 +9,10 @@
 #include "ASTBlockStmt.h"
 #include "ASTCaseArm.h"
 #include "ASTCaseStmt.h"
+#include "ASTCtorPattern.h"
+#include "ASTSumTypeDecl.h"
+#include "ASTSumVariant.h"
+#include "ASTWildcardPattern.h"
 #include "ASTDeRefExpr.h"
 #include "ASTErrorStmt.h"
 #include "ASTFunction.h"
@@ -169,6 +173,24 @@ MoveAnalysis::StateMap MoveAnalysis::analyzeStmt(ASTStmt *stmt, StateMap state) 
     }
     bool byValue =
         dynamic_cast<ASTDeRefExpr *>(caseStmt->getCaseExpr()) == nullptr;
+    if (byValue) {
+      plan.consumingMatches.insert(caseStmt);
+      for (auto *arm : caseStmt->getArms()) {
+        std::vector<ASTDeclNode *> params;
+        if (auto *owner = sym->getConstructorOwner(arm->getTag())) {
+          for (auto *variant : owner->getVariants()) {
+            if (variant->getTag() == arm->getTag()) {
+              params = variant->getParams();
+            }
+          }
+        }
+        auto patterns = arm->getPatterns();
+        for (std::size_t i = 0; i < patterns.size(); ++i) {
+          collectDiscardedPayloads(patterns[i],
+                                   i < params.size() ? params[i] : nullptr);
+        }
+      }
+    }
     std::vector<StateMap> armStates;
     for (auto *arm : caseStmt->getArms()) {
       armStates.push_back(analyzeArm(arm, byValue, state));
@@ -261,6 +283,7 @@ MoveAnalysis::StateMap MoveAnalysis::analyzeAssign(ASTAssignStmt *stmt,
   auto *lhsDeref = dynamic_cast<ASTDeRefExpr *>(lhs);
   if (lhsDeref != nullptr) {
     evalExpr(lhsDeref->getPtr(), state);
+    noteUnboundReference(lhsDeref);
   }
 
   auto *rhsVar = dynamic_cast<ASTVariableExpr *>(rhs);
@@ -377,6 +400,12 @@ void MoveAnalysis::evalExpr(ASTNode *node, StateMap &state) {
     return;
   }
 
+  if (auto *deref = dynamic_cast<ASTDeRefExpr *>(node)) {
+    evalExpr(deref->getPtr(), state);
+    noteUnboundReference(deref);
+    return;
+  }
+
   // A constructor payload takes ownership of an Own variable: the box owns it
   // from here on, so the variable is moved exactly as if it were passed to a
   // consuming call.
@@ -441,6 +470,43 @@ void MoveAnalysis::consumeVar(ASTVariableExpr *varExpr, ASTDeclNode *decl,
   SEMANTIC_LOG(2, "move-analysis")
       << "line=" << varExpr->getLine() << " event=move variable="
       << varExpr->getName() << " reason=" << reason;
+}
+
+void MoveAnalysis::noteUnboundReference(ASTDeRefExpr *deref) {
+  auto *operand = deref->getPtr();
+  if ((dynamic_cast<ASTFunAppExpr *>(operand) != nullptr ||
+       dynamic_cast<ASTAllocExpr *>(operand) != nullptr) &&
+      classifier->classifyValue(operand) == OwnershipClass::Own &&
+      RuleToggles::enabled("free-unbound-reference")) {
+    // The referent of an owning reference is always Copy, so once it is read
+    // or written nothing refers to the allocation.
+    plan.freeAfterUse.insert(deref);
+  }
+}
+
+void MoveAnalysis::collectDiscardedPayloads(ASTPattern *pat,
+                                           ASTDeclNode *payload) {
+  if (dynamic_cast<ASTWildcardPattern *>(pat) != nullptr) {
+    if (payload != nullptr &&
+        classifier->classify(payload) == OwnershipClass::Own) {
+      plan.discardedPayloads.insert(pat);
+    }
+    return;
+  }
+  if (auto *ctor = dynamic_cast<ASTCtorPattern *>(pat)) {
+    std::vector<ASTDeclNode *> params;
+    if (auto *owner = sym->getConstructorOwner(ctor->getTag())) {
+      for (auto *variant : owner->getVariants()) {
+        if (variant->getTag() == ctor->getTag()) {
+          params = variant->getParams();
+        }
+      }
+    }
+    auto subs = ctor->getSubPatterns();
+    for (std::size_t i = 0; i < subs.size(); ++i) {
+      collectDiscardedPayloads(subs[i], i < params.size() ? params[i] : nullptr);
+    }
+  }
 }
 
 void MoveAnalysis::collectBorrowedOwners(ASTNode *node,

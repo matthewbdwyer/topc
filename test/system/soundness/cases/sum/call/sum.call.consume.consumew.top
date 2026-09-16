@@ -1,0 +1,16 @@
+// soundness grid case sum.call.consume.consumew
+// kind=sum context=call op1=consume op2=consumew
+// expect: reject (used after move | moved more than once)
+type Cell = Val(n) | Nope;
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+consume(p) { var t; t = 0; case p of { Val(n) -> t = n; Nope -> t = 0; } return t; }
+consumew(p) { var t; t = 0; case p of { Val(_) -> t = 1; Nope -> t = 0; } return t; }
+pair(a1, a2) { return consume(a1) + consumew(a2); }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = Val(5);
+  r = r + pair(x, x);
+  return 0;
+}

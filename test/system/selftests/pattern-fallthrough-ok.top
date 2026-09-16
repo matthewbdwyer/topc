@@ -1,0 +1,50 @@
+// An arm whose later pattern fails falls through to the next arm with the
+// scrutinee intact: a consuming match frees nothing until an arm is taken.
+// Exits 0; clean under ASan/LSan (a wildcard's payload and a nested pattern's
+// box used to be freed while the first arm was still being tested).
+type Chain = Nil | Link(head, tail);
+type Ints = INil | ICons(n, rest);
+type Pair = P(a, b);
+
+sumOwned(c) {
+  var r;
+  r = 0;
+  case c of { Nil -> r = 0; Link(h, t) -> r = *h + sumOwned(t); }
+  return r;
+}
+
+firstOrSum(c) {
+  var r;
+  r = 0;
+  case c of {
+    Link(_, Nil) -> r = 1;
+    Link(h, t) -> r = *h + sumOwned(t);
+    Nil -> r = 0;
+  }
+  return r;
+}
+
+len(l) {
+  var r;
+  r = 0;
+  case l of { INil -> r = 0; ICons(n, rest) -> r = n + len(rest); }
+  return r;
+}
+
+pairSum(x) {
+  var r;
+  r = 0;
+  case x of {
+    P(ICons(n, rest), INil) -> r = n + len(rest);
+    P(l, m) -> r = len(l) + len(m);
+  }
+  return r;
+}
+
+main() {
+  if (firstOrSum(Link(alloc 5, Link(alloc 6, Nil))) != 11) error 1;
+  if (firstOrSum(Link(alloc 5, Nil)) != 1) error 2;
+  if (pairSum(P(ICons(1, INil), ICons(2, INil))) != 3) error 3;
+  if (pairSum(P(ICons(1, INil), INil)) != 1) error 4;
+  return 0;
+}

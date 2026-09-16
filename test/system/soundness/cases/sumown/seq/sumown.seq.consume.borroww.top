@@ -1,0 +1,16 @@
+// soundness grid case sumown.seq.consume.borroww
+// kind=sumown context=seq op1=consume op2=borroww
+// expect: reject (used after move | moved more than once | assigned while still owned)
+type Box = Full(v) | Empty;
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+consume(p) { var t; t = 0; case p of { Full(v) -> t = *v; Empty -> t = 0; } return t; }
+lookw(q) { var t; t = 0; case *q of { Full(_) -> t = 1; Empty -> t = 0; } return t; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = Full(alloc 5);
+  r = r + consume(x);
+  r = r + lookw(&x);
+  return 0;
+}

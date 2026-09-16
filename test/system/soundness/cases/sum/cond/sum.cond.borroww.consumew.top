@@ -1,0 +1,17 @@
+// soundness grid case sum.cond.borroww.consumew
+// kind=sum context=cond op1=borroww op2=consumew
+// expect: accept
+type Cell = Val(n) | Nope;
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+consumew(p) { var t; t = 0; case p of { Val(_) -> t = 1; Nope -> t = 0; } return t; }
+lookw(q) { var t; t = 0; case *q of { Val(_) -> t = 1; Nope -> t = 0; } return t; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = Val(5);
+  i = 0;
+  while (lookw(&x) > i) { i = i + 1000; }
+  r = r + consumew(x);
+  return 0;
+}

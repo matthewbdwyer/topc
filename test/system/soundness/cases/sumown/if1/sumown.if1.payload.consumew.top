@@ -1,0 +1,15 @@
+// soundness grid case sumown.if1.payload.consumew
+// kind=sumown context=if1 op1=payload op2=consumew
+// expect: reject (ownership state disagreement at control-flow join)
+type Box = Full(v) | Empty;
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+consumew(p) { var t; t = 0; case p of { Full(_) -> t = 1; Empty -> t = 0; } return t; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = Full(alloc 5);
+  if (c > 0) { w = Wrap(x); }
+  r = r + consumew(x);
+  return 0;
+}

@@ -1,0 +1,17 @@
+// soundness grid case sumown.arm1.borroww.ident
+// kind=sumown context=arm1 op1=borroww op2=ident
+// expect: accept
+type Box = Full(v) | Empty;
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+ident(z) { return z; }
+lookw(q) { var t; t = 0; case *q of { Full(_) -> t = 1; Empty -> t = 0; } return t; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = Full(alloc 5);
+  sel = On(1);
+  case sel of { On(k) -> { r = r + lookw(&x); } Off -> r = r + 0; }
+  y = ident(x);
+  return 0;
+}

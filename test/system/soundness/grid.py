@@ -57,13 +57,19 @@ KINDS = [
     Kind("sum", True, "type Cell = Val(n) | Nope;\n",
          "Val(5)",
          "consume(p) { var t; t = 0; case p of { Val(n) -> t = n; Nope -> t = 0; } return t; }\n"
-         "look(q) { var t; t = 0; case *q of { Val(n) -> t = n; Nope -> t = 0; } return t; }\n",
-         ("assign", "consume", "ident", "borrow", "casev", "payload")),
+         "look(q) { var t; t = 0; case *q of { Val(n) -> t = n; Nope -> t = 0; } return t; }\n"
+         "consumew(p) { var t; t = 0; case p of { Val(_) -> t = 1; Nope -> t = 0; } return t; }\n"
+         "lookw(q) { var t; t = 0; case *q of { Val(_) -> t = 1; Nope -> t = 0; } return t; }\n",
+         ("assign", "consume", "ident", "borrow", "casev", "payload",
+          "consumew", "borroww")),
     Kind("sumown", True, "type Box = Full(v) | Empty;\n",
          "Full(alloc 5)",
          "consume(p) { var t; t = 0; case p of { Full(v) -> t = *v; Empty -> t = 0; } return t; }\n"
-         "look(q) { var t; t = 0; case *q of { Full(v) -> t = *v; Empty -> t = 0; } return t; }\n",
-         ("assign", "consume", "ident", "borrow", "casev", "payload")),
+         "look(q) { var t; t = 0; case *q of { Full(v) -> t = *v; Empty -> t = 0; } return t; }\n"
+         "consumew(p) { var t; t = 0; case p of { Full(_) -> t = 1; Empty -> t = 0; } return t; }\n"
+         "lookw(q) { var t; t = 0; case *q of { Full(_) -> t = 1; Empty -> t = 0; } return t; }\n",
+         ("assign", "consume", "ident", "borrow", "casev", "payload",
+          "consumew", "borroww")),
 ]
 
 # ---------------------------------------------------------------------------
@@ -101,6 +107,11 @@ def ops_for(kind: Kind):
         "write": Op("write", "use", "*x = 3;", None, None),
         "casev": Op("casev", "move", casev.get(kind.name, ""), None, None),
         "payload": Op("payload", "move", "w = Wrap(x);", None, None),
+        # By-value and borrowed matches that discard the payload with `_`.
+        "consumew": Op("consumew", "move", "r = r + consumew(x);", "consumew(x)",
+                       ("x", "consumew(a)")),
+        "borroww": Op("borroww", "use", "r = r + lookw(&x);", "lookw(&x)",
+                      ("&x", "lookw(a)")),
         # An owned result dereferenced without being stored (independent of x).
         "temp": Op("temp", "use", "r = r + *make();", "*make()", ("*make()", "a")),
     }
@@ -193,7 +204,8 @@ def expect(kind: Kind, context: str, op1: Op, op2: Optional[Op]):
         m1, m2 = is_move(op1, kind), is_move(op2, kind)
         if m1 and m2:
             return "reject", USE_AFTER_MOVE
-        if (m1 and op2.name == "borrow") or (m2 and op1.name == "borrow"):
+        lends = lambda op: op.arg is not None and op.arg[0].startswith("&")
+        if (m1 and lends(op2)) or (m2 and lends(op1)):
             return "reject", HELD
         if m1 and op2.category == "use" and touches_owner(op2):
             return "reject", USE_AFTER_MOVE   # evaluated after the move
@@ -270,10 +282,10 @@ def program(kind: Kind, context: str, op1: Op, op2: Optional[Op]) -> Optional[st
     # fully generic type and can be rejected at its definition on its own.
     used = body + extra
     kept = []
+    import re
     for line in helpers.splitlines(keepends=True):
         fname = line.split("(", 1)[0].strip()
-        if fname and (fname + "(") in used or (fname == "consume" and "consume" in used) \
-                or (fname == "look" and "look" in used):
+        if fname and re.search(r"\b" + re.escape(fname) + r"\b", used):
             kept.append(line)
     helpers = "".join(kept)
     return (f"{types}{helpers}{extra}"

@@ -26,6 +26,7 @@ class SemanticAnalysis {
   std::shared_ptr<CallGraph> callGraph;
   std::shared_ptr<OwnershipClassifier> ownershipClassifier;
   std::shared_ptr<FunctionEffectSummaries> functionEffectSummaries;
+  std::shared_ptr<MoveAnalysis::DestructionPlan> destructionPlan;
 
 public:
   SemanticAnalysis(std::shared_ptr<SymbolTable> s,
@@ -33,11 +34,19 @@ public:
                    std::shared_ptr<TypeInference> t,
                    std::shared_ptr<CallGraph> cg,
                    std::shared_ptr<OwnershipClassifier> oc,
-                   std::shared_ptr<FunctionEffectSummaries> fe)
+                   std::shared_ptr<FunctionEffectSummaries> fe,
+                   std::shared_ptr<MoveAnalysis::DestructionPlan> plan = nullptr)
       : symTable(std::move(s)), intraproceduralCFGs(std::move(cfgs)),
         typeResults(std::move(t)),
         callGraph(std::move(cg)), ownershipClassifier(std::move(oc)),
-        functionEffectSummaries(std::move(fe)) {}
+        functionEffectSummaries(std::move(fe)),
+        destructionPlan(std::move(plan)) {}
+
+  /*! \brief Where destruction and frees go, decided by MoveAnalysis. Code
+   *  generation executes it; it decides nothing about ownership itself. */
+  const MoveAnalysis::DestructionPlan *getDestructionPlan() const {
+    return destructionPlan.get();
+  }
 
   /*! \fn analyze
    *  \brief Perform semantic analysis on program AST.

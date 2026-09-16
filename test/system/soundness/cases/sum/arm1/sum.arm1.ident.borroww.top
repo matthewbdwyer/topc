@@ -1,0 +1,17 @@
+// soundness grid case sum.arm1.ident.borroww
+// kind=sum context=arm1 op1=ident op2=borroww
+// expect: reject (ownership state disagreement at control-flow join)
+type Cell = Val(n) | Nope;
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+ident(z) { return z; }
+lookw(q) { var t; t = 0; case *q of { Val(_) -> t = 1; Nope -> t = 0; } return t; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = Val(5);
+  sel = On(1);
+  case sel of { On(k) -> { y = ident(x); } Off -> r = r + 0; }
+  r = r + lookw(&x);
+  return 0;
+}
