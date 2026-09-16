@@ -88,6 +88,54 @@ bool BorrowChecker::visit(ASTFunAppExpr *element) {
 }
 
 // ---------------------------------------------------------------------------
+// Positions that are never a call argument, named in the diagnostic. Checked
+// on entry, before the borrow operand's own endVisit reports the general rule.
+// ---------------------------------------------------------------------------
+namespace {
+
+bool isBorrow(ASTExpr *e) { return dynamic_cast<ASTBorrowExpr *>(e) != nullptr; }
+
+void rejectPosition(int line, const char *where) {
+  std::ostringstream oss;
+  oss << "Borrow error on line " << line << ": borrow expression " << where
+      << "\n";
+  RuleToggles::reject("borrow-position", oss.str());
+}
+
+} // namespace
+
+bool BorrowChecker::visit(ASTBinaryExpr *element) {
+  if (!checkCallReturns &&
+      (isBorrow(element->getLeft()) || isBorrow(element->getRight()))) {
+    rejectPosition(element->getLine(),
+                   "cannot be used in arithmetic or relational expression");
+  }
+  return true;
+}
+
+bool BorrowChecker::visit(ASTOutputStmt *element) {
+  if (!checkCallReturns && isBorrow(element->getArg())) {
+    rejectPosition(element->getLine(), "cannot be the argument of 'output'");
+  }
+  return true;
+}
+
+bool BorrowChecker::visit(ASTErrorStmt *element) {
+  if (!checkCallReturns && isBorrow(element->getArg())) {
+    rejectPosition(element->getLine(), "cannot be the argument of 'error'");
+  }
+  return true;
+}
+
+bool BorrowChecker::visit(ASTReturnStmt *element) {
+  if (!checkCallReturns && isBorrow(element->getArg())) {
+    rejectPosition(element->getLine(),
+                   "cannot appear in a 'return' statement");
+  }
+  return true;
+}
+
+// ---------------------------------------------------------------------------
 // endVisit(ASTBorrowExpr): if this borrow was not pre-approved it is in an
 // illegal position.
 // ---------------------------------------------------------------------------

@@ -1,8 +1,6 @@
 add_library(weeding)
 target_sources(weeding PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/CheckAssignable.cpp
                                ${CMAKE_CURRENT_SOURCE_DIR}/CheckAssignable.h
-                               ${CMAKE_CURRENT_SOURCE_DIR}/CheckBorrowPositions.cpp
-                               ${CMAKE_CURRENT_SOURCE_DIR}/CheckBorrowPositions.h
                                ${CMAKE_CURRENT_SOURCE_DIR}/CheckCaseCompleteness.cpp
                                ${CMAKE_CURRENT_SOURCE_DIR}/CheckCaseCompleteness.h
                                ${CMAKE_CURRENT_SOURCE_DIR}/CheckSumTypeNames.cpp

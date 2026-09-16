@@ -1,4 +1,4 @@
-#include "CheckBorrowPositions.h"
+#include "BorrowChecker.h"
 #include "CheckCaseCompleteness.h"
 #include "CheckSumTypeNames.h"
 #include "ASTHelper.h"
@@ -10,49 +10,58 @@
 #include <sstream>
 
 // ============================================================
-//  CheckBorrowPositions
+//  BorrowChecker positions (weeding stage)
 // ============================================================
 
-TEST_CASE("CheckBorrowPositions: valid borrow in assignment rhs", "[Weeding]") {
+TEST_CASE("BorrowChecker positions: borrow in assignment rhs rejected", "[Weeding]") {
   std::stringstream stream;
-  // &y on the RHS of an assignment: allowed at this stage
+  // &y on the RHS of an assignment: not a call argument, the general rule
   stream << R"(f() { var x, y; x = &y; return 0; })";
   auto ast = ASTHelper::build_ast(stream);
-  REQUIRE_NOTHROW(CheckBorrowPositions::check(ast.get()));
+  REQUIRE_THROWS_WITH(BorrowChecker::check(ast.get()),
+    Catch::Matchers::ContainsSubstring(
+        "borrow expression must be an immediate function argument"));
 }
 
-TEST_CASE("CheckBorrowPositions: borrow in output rejected", "[Weeding]") {
+TEST_CASE("BorrowChecker positions: borrow as call argument accepted", "[Weeding]") {
+  std::stringstream stream;
+  stream << R"(g(p) { return 0; } f() { var x, y; x = g(&y); return 0; })";
+  auto ast = ASTHelper::build_ast(stream);
+  REQUIRE_NOTHROW(BorrowChecker::check(ast.get()));
+}
+
+TEST_CASE("BorrowChecker positions: borrow in output rejected", "[Weeding]") {
   std::stringstream stream;
   stream << R"(f() { var y; output &y; return 0; })";
   auto ast = ASTHelper::build_ast(stream);
-  REQUIRE_THROWS_WITH(CheckBorrowPositions::check(ast.get()),
+  REQUIRE_THROWS_WITH(BorrowChecker::check(ast.get()),
     Catch::Matchers::ContainsSubstring(
         "borrow expression cannot be the argument of 'output'"));
 }
 
-TEST_CASE("CheckBorrowPositions: borrow in return rejected", "[Weeding]") {
+TEST_CASE("BorrowChecker positions: borrow in return rejected", "[Weeding]") {
   std::stringstream stream;
   stream << R"(f() { var y; return &y; })";
   auto ast = ASTHelper::build_ast(stream);
-  REQUIRE_THROWS_WITH(CheckBorrowPositions::check(ast.get()),
+  REQUIRE_THROWS_WITH(BorrowChecker::check(ast.get()),
     Catch::Matchers::ContainsSubstring(
         "borrow expression cannot appear in a 'return' statement"));
 }
 
-TEST_CASE("CheckBorrowPositions: borrow in binary expr rejected", "[Weeding]") {
+TEST_CASE("BorrowChecker positions: borrow in binary expr rejected", "[Weeding]") {
   std::stringstream stream;
   stream << R"(f() { var x, y; x = &y + 1; return 0; })";
   auto ast = ASTHelper::build_ast(stream);
-  REQUIRE_THROWS_WITH(CheckBorrowPositions::check(ast.get()),
+  REQUIRE_THROWS_WITH(BorrowChecker::check(ast.get()),
     Catch::Matchers::ContainsSubstring(
         "borrow expression cannot be used in arithmetic or relational expression"));
 }
 
-TEST_CASE("CheckBorrowPositions: borrow in error rejected", "[Weeding]") {
+TEST_CASE("BorrowChecker positions: borrow in error rejected", "[Weeding]") {
   std::stringstream stream;
   stream << R"(f() { var y; error &y; return 0; })";
   auto ast = ASTHelper::build_ast(stream);
-  REQUIRE_THROWS_WITH(CheckBorrowPositions::check(ast.get()),
+  REQUIRE_THROWS_WITH(BorrowChecker::check(ast.get()),
     Catch::Matchers::ContainsSubstring(
         "borrow expression cannot be the argument of 'error'"));
 }

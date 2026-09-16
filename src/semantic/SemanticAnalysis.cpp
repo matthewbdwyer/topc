@@ -3,7 +3,6 @@
 #include "BorrowChecker.h"
 #include "OwnershipTypeRules.h"
 #include "CheckAssignable.h"
-#include "CheckBorrowPositions.h"
 #include "CheckCaseCompleteness.h"
 #include "CheckPatternTypes.h"
 #include "CheckSumTypeNames.h"
@@ -16,7 +15,6 @@ std::shared_ptr<SemanticAnalysis> SemanticAnalysis::analyze(ASTProgram *ast) {
   SEMANTIC_LOG(1, "pipeline") << "start";
   auto symTable = SymbolTable::build(ast);
   CheckAssignable::check(ast);
-  CheckBorrowPositions::check(ast);
   BorrowChecker::check(ast);
   CheckSumTypeNames::check(ast);
   CheckCaseCompleteness::check(ast);

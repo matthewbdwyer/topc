@@ -29,7 +29,12 @@ class SymbolTable;
  * Enforces the immediate-argument restriction: a borrow expression
  * (`&x`) is legal **only** as a direct argument of a function call.
  * Storing a borrow in a variable, using it in a condition, or in any
- * other position is a SemanticError.
+ * other position is a SemanticError. check() runs with the weeding passes,
+ * before types: it names the position where it can (an operand of arithmetic
+ * or comparison, the argument of `output` or `error`, a `return`) and
+ * otherwise reports the general rule. checkInterprocedural() runs after the
+ * function summaries and follows borrow-derived call results into the
+ * positions a borrow may not reach.
  *
  * Because borrows are proven by this pass to be call-scoped, no CFG or
  * lifetime region analysis is required: the borrow is dead as soon as the
@@ -97,6 +102,10 @@ private:
 
   bool visit(ASTFunction *element) override;
   bool visit(ASTFunAppExpr *element) override;
+  bool visit(ASTBinaryExpr *element) override;
+  bool visit(ASTOutputStmt *element) override;
+  bool visit(ASTErrorStmt *element) override;
+  bool visit(ASTReturnStmt *element) override;
   void endVisit(ASTBorrowExpr *element) override;
   void endVisit(ASTAssignStmt *element) override;
   void endVisit(ASTBinaryExpr *element) override;

@@ -14,7 +14,6 @@
 #include "OwnershipTypeRules.h"
 #include "AliasCheck.h"
 #include "CheckAssignable.h"
-#include "CheckBorrowPositions.h"
 #include "CheckCaseCompleteness.h"
 #include "CheckPatternTypes.h"
 #include "CheckSumTypeNames.h"
@@ -569,7 +568,7 @@ int main(int argc, char *argv[]) {
           return;
         }
         CheckAssignable::check(ast.get());
-        CheckBorrowPositions::check(ast.get());
+        BorrowChecker::check(ast.get());
         CheckSumTypeNames::check(ast.get());
         CheckCaseCompleteness::check(ast.get());
         CheckPatternTypes::check(ast.get());
@@ -581,7 +580,6 @@ int main(int argc, char *argv[]) {
           return;
         }
         ensureStructuralChecks();
-        BorrowChecker::check(ast.get());
         borrowChecked = true;
       };
 
