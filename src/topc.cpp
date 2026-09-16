@@ -623,7 +623,8 @@ int main(int argc, char *argv[]) {
             ownershipClassifier.get());
         functionEffectSummaries = FunctionEffectSummaries::build(
             ast.get(), symTable.get(), typeResults.get(),
-            ownershipClassifier.get(), callGraph.get(), &aliasRequirements);
+            ownershipClassifier.get(), callGraph.get());
+        functionEffectSummaries->resolveRequirements(&aliasRequirements);
       };
 
       auto ensureInterproceduralBorrowChecker = [&]() {

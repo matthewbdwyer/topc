@@ -383,37 +383,30 @@ BodyFacts analyzeBody(ASTFunction *f, SymbolTable *sym) {
 
 } // namespace
 
-std::shared_ptr<FunctionEffectSummaries>
-FunctionEffectSummaries::build(
-    ASTProgram *ast, SymbolTable *sym, TypeInference *types,
-    OwnershipClassifier *classifier, CallGraph *cg,
-    const std::map<ASTDeclNode *, std::vector<FormalRequirement>> *requirements) {
-  SEMANTIC_LOG(1, "function-effects") << "start";
-  auto result = std::make_shared<FunctionEffectSummaries>();
+/* What the first phase (build) leaves for the second (resolveRequirements). */
+struct FunctionEffectSummaries::BuildState {
+  ASTProgram *ast;
+  SymbolTable *sym;
+  TypeInference *types;
+  CallGraph *cg;
   std::map<ASTDeclNode *, std::vector<ForwardRecord>> forwardLogs;
   std::map<ASTDeclNode *, ASTFunction *> functionsByDecl;
+};
 
-  // Possible callees of a call: the named function, else the call graph.
-  auto targetsOf = [&](ASTFunAppExpr *call) {
-    std::vector<Summary *> targets;
-    if (auto *calleeVar = dynamic_cast<ASTVariableExpr *>(call->getFunction())) {
-      if (auto *decl = sym->getFunction(calleeVar->getName())) {
-        auto it = result->summaries.find(decl);
-        if (it != result->summaries.end()) {
-          targets.push_back(&it->second);
-        }
-      }
-    }
-    if (targets.empty() && cg != nullptr) {
-      for (auto *g : cg->getCalledFuns(call)) {
-        auto it = result->summaries.find(g->getDecl());
-        if (it != result->summaries.end()) {
-          targets.push_back(&it->second);
-        }
-      }
-    }
-    return targets;
-  };
+std::shared_ptr<FunctionEffectSummaries>
+FunctionEffectSummaries::build(ASTProgram *ast, SymbolTable *sym,
+                               TypeInference *types,
+                               OwnershipClassifier *classifier, CallGraph *cg) {
+  SEMANTIC_LOG(1, "function-effects") << "start";
+  auto result = std::make_shared<FunctionEffectSummaries>();
+  result->buildState = std::make_shared<BuildState>();
+  auto &state = *result->buildState;
+  state.ast = ast;
+  state.sym = sym;
+  state.types = types;
+  state.cg = cg;
+  auto &forwardLogs = state.forwardLogs;
+  auto &functionsByDecl = state.functionsByDecl;
 
   for (auto *f : ast->getFunctions()) {
     Summary summary;
@@ -454,16 +447,6 @@ FunctionEffectSummaries::build(
     summary.formalRequirement.assign(summary.formalModes.size(),
                                      CopyRequirement::None);
     summary.formalRequirementReasons.assign(summary.formalModes.size(), 0);
-    if (requirements != nullptr) {
-      auto it = requirements->find(f->getDecl());
-      if (it != requirements->end() &&
-          it->second.size() == summary.formalRequirement.size()) {
-        for (std::size_t i = 0; i < it->second.size(); ++i) {
-          summary.formalRequirement[i] = it->second[i].kind;
-          summary.formalRequirementReasons[i] = it->second[i].reasons;
-        }
-      }
-    }
     auto stmts = f->getStmts();
     auto *ret =
         stmts.empty() ? nullptr : dynamic_cast<ASTReturnStmt *>(stmts.back());
@@ -513,6 +496,57 @@ FunctionEffectSummaries::build(
       }
     }
 
+    result->summaries[f->getDecl()] = std::move(summary);
+  }
+  return result;
+}
+
+std::vector<FunctionEffectSummaries::Summary *>
+FunctionEffectSummaries::targetsOf(ASTFunAppExpr *call) {
+  // Possible callees of a call: the named function, else the call graph.
+  std::vector<Summary *> targets;
+  if (auto *calleeVar = dynamic_cast<ASTVariableExpr *>(call->getFunction())) {
+    if (auto *decl = buildState->sym->getFunction(calleeVar->getName())) {
+      auto it = summaries.find(decl);
+      if (it != summaries.end()) {
+        targets.push_back(&it->second);
+      }
+    }
+  }
+  if (targets.empty() && buildState->cg != nullptr) {
+    for (auto *g : buildState->cg->getCalledFuns(call)) {
+      auto it = summaries.find(g->getDecl());
+      if (it != summaries.end()) {
+        targets.push_back(&it->second);
+      }
+    }
+  }
+  return targets;
+}
+
+void FunctionEffectSummaries::resolveRequirements(
+    const std::map<ASTDeclNode *, std::vector<FormalRequirement>> *requirements) {
+  auto *result = this;
+  auto *ast = buildState->ast;
+  auto *sym = buildState->sym;
+  auto *types = buildState->types;
+  auto &forwardLogs = buildState->forwardLogs;
+  auto &functionsByDecl = buildState->functionsByDecl;
+
+  // Requirements the position check found in generic bodies join the ones the
+  // body walk recorded (reuse, not disposed).
+  for (auto &[decl, summary] : summaries) {
+    if (requirements != nullptr) {
+      auto it = requirements->find(decl);
+      if (it != requirements->end() &&
+          it->second.size() == summary.formalRequirement.size()) {
+        for (std::size_t i = 0; i < it->second.size(); ++i) {
+          summary.formalRequirement[i] =
+              joinRequirement(summary.formalRequirement[i], it->second[i].kind);
+          summary.formalRequirementReasons[i] |= it->second[i].reasons;
+        }
+      }
+    }
     SEMANTIC_LOG(2, "function-effects")
         << "function=" << summary.functionName
         << " return-origin=" << returnOriginName(summary.returnOrigin)
@@ -524,7 +558,6 @@ FunctionEffectSummaries::build(
           << " passed-on=" << (summary.formalForwarded[i] ? "yes" : "no")
           << " requires=" << requirementName(summary.formalRequirement[i]);
     }
-    result->summaries[f->getDecl()] = std::move(summary);
   }
 
   // Call-site effects: which actuals each call consumes. Named callees use
@@ -768,7 +801,7 @@ FunctionEffectSummaries::build(
   SEMANTIC_LOG(1, "function-effects")
       << "complete functions=" << result->summaries.size()
       << " calls=" << result->callEffects.size();
-  return result;
+  buildState.reset();
 }
 
 const FunctionEffectSummaries::CallEffect *

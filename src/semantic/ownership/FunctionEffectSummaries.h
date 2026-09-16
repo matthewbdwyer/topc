@@ -80,13 +80,20 @@ public:
     std::vector<bool> consumes;
   };
 
-  /*! \param requirements Per-function requirements seeded by AliasCheck;
-   *  may be null. Propagated to callers and checked at every call site. */
+  /*! \brief First phase: per-function summaries (formal modes, return
+   *  origins, passed-on formals) and the requirements the body walk finds
+   *  (a generic formal reused, or not disposed of). Return origins are what
+   *  the position check needs. */
   static std::shared_ptr<FunctionEffectSummaries>
   build(ASTProgram *ast, SymbolTable *sym, TypeInference *types,
-        OwnershipClassifier *classifier, CallGraph *cg,
-        const std::map<ASTDeclNode *, std::vector<FormalRequirement>>
-            *requirements = nullptr);
+        OwnershipClassifier *classifier, CallGraph *cg);
+
+  /*! \brief Second phase: join \p requirements (found by the position check;
+   *  may be null), propagate every requirement to callers, judge it at each
+   *  call site, and compute call effects. Throws SemanticError. */
+  void resolveRequirements(
+      const std::map<ASTDeclNode *, std::vector<FormalRequirement>>
+          *requirements);
 
   const Summary *get(ASTDeclNode *functionDecl) const;
 
@@ -94,6 +101,10 @@ public:
   const CallEffect *callEffect(const ASTFunAppExpr *call) const;
 
 private:
+  struct BuildState;
+  std::shared_ptr<BuildState> buildState;
+  std::vector<Summary *> targetsOf(ASTFunAppExpr *call);
+
   std::map<ASTDeclNode *, Summary> summaries;
   std::map<const ASTFunAppExpr *, CallEffect> callEffects;
 };
