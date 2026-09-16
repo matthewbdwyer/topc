@@ -1,0 +1,13 @@
+// soundness grid case own.seq.assign.write
+// kind=own context=seq op1=assign op2=write
+// expect: reject (used after move | moved more than once | assigned while still owned)
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = alloc 5;
+  y = x;
+  *x = 3;
+  return 0;
+}

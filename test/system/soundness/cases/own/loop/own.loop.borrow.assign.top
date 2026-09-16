@@ -1,0 +1,15 @@
+// soundness grid case own.loop.borrow.assign
+// kind=own context=loop op1=borrow op2=assign
+// expect: accept
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+look(q) { return **q; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = alloc 5;
+  i = 2;
+  while (i > 0) { r = r + look(&x); i = i - 1; }
+  y = x;
+  return 0;
+}

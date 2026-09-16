@@ -18,6 +18,7 @@ class ASTDeclStmt;
 class ASTDeRefExpr;
  class ASTDestroyStmt;
 class ASTErrorStmt;
+class ASTExpr;
 class ASTFunAppExpr;
 class ASTFunction;
 class ASTIfStmt;
@@ -105,6 +106,11 @@ private:
    * \p ptrAsInt  An i64 holding the owning pointer value.
    * \p topType   The TopType of the owned value (expected to be TopOwningRef).
    */
+  /*! \brief True for a call or alloc whose value is an owning reference:
+   *  dereferenced directly, it is never bound, so codegen frees it. */
+  bool isUnboundOwnedReference(ASTExpr *operand);
+  llvm::Value *emitCheckedDivision(llvm::Value *L, llvm::Value *R, int line,
+                                   CodeGenContext &ctx);
   void emitDestroyValue(llvm::Value *ptrAsInt, TopType *topType,
                         CodeGenContext &ctx);
 

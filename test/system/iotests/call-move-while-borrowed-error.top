@@ -1,0 +1,17 @@
+// A borrow lives until the call that receives it returns, so the owner must
+// stay alive for that call. Here the same call also consumes the owner: `both`
+// frees p through `sink`, then reads through q, which borrows the same
+// allocation.
+sink(p) { return *p; }
+
+both(p, q) {
+  var r;
+  r = sink(p);
+  return r + **q;
+}
+
+main() {
+  var a;
+  a = alloc 1;
+  return both(a, &a);
+}

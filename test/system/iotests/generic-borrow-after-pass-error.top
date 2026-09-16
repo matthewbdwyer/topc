@@ -1,0 +1,16 @@
+// Borrowing a generic formal after passing it on is also a use after the
+// pass: `&x` would lend a value `sink` has already freed.
+sink(p) { return *p; }
+read(q) { return **q; }
+
+keep(f, g, x) {
+  var r;
+  r = f(x);
+  return r + g(&x);
+}
+
+main() {
+  var a;
+  a = alloc 1;
+  return keep(sink, read, a);
+}

@@ -1,0 +1,13 @@
+// soundness grid case own.seq.read.none
+// kind=own context=seq op1=read op2=none
+// expect: accept
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = alloc 5;
+  r = r + *x;
+  
+  return 0;
+}

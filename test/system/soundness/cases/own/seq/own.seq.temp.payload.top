@@ -1,0 +1,14 @@
+// soundness grid case own.seq.temp.payload
+// kind=own context=seq op1=temp op2=payload
+// expect: accept
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+make() { var p; p = alloc 7; return p; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = alloc 5;
+  r = r + *make();
+  w = Wrap(x);
+  return 0;
+}

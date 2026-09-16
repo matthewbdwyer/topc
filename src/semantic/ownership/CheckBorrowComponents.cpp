@@ -1,4 +1,5 @@
 #include "CheckBorrowComponents.h"
+#include "RuleToggles.h"
 #include "../SemanticLogging.h"
 
 #include "ASTAllocExpr.h"
@@ -72,7 +73,7 @@ void CheckBorrowComponents::checkSumTypes() {
         oss << "Ownership error on line " << decl->getLine() << ": payload '"
             << param->getName() << "' of constructor " << variant->getTag()
             << " holds a borrow (" << *payload << ")" << kAdvice;
-        throw SemanticError(oss.str());
+        if (RuleToggles::enabled("borrow-component")) throw SemanticError(oss.str());
       }
     }
   }
@@ -96,7 +97,7 @@ void CheckBorrowComponents::checkFunctionReturns() {
     std::ostringstream oss;
     oss << "Ownership error on line " << decl->getLine() << ": function "
         << decl->getName() << " returns a borrow (" << *ret << ")" << kAdvice;
-    throw SemanticError(oss.str());
+    if (RuleToggles::enabled("borrow-component")) throw SemanticError(oss.str());
     // LCOV_EXCL_STOP
   }
 }
@@ -114,7 +115,7 @@ void CheckBorrowComponents::endVisit(ASTAllocExpr *element) {
   std::ostringstream oss;
   oss << "Ownership error on line " << element->getLine()
       << ": alloc payload holds a borrow (" << *payload << ")" << kAdvice;
-  throw SemanticError(oss.str());
+  if (RuleToggles::enabled("borrow-component")) throw SemanticError(oss.str());
 }
 
 void CheckBorrowComponents::check(ASTProgram *p, SymbolTable *sym,

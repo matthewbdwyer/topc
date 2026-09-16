@@ -5,8 +5,9 @@
 /*! \class CheckBorrowPositions
  *  \brief Reject unambiguously invalid borrow-expression positions.
  *
- * In TOP v1, `&x` is a read-only borrow.  The following positions are
- * rejected early (before type inference):
+ * A borrow `&x` is legal only as a call argument (a borrow may write a Copy
+ * value through it, but never outlives the call). The following positions
+ * are rejected early (before type inference):
  *   - operand of an arithmetic or relational binary expression
  *   - argument of `output`
  *   - argument of `error`

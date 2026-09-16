@@ -1,0 +1,33 @@
+// An owned variable initialized on every path, or moved on every path, joins
+// cleanly; a loop-local owned value that is moved on within the iteration is
+// fine too. Exits 0; clean under ASan/LSan.
+sink(p) { return *p; }
+
+pick(c) {
+  var a, r;
+  if (c > 0) {
+    a = alloc 1;
+  } else {
+    a = alloc 2;
+  }
+  r = *a;
+  return r;
+}
+
+drain(n) {
+  var p, total;
+  total = 0;
+  while (n > 0) {
+    p = alloc n;
+    total = total + sink(p);
+    n = n - 1;
+  }
+  return total;
+}
+
+main() {
+  if (pick(1) != 1) error 1;
+  if (pick(0) != 2) error 2;
+  if (drain(3) != 6) error 3;
+  return 0;
+}

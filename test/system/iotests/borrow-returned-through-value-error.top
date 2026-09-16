@@ -1,0 +1,14 @@
+// A borrow may not be a function's result. `id` is called through a function
+// value with a borrow, which fixes its type to return one; the component
+// check rejects the result type, so the borrow cannot be stored past the call.
+id(x) { return x; }
+apply(f, x) { return f(x); }
+sink(p) { return *p; }
+
+main() {
+  var a, y, r;
+  a = alloc 1;
+  y = apply(id, &a);
+  r = sink(a);
+  return **y;
+}

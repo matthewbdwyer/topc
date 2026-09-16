@@ -1,0 +1,15 @@
+// soundness grid case own.loop.ident.read
+// kind=own context=loop op1=ident op2=read
+// expect: reject (move inside while-loop body | still owned at the end of a while-loop)
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+ident(z) { return z; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = alloc 5;
+  i = 2;
+  while (i > 0) { y = ident(x); i = i - 1; }
+  r = r + *x;
+  return 0;
+}

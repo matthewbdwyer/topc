@@ -1,0 +1,16 @@
+// soundness grid case int.cond.borrow.ident
+// kind=int context=cond op1=borrow op2=ident
+// expect: accept
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+ident(z) { return z; }
+look(q) { return *q; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = 5;
+  i = 0;
+  while (look(&x) > i) { i = i + 1000; }
+  y = ident(x);
+  return 0;
+}

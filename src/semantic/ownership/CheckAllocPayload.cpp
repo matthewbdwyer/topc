@@ -1,4 +1,5 @@
 #include "CheckAllocPayload.h"
+#include "RuleToggles.h"
 #include "../SemanticLogging.h"
 #include "ASTAllocExpr.h"
 #include "ASTProgram.h"
@@ -29,7 +30,7 @@ void CheckAllocPayload::endVisit(ASTAllocExpr *element) {
       << ": alloc payload must not be an owned value; owned pointers cannot "
          "nest (own&own is not allowed). Use a sum type to own structured or "
          "heap data.\n";
-  throw SemanticError(oss.str());
+  if (RuleToggles::enabled("alloc-payload")) throw SemanticError(oss.str());
 }
 
 void CheckAllocPayload::check(ASTProgram *p, TypeInference *typeInf) {

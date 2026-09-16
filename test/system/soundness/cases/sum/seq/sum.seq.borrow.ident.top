@@ -1,0 +1,16 @@
+// soundness grid case sum.seq.borrow.ident
+// kind=sum context=seq op1=borrow op2=ident
+// expect: accept
+type Cell = Val(n) | Nope;
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+ident(z) { return z; }
+look(q) { var t; t = 0; case *q of { Val(n) -> t = n; Nope -> t = 0; } return t; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = Val(5);
+  r = r + look(&x);
+  y = ident(x);
+  return 0;
+}

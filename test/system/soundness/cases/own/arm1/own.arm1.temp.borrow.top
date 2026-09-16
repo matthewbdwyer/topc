@@ -1,0 +1,16 @@
+// soundness grid case own.arm1.temp.borrow
+// kind=own context=arm1 op1=temp op2=borrow
+// expect: accept
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+look(q) { return **q; }
+make() { var p; p = alloc 7; return p; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = alloc 5;
+  sel = On(1);
+  case sel of { On(k) -> { r = r + *make(); } Off -> r = r + 0; }
+  r = r + look(&x);
+  return 0;
+}

@@ -1,0 +1,15 @@
+// A by-value case consumes its scrutinee, so matching the same owned value
+// in a loop body is a move inside the loop.
+type Cell = Val(n) | Nope;
+
+main() {
+  var c, r, i;
+  c = Val(5);
+  i = 2;
+  r = 0;
+  while (i > 0) {
+    case c of { Val(n) -> r = n; Nope -> r = 0; }
+    i = i - 1;
+  }
+  return r;
+}

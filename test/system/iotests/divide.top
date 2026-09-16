@@ -1,0 +1,10 @@
+// Integer division is checked. A zero divisor, or INT64_MIN divided by -1,
+// stops the program with a runtime error naming the line, instead of the
+// undefined behavior of an unchecked machine division.
+main(d) {
+  var m;
+  output 100 / d;
+  m = -9223372036854775808;
+  output m / (d + 2);
+  return 0;
+}

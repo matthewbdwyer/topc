@@ -1,0 +1,15 @@
+// soundness grid case int.arm1.ident.none
+// kind=int context=arm1 op1=ident op2=none
+// expect: accept
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+ident(z) { return z; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = 5;
+  sel = On(1);
+  case sel of { On(k) -> { y = ident(x); } Off -> r = r + 0; }
+  
+  return 0;
+}

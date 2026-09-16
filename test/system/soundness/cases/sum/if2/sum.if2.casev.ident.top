@@ -1,0 +1,15 @@
+// soundness grid case sum.if2.casev.ident
+// kind=sum context=if2 op1=casev op2=ident
+// expect: reject (used after move | moved more than once | assigned while still owned)
+type Cell = Val(n) | Nope;
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+ident(z) { return z; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = Val(5);
+  if (c > 0) { case x of { Val(n) -> r = r + n; Nope -> r = r + 0; } } else { case x of { Val(n) -> r = r + n; Nope -> r = r + 0; } }
+  y = ident(x);
+  return 0;
+}

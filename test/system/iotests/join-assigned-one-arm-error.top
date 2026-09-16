@@ -1,0 +1,13 @@
+// The same rule for case arms: `a` is assigned in one arm only.
+type Cell = Val(n) | Nope;
+
+main(c) {
+  var x, a, r;
+  r = 0;
+  x = Nope;
+  case x of {
+    Val(n) -> r = n;
+    Nope -> a = alloc 7;
+  }
+  return r;
+}

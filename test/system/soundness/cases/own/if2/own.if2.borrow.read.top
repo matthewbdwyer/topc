@@ -1,0 +1,14 @@
+// soundness grid case own.if2.borrow.read
+// kind=own context=if2 op1=borrow op2=read
+// expect: accept
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+look(q) { return **q; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = alloc 5;
+  if (c > 0) { r = r + look(&x); } else { r = r + look(&x); }
+  r = r + *x;
+  return 0;
+}

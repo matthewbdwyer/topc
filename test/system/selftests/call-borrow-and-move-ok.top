@@ -1,0 +1,23 @@
+// Borrowing one owner while moving another in the same call is fine, and so
+// is borrowing an owner in one statement and moving it in the next.
+// Exits 0; clean under ASan/LSan.
+sink(p) { return *p; }
+read(q) { return **q; }
+
+both(p, q) {
+  var r;
+  r = sink(p);
+  return r + **q;
+}
+
+main() {
+  var a, b, x, y;
+  a = alloc 1;
+  b = alloc 2;
+  x = both(b, &a);
+  if (x != 3) error 1;
+  y = read(&a);
+  y = y + sink(a);
+  if (y != 2) error 2;
+  return 0;
+}

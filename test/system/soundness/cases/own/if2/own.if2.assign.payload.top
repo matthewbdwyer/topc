@@ -1,0 +1,13 @@
+// soundness grid case own.if2.assign.payload
+// kind=own context=if2 op1=assign op2=payload
+// expect: reject (used after move | moved more than once | assigned while still owned)
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = alloc 5;
+  if (c > 0) { y = x; } else { y = x; }
+  w = Wrap(x);
+  return 0;
+}

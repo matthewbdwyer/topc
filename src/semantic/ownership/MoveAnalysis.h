@@ -9,7 +9,11 @@
 #include <map>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
+
+class ASTCaseArm;
+class ASTVariableExpr;
 
 /*!
  * \class MoveAnalysis
@@ -25,8 +29,14 @@
  *   x = e   (e not a direct Own var) → x : Owned (if x : Own).
  *   Use of y where y : Own, y : Moved → use-after-move error.
  *   Assigning over a live Owned Own variable → assign-over-live-own error.
- *   if/case join: both paths must leave every Own variable in the same state.
- *   while/for body: may not change the state of any Own variable.
+ *   Expressions are walked in evaluation order: a move takes effect where it
+ *   happens, so a later use in the same statement sees it.
+ *   A call's borrowed owners (`&x` in any actual) may not be moved by any
+ *   actual of that call.
+ *   if/case join: a variable Owned on one path must be Owned on every path.
+ *   while condition and body: may not change which Own variables are Owned.
+ *   Owned binders of a by-value case are Owned for the arm and go out of
+ *   scope at its end (freed there by DestructionPass if still Owned).
  *
  * \throws SemanticError on any violation.
  */
@@ -52,6 +62,21 @@ public:
   /*! \brief Returns retained trace events from the most recent run. */
   static const std::vector<MoveTraceEvent> &getLastTrace();
 
+  /*! \brief Owned binders of \p arm (none for a borrowed scrutinee). */
+  static std::vector<ASTDeclNode *>
+  ownedBinders(ASTCaseArm *arm, bool byValue, OwnershipClassifier *classifier);
+
+  /*! \brief Join branch states. A variable Owned on some branches but not
+   *  all is a disagreement (thrown when \p check); Owned on all stays Owned,
+   *  Moved on any other is Moved, otherwise uninitialized (absent). Shared
+   *  with DestructionPass so the two passes cannot disagree about a join.
+   */
+  static StateMap joinStates(const std::vector<StateMap> &branches, bool check);
+
+  /*! \brief A loop body may not change which Own variables are Owned. */
+  static void assertLoopInvariant(const StateMap &preState,
+                                  const StateMap &bodyState, int line);
+
 private:
   ASTProgram *program;
   SymbolTable *sym;
@@ -60,6 +85,10 @@ private:
   ASTDeclNode *currentFuncDecl; ///< set while analysing a function
   std::set<ASTDeclNode *> currentFormals;
   std::vector<MoveTraceEvent> trace;
+  /// Borrowed owners of each call whose actuals are being evaluated.
+  std::vector<std::pair<ASTFunAppExpr *, std::set<ASTDeclNode *>>> heldBorrows;
+  /// Variables moved so far in the current statement (for the message).
+  std::set<ASTDeclNode *> movedInStmt;
   static std::vector<MoveTraceEvent> lastTrace;
 
   void analyzeFunction(ASTFunction *f);
@@ -72,23 +101,25 @@ private:
   /*! \brief Specialised transfer for ASTAssignStmt. */
   StateMap analyzeAssign(ASTAssignStmt *stmt, StateMap state);
 
-  /*! \brief Recursively verify that no Moved Own variable appears in \p expr.
-   *
-   * Does NOT update the state — ownership transfers happen only at the
-   * statement level.
-   */
-  void checkExprForMoved(ASTNode *node, const StateMap &state) const;
+  /*! \brief Transfer for one case arm; owned binders are arm-scoped. */
+  StateMap analyzeArm(ASTCaseArm *arm, bool byValue, StateMap state);
 
-  /*! \brief Consume ownership for direct Own variable arguments to calls in
-   *         \p expr.
-   *
-   * This updates \p state in-place and records move trace events.
+  /*! \brief Evaluate \p node in evaluation order: check each use against the
+   *  current state and apply each move where it happens.
    */
-  void consumeCallArgMoves(ASTNode *node, StateMap &state);
+  void evalExpr(ASTNode *node, StateMap &state);
 
-  /*! \brief Determine whether the i-th actual instantiates as Own for a formal
-   *         mode that depends on instantiation.
-   */
+  /*! \brief Throw use-after-move if \p varExpr names a Moved Own variable. */
+  void checkUse(ASTVariableExpr *varExpr, const StateMap &state) const;
+
+  /*! \brief Move \p decl: reject if already Moved or borrowed by a call in
+   *  progress; record the trace event. */
+  void consumeVar(ASTVariableExpr *varExpr, ASTDeclNode *decl, StateMap &state,
+                  const char *reason);
+
+  /*! \brief Owners borrowed (`&x`) anywhere inside \p node. */
+  void collectBorrowedOwners(ASTNode *node,
+                             std::set<ASTDeclNode *> &owners) const;
 
   /*! \brief Resolve a variable name to its ASTDeclNode in the current function,
    *         falling back to global function names.
@@ -96,12 +127,5 @@ private:
    */
   ASTDeclNode *resolveVar(const std::string &name) const;
 
-  /*! \brief Verify that \p thenState and \p elseState agree on every Own var.
-   *
-   * Iterates over the union of keys from both maps and \p preState; if any
-   * Own variable differs between the two branch states, throws SemanticError.
-   */
-  static void assertJoinAgrees(const StateMap &preState,
-                                const StateMap &thenState,
-                                const StateMap &elseState);
+
 };

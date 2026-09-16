@@ -1,0 +1,12 @@
+// Assigned only on the else path: before this rule, the value leaked there.
+main(c) {
+  var a, r;
+  r = 0;
+  if (c > 0) {
+    r = 1;
+  } else {
+    a = alloc 1;
+    r = *a;
+  }
+  return r;
+}

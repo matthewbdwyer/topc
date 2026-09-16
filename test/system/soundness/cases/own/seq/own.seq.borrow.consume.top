@@ -1,0 +1,15 @@
+// soundness grid case own.seq.borrow.consume
+// kind=own context=seq op1=borrow op2=consume
+// expect: accept
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+consume(p) { return *p; }
+look(q) { return **q; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = alloc 5;
+  r = r + look(&x);
+  r = r + consume(x);
+  return 0;
+}

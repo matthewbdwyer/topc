@@ -1,4 +1,6 @@
 #include "FunctionEffectSummaries.h"
+#include "InternalError.h"
+#include "RuleToggles.h"
 #include "../SemanticLogging.h"
 
 #include "ASTAssignStmt.h"
@@ -111,7 +113,8 @@ bool containsRecursiveFunctionType(TopType *type) {
 }
 
 void rejectUnsupportedRecursiveType(TopType *type, const std::string &context) {
-  if (containsRecursiveFunctionType(type)) {
+  if (containsRecursiveFunctionType(type) &&
+      RuleToggles::enabled("recursive-type")) {
     throw SemanticError("recursive types are not yet supported in ownership analysis: " +
                         context);
   }
@@ -179,6 +182,12 @@ struct ForwardRecord {
 struct OriginState {
   std::map<ASTDeclNode *, OriginFact> origins;
   std::set<int> forwarded;
+  /* Formals passed on to a call on *some* path so far, and formals used again
+   * after that. A value passed on by value may have been consumed, so a later
+   * use is sound only if the value is Copy (a Copy requirement on the formal,
+   * judged at each call). */
+  std::set<int> maybeForwarded;
+  std::set<int> reused;
 };
 
 bool sameOrigin(const OriginFact &a, const OriginFact &b) {
@@ -236,23 +245,37 @@ OriginFact originForExpr(ASTExpr *expr, const OriginState &state,
   return unknownOrigin();
 }
 
-/* Record every call under `node` whose actual is (an alias of) a formal: on
- * this path that formal has been passed on. */
+/* Walk `node` in evaluation order. Record every call whose actual is (an
+ * alias of) a formal: on this path that formal has been passed on. Record a
+ * formal as reused when (an alias of) it is used, including under `&`, after
+ * it may have been passed on. */
 void noteForwards(ASTNode *node, OriginState &state,
                   std::vector<ForwardRecord> &log, SymbolTable *sym,
                   ASTDeclNode *functionDecl) {
   if (node == nullptr) {
     return;
   }
+  if (auto *var = dynamic_cast<ASTVariableExpr *>(node)) {
+    auto origin = originForExpr(var, state, sym, functionDecl);
+    if (origin.origin == FunctionEffectSummaries::ReturnOrigin::FromFormal &&
+        state.maybeForwarded.count(origin.formalIndex) > 0) {
+      state.reused.insert(origin.formalIndex);
+    }
+    return;
+  }
   if (auto *call = dynamic_cast<ASTFunAppExpr *>(node)) {
+    noteForwards(call->getFunction(), state, log, sym, functionDecl);
     auto actuals = call->getActuals();
     for (std::size_t k = 0; k < actuals.size(); ++k) {
+      noteForwards(actuals[k], state, log, sym, functionDecl);
       auto origin = originForExpr(actuals[k], state, sym, functionDecl);
       if (origin.origin == FunctionEffectSummaries::ReturnOrigin::FromFormal) {
         state.forwarded.insert(origin.formalIndex);
+        state.maybeForwarded.insert(origin.formalIndex);
         log.push_back({origin.formalIndex, call, k});
       }
     }
+    return;
   }
   for (auto &child : node->getChildren()) {
     noteForwards(child.get(), state, log, sym, functionDecl);
@@ -280,6 +303,12 @@ OriginState joinStates(const OriginState &left, const OriginState &right) {
   std::set_intersection(left.forwarded.begin(), left.forwarded.end(),
                         right.forwarded.begin(), right.forwarded.end(),
                         std::inserter(joined.forwarded, joined.forwarded.end()));
+  // Maybe passed on, and reused, if so along either path.
+  joined.maybeForwarded = left.maybeForwarded;
+  joined.maybeForwarded.insert(right.maybeForwarded.begin(),
+                               right.maybeForwarded.end());
+  joined.reused = left.reused;
+  joined.reused.insert(right.reused.begin(), right.reused.end());
   return joined;
 }
 
@@ -343,7 +372,18 @@ OriginState analyzeStmtOrigins(ASTStmt *stmt, OriginState state,
     noteForwards(whileStmt->getCondition(), state, log, sym, functionDecl);
     auto bodyState =
         analyzeStmtOrigins(whileStmt->getBody(), state, log, sym, functionDecl);
-    return joinStates(state, bodyState);
+    auto joined = joinStates(state, bodyState);
+    // A second iteration: a formal passed on in one iteration and used in the
+    // condition or body of the next is reused. Only the reuse facts are kept;
+    // the log already holds this loop's forwarding records.
+    std::vector<ForwardRecord> scratchLog;
+    auto again = joined;
+    noteForwards(whileStmt->getCondition(), again, scratchLog, sym,
+                 functionDecl);
+    again = analyzeStmtOrigins(whileStmt->getBody(), again, scratchLog, sym,
+                               functionDecl);
+    joined.reused.insert(again.reused.begin(), again.reused.end());
+    return joined;
   }
 
   if (auto *caseStmt = dynamic_cast<ASTCaseStmt *>(stmt)) {
@@ -374,6 +414,7 @@ OriginState analyzeStmtOrigins(ASTStmt *stmt, OriginState state,
 struct BodyFacts {
   OriginFact returned;
   std::set<int> forwarded;
+  std::set<int> reused;
   std::vector<ForwardRecord> log;
 };
 
@@ -404,6 +445,7 @@ BodyFacts analyzeBody(ASTFunction *f, SymbolTable *sym) {
     facts.returned = originForExpr(ret->getArg(), state, sym, f->getDecl());
   }
   facts.forwarded = state.forwarded;
+  facts.reused = state.reused;
   return facts;
 }
 
@@ -427,7 +469,7 @@ std::shared_ptr<FunctionEffectSummaries>
 FunctionEffectSummaries::build(
     ASTProgram *ast, SymbolTable *sym, TypeInference *types,
     OwnershipClassifier *classifier, CallGraph *cg,
-    const std::map<ASTDeclNode *, std::vector<CopyRequirement>> *requirements) {
+    const std::map<ASTDeclNode *, std::vector<FormalRequirement>> *requirements) {
   SEMANTIC_LOG(1, "function-effects") << "start";
   auto result = std::make_shared<FunctionEffectSummaries>();
   std::map<ASTDeclNode *, std::vector<ForwardRecord>> forwardLogs;
@@ -493,11 +535,25 @@ FunctionEffectSummaries::build(
 
     summary.formalRequirement.assign(summary.formalModes.size(),
                                      CopyRequirement::None);
+    summary.formalRequirementReasons.assign(summary.formalModes.size(), 0);
     if (requirements != nullptr) {
       auto it = requirements->find(f->getDecl());
       if (it != requirements->end() &&
           it->second.size() == summary.formalRequirement.size()) {
-        summary.formalRequirement = it->second;
+        for (std::size_t i = 0; i < it->second.size(); ++i) {
+          summary.formalRequirement[i] = it->second[i].kind;
+          summary.formalRequirementReasons[i] = it->second[i].reasons;
+        }
+      }
+    }
+    // A generic formal used again after it may have been passed on is sound
+    // only when its instance is Copy: an owned value passed on was consumed.
+    for (int i : facts.reused) {
+      if (i >= 0 && static_cast<std::size_t>(i) < summary.formalModes.size() &&
+          summary.formalModes[i] == FormalMode::DependsOnInstantiation) {
+        summary.formalRequirement[i] =
+            joinRequirement(summary.formalRequirement[i], CopyRequirement::Self);
+        summary.formalRequirementReasons[i] |= UsedAfterPassedOn;
       }
     }
 
@@ -642,27 +698,48 @@ FunctionEffectSummaries::build(
             continue;
           }
           if (verdict == Verdict::Violated) {
+            unsigned reasons = s->formalRequirementReasons[i];
+            // Report the reason that applies to how this actual violates the
+            // requirement: an owned value itself (Self) or behind a borrow.
+            bool selfViolated =
+                judgeOne(CopyRequirement::Self, actualType.get()) ==
+                Verdict::Violated;
             std::ostringstream oss;
-            oss << "call " << *call << " on line " << call->getLine()
-                << " moves an owned value out of the borrow: callee '"
-                << s->functionName << "' "
-                << (req == CopyRequirement::Self
-                        ? "hands a borrow of formal '"
-                        : "dereferences formal '")
-                << s->formalNames[i]
-                << (req == CopyRequirement::Self
-                        ? "' to a callee that takes the value behind it"
-                        : "' in a position that takes ownership");
-            throw SemanticError(oss.str());
+            oss << "call " << *call << " on line " << call->getLine();
+            if (selfViolated && (reasons & UsedAfterPassedOn)) {
+              oss << " passes an owned value to generic formal '"
+                  << s->formalNames[i] << "' of '" << s->functionName
+                  << "', which uses it again after passing it on";
+            } else if (!selfViolated && (reasons & OverwritesThroughBorrow) &&
+                       !(reasons & MovesOutOfBorrow)) {
+              oss << " overwrites an owned value through the borrow: callee '"
+                  << s->functionName << "' writes through formal '"
+                  << s->formalNames[i] << "'";
+            } else if (selfViolated && (reasons & LendsToMoveOut)) {
+              oss << " moves an owned value out of the borrow: callee '"
+                  << s->functionName << "' hands a borrow of formal '"
+                  << s->formalNames[i]
+                  << "' to a callee that takes the value behind it";
+            } else {
+              oss << " moves an owned value out of the borrow: callee '"
+                  << s->functionName << "' dereferences formal '"
+                  << s->formalNames[i] << "' in a position that takes ownership";
+            }
+            if (RuleToggles::enabled("generic-copy-bound")) {
+              throw SemanticError(oss.str());
+            }
+            continue;
           }
 
           // Undetermined: the enclosing function is generic here too. Its
           // callers must decide, so the requirement moves to its formal.
           CopyRequirement inherited = CopyRequirement::Self;
+          unsigned inheritedReasons = s->formalRequirementReasons[i];
           ASTExpr *source = actuals[i];
           if (req != CopyRequirement::Self) {
             if (auto *borrow = dynamic_cast<ASTBorrowExpr *>(source)) {
               source = borrow->getVar(); // &x: x itself must be Copy
+              inheritedReasons |= LendsToMoveOut;
             } else {
               inherited = req;
             }
@@ -674,14 +751,22 @@ FunctionEffectSummaries::build(
                 << ": cannot tell whether argument " << i << " ("
                 << *actuals[i] << ") refers to an owned value that callee '"
                 << s->functionName
-                << "' would take; pass a formal parameter or a borrow of one";
-            throw SemanticError(oss.str());
+                << "' would take; pass the formal parameter itself (or a "
+                   "borrow of it) rather than a local copy of it";
+            if (RuleToggles::enabled("generic-untracked-actual")) {
+              throw SemanticError(oss.str());
+            }
+            continue;
           }
           Summary &caller = result->summaries[scope];
           CopyRequirement joined =
               joinRequirement(caller.formalRequirement[j], inherited);
-          if (joined != caller.formalRequirement[j]) {
+          unsigned joinedReasons =
+              caller.formalRequirementReasons[j] | inheritedReasons;
+          if (joined != caller.formalRequirement[j] ||
+              joinedReasons != caller.formalRequirementReasons[j]) {
             caller.formalRequirement[j] = joined;
+            caller.formalRequirementReasons[j] = joinedReasons;
             changed = true;
             SEMANTIC_LOG(2, "function-effects")
                 << "function=" << caller.functionName << " formal=" << j
@@ -733,7 +818,11 @@ FunctionEffectSummaries::build(
               << (s->returnOrigin == ReturnOrigin::Unknown ? " on every path"
                                                            : "")
               << " nor borrowed nor passed on by the callee";
-          throw SemanticError(oss.str());
+          if (RuleToggles::enabled("generic-drop")) {
+            throw SemanticError(oss.str());
+          }
+          consumes[i] = true; // unsafe: nobody frees the value
+          break;
         }
         }
       }
@@ -741,10 +830,13 @@ FunctionEffectSummaries::build(
         effect.consumes = consumes;
         first = false;
       } else if (consumes != effect.consumes) {
-        std::ostringstream oss;
-        oss << "call on line " << call->getLine()
+        // Unreachable in TOP: a function value's possible targets are unified to
+        // one function type, so their formals classify alike. An internal
+        // invariant, not a language rule.
+        std::ostringstream oss; // LCOV_EXCL_LINE
+        oss << "call on line " << call->getLine() // LCOV_EXCL_LINE
             << " has possible targets that disagree on argument ownership";
-        throw SemanticError(oss.str());
+        throw InternalError(oss.str()); // LCOV_EXCL_LINE
       }
     }
 

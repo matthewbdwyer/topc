@@ -1,0 +1,12 @@
+// A generic write-through `*p = v` is fine when the slot is Copy. Here the
+// call instantiates the slot at own&int: the old owned value would be
+// orphaned (never freed). Rejected at the call, as an overwrite.
+setVal(p, v) { *p = v; return 0; }
+
+main() {
+  var a, b, r;
+  a = alloc 1;
+  b = alloc 2;
+  r = setVal(&a, b);
+  return *a;
+}

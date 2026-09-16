@@ -36,6 +36,21 @@ public:
    */
   enum class CopyRequirement { None, Referent, Self, Both };
 
+  /*! \brief Why a requirement was recorded; selects the diagnostic. A
+   *  bitmask, since one formal can need Copy for several reasons. */
+  enum RequirementReason : unsigned {
+    MovesOutOfBorrow = 1u << 0,  ///< `*p` taken where p is a borrowed formal
+    OverwritesThroughBorrow = 1u << 1, ///< `*p = v` replaces the referent
+    LendsToMoveOut = 1u << 2,    ///< `&x` handed to a callee that takes `*p`
+    UsedAfterPassedOn = 1u << 3, ///< formal used again after passing it on
+  };
+
+  /*! \brief A requirement together with the reasons it was recorded. */
+  struct FormalRequirement {
+    CopyRequirement kind = CopyRequirement::None;
+    unsigned reasons = 0;
+  };
+
   struct Summary {
     std::string functionName;
     std::vector<std::string> formalNames;
@@ -45,6 +60,8 @@ public:
     std::vector<bool> formalForwarded;
     /*! For each formal: what its actual must be for the body to be sound. */
     std::vector<CopyRequirement> formalRequirement;
+    /*! For each formal: RequirementReason bits explaining formalRequirement. */
+    std::vector<unsigned> formalRequirementReasons;
     ReturnOrigin returnOrigin = ReturnOrigin::Unknown;
     int returnFormalIndex = -1;
   };
@@ -66,7 +83,7 @@ public:
   static std::shared_ptr<FunctionEffectSummaries>
   build(ASTProgram *ast, SymbolTable *sym, TypeInference *types,
         OwnershipClassifier *classifier, CallGraph *cg,
-        const std::map<ASTDeclNode *, std::vector<CopyRequirement>>
+        const std::map<ASTDeclNode *, std::vector<FormalRequirement>>
             *requirements = nullptr);
 
   const Summary *get(ASTDeclNode *functionDecl) const;

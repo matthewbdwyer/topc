@@ -2,14 +2,16 @@
 
 #include "ASTExpr.h"
 
+#include <cstdint>
+
 /*! \brief Class for numeric literals.
  */
 class ASTNumberExpr : public ASTExpr {
-  int VAL;
+  int64_t VAL;
 
 public:
-  ASTNumberExpr(int VAL) : VAL(VAL) {}
-  int getValue() const { return VAL; }
+  ASTNumberExpr(int64_t VAL) : VAL(VAL) {}
+  int64_t getValue() const { return VAL; }
   void accept(ASTVisitor *visitor) override;
 
 protected:

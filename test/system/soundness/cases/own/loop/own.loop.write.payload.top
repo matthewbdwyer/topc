@@ -1,0 +1,14 @@
+// soundness grid case own.loop.write.payload
+// kind=own context=loop op1=write op2=payload
+// expect: accept
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = alloc 5;
+  i = 2;
+  while (i > 0) { *x = 3; i = i - 1; }
+  w = Wrap(x);
+  return 0;
+}

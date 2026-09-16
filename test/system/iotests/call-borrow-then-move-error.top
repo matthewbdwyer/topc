@@ -1,0 +1,15 @@
+// The order of the actuals does not matter: the borrow in the first position
+// is still live when the callee consumes the second.
+sink(p) { return *p; }
+
+both(q, p) {
+  var r;
+  r = sink(p);
+  return r + **q;
+}
+
+main() {
+  var a;
+  a = alloc 1;
+  return both(&a, a);
+}

@@ -1,4 +1,5 @@
 #include "AliasCheck.h"
+#include "RuleToggles.h"
 #include "../SemanticLogging.h"
 
 #include "ASTAssignStmt.h"
@@ -50,47 +51,11 @@ AliasCheck::Requirements AliasCheck::run(ASTProgram *p, SymbolTable *sym,
 
 void AliasCheck::checkFunction(ASTFunction *f) {
   current = f;
-  aliasBinders.clear();
+  aliasNames.clear();
   requirements[f->getDecl()].assign(f->getFormals().size(),
-                                    Requirement::None);
-  for (auto *stmt : f->getStmts()) {
-    collectAliasBinders(stmt);
-  }
+                                    FormalRequirement{});
   for (auto *stmt : f->getStmts()) {
     checkStmt(stmt);
-  }
-}
-
-// Every Own-typed binding introduced by matching *through a borrow* names a
-// payload the caller still owns. Sum payloads are monomorphic, so this is
-// decidable here; a payload whose type is still a variable is never
-// instantiated and is treated as Copy.
-void AliasCheck::collectAliasBinders(ASTStmt *stmt) {
-  if (auto *caseStmt = dynamic_cast<ASTCaseStmt *>(stmt)) {
-    bool borrowed =
-        dynamic_cast<ASTDeRefExpr *>(caseStmt->getCaseExpr()) != nullptr;
-    for (auto *arm : caseStmt->getArms()) {
-      if (borrowed) {
-        for (auto *binding : arm->getBindings()) {
-          auto type = types->getInferredType(binding);
-          if (OwnershipClassifier::classifyType(type.get()) ==
-              OwnershipClass::Own) {
-            aliasBinders.insert(binding);
-            SEMANTIC_LOG(2, "alias-check")
-                << "function=" << current->getName()
-                << " alias-binder=" << binding->getName()
-                << " line=" << caseStmt->getLine();
-          }
-        }
-      }
-      collectAliasBinders(arm->getBody());
-    }
-    return;
-  }
-  for (auto &child : stmt->getChildren()) {
-    if (auto *s = dynamic_cast<ASTStmt *>(child.get())) {
-      collectAliasBinders(s);
-    }
   }
 }
 
@@ -109,11 +74,31 @@ void AliasCheck::checkStmt(ASTStmt *stmt) {
   if (auto *caseStmt = dynamic_cast<ASTCaseStmt *>(stmt)) {
     // `case *e` borrows; `case v` on an alias binder would consume it.
     auto *scrutinee = caseStmt->getCaseExpr();
-    checkExpr(scrutinee, dynamic_cast<ASTDeRefExpr *>(scrutinee) != nullptr
-                             ? Ctx::Scrutinee
-                             : Ctx::Move);
+    bool borrowed = dynamic_cast<ASTDeRefExpr *>(scrutinee) != nullptr;
+    checkExpr(scrutinee, borrowed ? Ctx::Scrutinee : Ctx::Move);
     for (auto *arm : caseStmt->getArms()) {
+      // Every binding of the arm shadows an enclosing binding of the same name
+      // for the arm's body. Under a borrowed scrutinee an Own-typed binding
+      // names a payload the caller still owns: an alias. Sum payloads are
+      // monomorphic, so this is decidable here. Binders are tracked by name
+      // and arm, not by declaration, because uses resolve by name and the
+      // symbol table holds one declaration per name.
+      auto saved = aliasNames;
+      for (auto *binding : arm->getBindings()) {
+        auto type = types->getInferredType(binding);
+        if (borrowed && OwnershipClassifier::classifyType(type.get()) ==
+                            OwnershipClass::Own) {
+          aliasNames.insert(binding->getName());
+          SEMANTIC_LOG(2, "alias-check")
+              << "function=" << current->getName()
+              << " alias-binder=" << binding->getName()
+              << " line=" << caseStmt->getLine();
+        } else {
+          aliasNames.erase(binding->getName());
+        }
+      }
       checkStmt(arm->getBody());
+      aliasNames = saved;
     }
     return;
   }
@@ -152,15 +137,14 @@ void AliasCheck::checkExpr(ASTExpr *expr, Ctx ctx) {
   }
 
   if (auto *var = dynamic_cast<ASTVariableExpr *>(expr)) {
-    auto *decl = sym->getLocal(var->getName(), current->getDecl());
-    if (ctx == Ctx::Move && decl != nullptr && aliasBinders.count(decl) > 0) {
+    if (ctx == Ctx::Move && aliasNames.count(var->getName()) > 0) {
       std::ostringstream oss;
       oss << "Ownership error on line " << var->getLine() << ": '"
           << var->getName()
           << "' is bound by matching a borrowed value and can only be "
              "reborrowed (&"
           << var->getName() << ").";
-      throw SemanticError(oss.str());
+      if (RuleToggles::enabled("alias-binder")) throw SemanticError(oss.str());
     }
     return;
   }
@@ -218,7 +202,10 @@ void AliasCheck::checkDerefTaken(ASTDeRefExpr *deref, const char *what) {
         << "' is an owned value reached through a borrow and cannot be moved "
            "out; reborrow it with & or build a copy.";
   }
-  throw SemanticError(oss.str());
+  if (RuleToggles::enabled(std::string(what) == "overwrite" ? "alias-overwrite"
+                                                            : "alias-move-out")) {
+    throw SemanticError(oss.str());
+  }
 }
 
 void AliasCheck::require(ASTExpr *operand, ASTDeRefExpr *deref,
@@ -230,7 +217,12 @@ void AliasCheck::require(ASTExpr *operand, ASTDeRefExpr *deref,
   auto formals = current->getFormals();
   for (std::size_t i = 0; i < formals.size(); ++i) {
     if (formals[i] == decl) {
-      requirements[current->getDecl()][i] = Requirement::Referent;
+      auto &requirement = requirements[current->getDecl()][i];
+      requirement.kind = Requirement::Referent;
+      requirement.reasons |=
+          std::string(what) == "overwrite"
+              ? FunctionEffectSummaries::OverwritesThroughBorrow
+              : FunctionEffectSummaries::MovesOutOfBorrow;
       SEMANTIC_LOG(2, "alias-check")
           << "function=" << current->getName() << " formal=" << i
           << " requires=referent-copy reason=" << what << " line="
@@ -244,5 +236,5 @@ void AliasCheck::require(ASTExpr *operand, ASTDeRefExpr *deref,
       << ": cannot tell whether '" << repr(deref)
       << "' is an owned value; dereference a formal parameter directly so the "
          "decision can be made where the function is called.";
-  throw SemanticError(oss.str());
+  if (RuleToggles::enabled("alias-undecidable")) throw SemanticError(oss.str());
 }

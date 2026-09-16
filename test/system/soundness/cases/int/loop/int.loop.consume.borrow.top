@@ -1,0 +1,16 @@
+// soundness grid case int.loop.consume.borrow
+// kind=int context=loop op1=consume op2=borrow
+// expect: accept
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+consume(p) { return p + 1; }
+look(q) { return *q; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = 5;
+  i = 2;
+  while (i > 0) { r = r + consume(x); i = i - 1; }
+  r = r + look(&x);
+  return 0;
+}

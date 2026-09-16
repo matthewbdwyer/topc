@@ -1,0 +1,52 @@
+// Accepted owned control flow: re-assigning a matched scrutinee in every arm,
+// self-assignment, an owned formal moved in every case arm, and a call through
+// a function value chosen at run time. Exits 0; clean under ASan/LSan.
+type Cell = Val(n) | Nope;
+
+sink(p) { return *p; }
+peek(p) { var q; q = alloc 3; return *p + *q; }
+
+bump(c) {
+  var r;
+  r = 0;
+  case c of {
+    Val(n) -> c = Val(n + 1);
+    Nope -> c = Nope;
+  }
+  case c of {
+    Val(m) -> r = m;
+    Nope -> r = 0;
+  }
+  return r;
+}
+
+eitherArm(p, c) {
+  var r;
+  r = 0;
+  case c of {
+    Val(n) -> r = sink(p) + n;
+    Nope -> r = sink(p);
+  }
+  return r;
+}
+
+choose(k) {
+  var f, a, r;
+  a = alloc 1;
+  if (k > 0) { f = sink; } else { f = peek; }
+  r = f(a);
+  return r;
+}
+
+main() {
+  var a;
+  if (bump(Val(1)) != 2) error 1;
+  a = alloc 7;
+  a = a;
+  if (*a != 7) error 2;
+  if (eitherArm(alloc 4, Val(1)) != 5) error 3;
+  if (eitherArm(alloc 4, Nope) != 4) error 4;
+  if (choose(1) != 1) error 5;
+  if (choose(0) != 4) error 6;
+  return 0;
+}

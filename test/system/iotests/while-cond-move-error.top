@@ -1,0 +1,14 @@
+// A while condition runs once more than the body, so it may not move an
+// owned variable any more than the body may: the second test would read
+// memory the first one freed.
+sink(p) { return *p; }
+
+main() {
+  var a, i;
+  a = alloc 1;
+  i = 0;
+  while (sink(a) > i) {
+    i = i + 5;
+  }
+  return i;
+}

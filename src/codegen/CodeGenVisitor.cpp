@@ -1,4 +1,7 @@
 #include "CodeGenVisitor.h"
+#include "RuleToggles.h"
+
+#include <cstdint>
 
 #include "AST.h"
 #include "ASTCaseArm.h"
@@ -429,6 +432,54 @@ llvm::Value *CodeGenVisitor::generate(ASTNumberExpr *node) {
                                 node->getValue());
 } // LCOV_EXCL_LINE
 
+/*
+ * Integer division is undefined in LLVM IR when the divisor is zero or when
+ * INT64_MIN is divided by -1, and on common targets it silently produces a
+ * value. TOP defines both as a runtime error: the generated code tests the
+ * operands and calls _top_division_error (which reports the source line and
+ * exits) before an sdiv that could be undefined.
+ */
+llvm::Value *CodeGenVisitor::emitCheckedDivision(llvm::Value *L, llvm::Value *R,
+                                                 int line,
+                                                 CodeGenContext &ctx) {
+  auto *i64Ty = llvm::Type::getInt64Ty(ctx.llvmContext);
+  if (!RuleToggles::enabled("division-check")) {
+    return ctx.irBuilder.CreateSDiv(L, R, "divide");
+  }
+  if (ctx.divisionErrorIntrinsic == nullptr) {
+    auto *FT = llvm::FunctionType::get(llvm::Type::getVoidTy(ctx.llvmContext),
+                                       {i64Ty, i64Ty}, false);
+    ctx.divisionErrorIntrinsic =
+        llvm::Function::Create(FT, llvm::Function::ExternalLinkage,
+                               "_top_division_error", ctx.module.get());
+    ctx.divisionErrorIntrinsic->addFnAttr(llvm::Attribute::NoReturn);
+  }
+
+  auto *isZero = ctx.irBuilder.CreateICmpEQ(
+      R, llvm::ConstantInt::get(i64Ty, 0), "div.zero");
+  auto *isMin = ctx.irBuilder.CreateICmpEQ(
+      L, llvm::ConstantInt::get(i64Ty, INT64_MIN, true), "div.min");
+  auto *isMinusOne = ctx.irBuilder.CreateICmpEQ(
+      R, llvm::ConstantInt::get(i64Ty, -1, true), "div.minusone");
+  auto *isOverflow = ctx.irBuilder.CreateAnd(isMin, isMinusOne, "div.overflow");
+  auto *isBad = ctx.irBuilder.CreateOr(isZero, isOverflow, "div.bad");
+
+  llvm::Function *fn = ctx.irBuilder.GetInsertBlock()->getParent();
+  auto *errorBB = llvm::BasicBlock::Create(ctx.llvmContext, "div.error", fn);
+  auto *okBB = llvm::BasicBlock::Create(ctx.llvmContext, "div.ok", fn);
+  ctx.irBuilder.CreateCondBr(isBad, errorBB, okBB);
+
+  ctx.irBuilder.SetInsertPoint(errorBB);
+  ctx.irBuilder.CreateCall(
+      ctx.divisionErrorIntrinsic,
+      {llvm::ConstantInt::get(i64Ty, line),
+       ctx.irBuilder.CreateZExt(isOverflow, i64Ty, "div.kind")});
+  ctx.irBuilder.CreateUnreachable();
+
+  ctx.irBuilder.SetInsertPoint(okBB);
+  return ctx.irBuilder.CreateSDiv(L, R, "divide");
+}
+
 llvm::Value *CodeGenVisitor::generate(ASTBinaryExpr *node) {
   LOG_S(1) << "Generating code for " << *node;
   auto &ctx = *ctx_;
@@ -447,7 +498,7 @@ llvm::Value *CodeGenVisitor::generate(ASTBinaryExpr *node) {
   case ASTBinaryExpr::BinaryOp::Mul:
     return ctx.irBuilder.CreateMul(L, R, "multiply");
   case ASTBinaryExpr::BinaryOp::Div:
-    return ctx.irBuilder.CreateSDiv(L, R, "divide");
+    return emitCheckedDivision(L, R, node->getLine(), ctx);
   case ASTBinaryExpr::BinaryOp::Gt: {
     auto *cmp = ctx.irBuilder.CreateICmpSGT(L, R, "compare.gt");
     return ctx.irBuilder.CreateIntCast(
@@ -610,10 +661,34 @@ llvm::Value *CodeGenVisitor::generate(ASTDeRefExpr *node) {
 
   if (isLValue) {
     return address;
-  } else {
-    return ctx.irBuilder.CreateLoad(llvm::Type::getInt64Ty(ctx.llvmContext),
-                                    address, "valueAt");
   }
+  auto *value = ctx.irBuilder.CreateLoad(
+      llvm::Type::getInt64Ty(ctx.llvmContext), address, "valueAt");
+
+  // An owning reference produced by a call or an alloc and dereferenced
+  // directly is never bound to a variable, so no destroy statement will free
+  // it. Its referent is always Copy (an owning pointer's payload cannot own),
+  // so once the value is read the reference can be freed here.
+  if (isUnboundOwnedReference(node->getPtr())) {
+    ensureFreeDecl(ctx);
+    ctx.irBuilder.CreateCall(ctx.freeFun, {address});
+  }
+  return value;
+}
+
+bool CodeGenVisitor::isUnboundOwnedReference(ASTExpr *operand) {
+  if (!RuleToggles::enabled("free-unbound-reference")) {
+    return false;
+  }
+  if (dynamic_cast<ASTFunAppExpr *>(operand) == nullptr &&
+      dynamic_cast<ASTAllocExpr *>(operand) == nullptr) {
+    return false;
+  }
+  auto operandType =
+      semanticAnalysis_->getTypeResults()->getInferredType(operand);
+  return operandType != nullptr &&
+         OwnershipClassifier::classifyType(operandType.get()) ==
+             OwnershipClass::Own;
 }
 
 llvm::Value *CodeGenVisitor::generate(ASTDeclNode *node) {
@@ -663,7 +738,19 @@ llvm::Value *CodeGenVisitor::generate(ASTAssignStmt *node) {
         "failed to generate bitcode for the rhs of the assignment");
   }
 
-  return ctx.irBuilder.CreateStore(rValue, lValue);
+  auto *store = ctx.irBuilder.CreateStore(rValue, lValue);
+
+  // `*mk() = v`: an owning reference produced by a call or an alloc is never
+  // bound to a variable, so free it once the write is done (see the rvalue
+  // case in generate(ASTDeRefExpr)).
+  if (pointerAssign) {
+    auto *target = dynamic_cast<ASTDeRefExpr *>(node->getLHS())->getPtr();
+    if (isUnboundOwnedReference(target)) {
+      ensureFreeDecl(ctx);
+      ctx.irBuilder.CreateCall(ctx.freeFun, {lValue});
+    }
+  }
+  return store;
 } // LCOV_EXCL_LINE
 
 llvm::Value *CodeGenVisitor::generate(ASTBlockStmt *node) {
@@ -1207,6 +1294,16 @@ llvm::Value *CodeGenVisitor::generate(ASTCaseStmt *node) {
         failBB = DefaultBB;
       }
 
+      // An arm's bindings shadow any enclosing binding of the same name for
+      // the arm's body; remember those so they can be restored afterwards.
+      std::map<std::string, llvm::AllocaInst *> shadowed;
+      for (auto *b : arm->getBindings()) {
+        auto it = ctx.namedValues.find(b->getName());
+        if (it != ctx.namedValues.end()) {
+          shadowed[b->getName()] = it->second;
+        }
+      }
+
       // Emit pattern bindings for each payload position of this arm.
       auto patterns = arm->getPatterns();
       for (std::size_t pi = 0; pi < patterns.size(); ++pi) {
@@ -1223,9 +1320,16 @@ llvm::Value *CodeGenVisitor::generate(ASTCaseStmt *node) {
       if (!ctx.irBuilder.GetInsertBlock()->getTerminator())
         ctx.irBuilder.CreateBr(MergeBB);
 
-      // Remove arm's named bindings so they don't bleed into sibling arms.
-      for (auto *b : arm->getBindings())
-        ctx.namedValues.erase(b->getName());
+      // Remove arm's named bindings so they don't bleed into sibling arms,
+      // restoring any enclosing binding they shadowed.
+      for (auto *b : arm->getBindings()) {
+        auto it = shadowed.find(b->getName());
+        if (it != shadowed.end()) {
+          ctx.namedValues[b->getName()] = it->second;
+        } else {
+          ctx.namedValues.erase(b->getName());
+        }
+      }
 
       // If there is a next arm, its failBB is now the new insert point.
       if (ai + 1 < armGroup.size()) {

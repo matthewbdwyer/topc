@@ -1,0 +1,14 @@
+// soundness grid case own.if1.ident.write
+// kind=own context=if1 op1=ident op2=write
+// expect: reject (ownership state disagreement at control-flow join)
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+ident(z) { return z; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = alloc 5;
+  if (c > 0) { y = ident(x); }
+  *x = 3;
+  return 0;
+}

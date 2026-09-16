@@ -4,10 +4,13 @@
 #include "ASTVarPattern.h"
 #include "ASTWildcardPattern.h"
 #include "InternalError.h"
+#include "ParseError.h"
 #include "picosha2.h"
 
 #include "loguru.hpp"
+#include <cstdint>
 #include <functional>
+#include <limits>
 #include <vector>
 
 using namespace antlrcpp;
@@ -150,9 +153,39 @@ Any ASTBuilder::visitFunction(TOPParser::FunctionContext *ctx) {
   return "";
 }
 
+namespace {
+
+/* TOP ints are 64-bit. A literal's digits are a magnitude; a negative literal
+ * may reach one past the positive maximum (INT64_MIN). Anything larger is a
+ * parse error rather than a silent truncation or an uncaught exception. */
+int64_t numberLiteralValue(const std::string &digits, bool negative, int line) {
+  const uint64_t limit =
+      static_cast<uint64_t>(std::numeric_limits<int64_t>::max()) +
+      (negative ? 1u : 0u);
+  uint64_t magnitude = 0;
+  for (char c : digits) {
+    uint64_t digit = static_cast<uint64_t>(c - '0');
+    if (magnitude > (limit - digit) / 10) {
+      throw ParseError("number literal " + std::string(negative ? "-" : "") +
+                       digits + " on line " + std::to_string(line) +
+                       " is out of range for a 64-bit int");
+    }
+    magnitude = magnitude * 10 + digit;
+  }
+  if (!negative) {
+    return static_cast<int64_t>(magnitude);
+  }
+  if (magnitude == limit) {
+    return std::numeric_limits<int64_t>::min();
+  }
+  return -static_cast<int64_t>(magnitude);
+}
+
+} // namespace
+
 Any ASTBuilder::visitNegNumber(TOPParser::NegNumberContext *ctx) {
-  int val = std::stoi(ctx->NUMBER()->getText());
-  val = -val;
+  int64_t val = numberLiteralValue(ctx->NUMBER()->getText(), true,
+                                   ctx->getStart()->getLine());
   visitedExpr = std::make_shared<ASTNumberExpr>(val);
 
   LOG_S(1) << "Built AST node " << *visitedExpr;
@@ -218,7 +251,8 @@ Any ASTBuilder::visitParenExpr(TOPParser::ParenExprContext *ctx) {
 } // LCOV_EXCL_LINE
 
 Any ASTBuilder::visitNumExpr(TOPParser::NumExprContext *ctx) {
-  int val = std::stoi(ctx->NUMBER()->getText());
+  int64_t val = numberLiteralValue(ctx->NUMBER()->getText(), false,
+                                   ctx->getStart()->getLine());
   visitedExpr = std::make_shared<ASTNumberExpr>(val);
 
   LOG_S(1) << "Built AST node " << *visitedExpr;

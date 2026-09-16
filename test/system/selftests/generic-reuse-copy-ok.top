@@ -1,0 +1,44 @@
+// A generic formal may be used after it is passed on when its instance is
+// Copy, and reassigning it starts a new value: `twice` at a borrow of an int,
+// and a `fold` whose accumulator is an owned list rebuilt on every step.
+// Exits 0; clean under ASan/LSan.
+type List = Nil | Cons(head, tail);
+
+sink(p) { return *p; }
+
+twice(f, x) {
+  var r;
+  r = f(x);
+  r = r + f(x);
+  return r;
+}
+
+push(acc, n) { return Cons(n, acc); }
+
+fold(f, n, acc) {
+  while (n > 0) {
+    acc = f(acc, n);
+    n = n - 1;
+  }
+  return acc;
+}
+
+sum(l) {
+  var r;
+  r = 0;
+  case l of {
+    Nil -> r = 0;
+    Cons(h, t) -> r = h + sum(t);
+  }
+  return r;
+}
+
+main() {
+  var n, l, s;
+  n = 21;
+  if (twice(sink, &n) != 42) error 1;
+  l = fold(push, 3, Nil);
+  s = sum(l);
+  if (s != 6) error 2;
+  return 0;
+}

@@ -1,0 +1,17 @@
+// Returning a generic formal after passing it on is a use after the pass:
+// `sink` has already freed x, and the caller would receive (and later free)
+// a dangling reference.
+sink(p) { return *p; }
+
+keep(f, x) {
+  var r;
+  r = f(x);
+  return x;
+}
+
+main() {
+  var a, b;
+  a = alloc 1;
+  b = keep(sink, a);
+  return *b;
+}

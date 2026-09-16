@@ -1,0 +1,12 @@
+// `**r` on a generic borrow of a borrow: whether the result is an owned
+// value is decided by the caller's type two levels down, which a per-formal
+// requirement cannot express, so it is rejected at the definition.
+g(r) { return **r; }
+f(q) { return g(&q); }
+
+main() {
+  var a, x;
+  a = alloc 1;
+  x = f(&a);
+  return 0;
+}

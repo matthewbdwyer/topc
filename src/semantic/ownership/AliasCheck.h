@@ -4,6 +4,7 @@
 
 #include <map>
 #include <set>
+#include <string>
 #include <vector>
 
 class ASTCaseStmt;
@@ -44,7 +45,9 @@ class TypeInference;
 class AliasCheck {
 public:
   using Requirement = FunctionEffectSummaries::CopyRequirement;
-  using Requirements = std::map<ASTDeclNode *, std::vector<Requirement>>;
+  using FormalRequirement = FunctionEffectSummaries::FormalRequirement;
+  using Requirements =
+      std::map<ASTDeclNode *, std::vector<FormalRequirement>>;
 
   /*! \brief Check every function; return the per-formal requirements each
    *  generic body imposes on its callers. Throws SemanticError. */
@@ -59,7 +62,6 @@ private:
       : sym(sym), types(types), classifier(classifier) {}
 
   void checkFunction(ASTFunction *f);
-  void collectAliasBinders(ASTStmt *stmt);
   void checkStmt(ASTStmt *stmt);
   void checkExpr(ASTExpr *expr, Ctx ctx);
   void checkDerefTaken(ASTDeRefExpr *deref, const char *what);
@@ -70,6 +72,7 @@ private:
   OwnershipClassifier *classifier;
 
   ASTFunction *current = nullptr;
-  std::set<ASTDeclNode *> aliasBinders;
+  /// Names of alias binders in scope (the arms being checked).
+  std::set<std::string> aliasNames;
   Requirements requirements;
 };

@@ -1,0 +1,15 @@
+// soundness grid case sumown.if2.consume.assign
+// kind=sumown context=if2 op1=consume op2=assign
+// expect: reject (used after move | moved more than once | assigned while still owned)
+type Box = Full(v) | Empty;
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+consume(p) { var t; t = 0; case p of { Full(v) -> t = *v; Empty -> t = 0; } return t; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = Full(alloc 5);
+  if (c > 0) { r = r + consume(x); } else { r = r + consume(x); }
+  y = x;
+  return 0;
+}

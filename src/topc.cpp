@@ -3,6 +3,9 @@
 #include "InternalError.h"
 #include "Optimizer.h"
 #include "ParseError.h"
+#include "RuleToggles.h"
+
+#include <cstdlib>
 #include "SemanticAnalysis.h"
 #include "ConstraintRenderer.h"
 #include "SemanticError.h"
@@ -80,6 +83,15 @@ static cl::opt<std::string>
         cl::init(""), cl::cat(TOPcat));
 static cl::opt<bool> disopt("do", cl::desc("disable bitcode optimization"),
                             cl::cat(TOPcat));
+// Developer-only: disable ownership checks or safety mechanisms to measure
+// whether the test suites notice (test/system/soundness/adequacy.py).
+static cl::opt<std::string> unsafeDisable(
+    "unsafe-disable",
+    cl::desc("disable ownership rules by id (testing only; unsound)"),
+    cl::value_desc("id,..."), cl::ReallyHidden, cl::cat(TOPcat));
+static cl::opt<bool> unsafeListRules(
+    "unsafe-list-rules", cl::desc("list rule ids for --unsafe-disable"),
+    cl::ReallyHidden, cl::cat(TOPcat));
 static cl::opt<bool> emitSan("san",
                              cl::desc("instrument generated IR with Address/LeakSanitizer"),
                              cl::cat(TOPcat));
@@ -171,12 +183,17 @@ void printOwnershipResult(ASTProgram *ast, SymbolTable *symbols,
 
   os << "[destruction-summary]\n";
   for (auto *function : ast->getFunctions()) {
-    int count = 0;
-    for (auto *stmt : function->getStmts()) {
-      if (dynamic_cast<ASTDestroyStmt *>(stmt) != nullptr) {
+    // Every inserted destroy: at function exit, and at the end of case arms
+    // whose owned binders are still Owned there.
+    struct DestroyCounter : public ASTVisitor {
+      int count = 0;
+      bool visit(ASTDestroyStmt *) override {
         count++;
+        return true;
       }
-    }
+    } counter;
+    function->accept(&counter);
+    int count = counter.count;
     os << "  " << function->getName() << " : " << count << " destroy"
        << (count == 1 ? "" : "s") << "\n";
   }
@@ -399,6 +416,25 @@ void printBorrowConstraints(ASTProgram *ast, std::ostream &os) {
 int main(int argc, char *argv[]) {
   cl::HideUnrelatedOptions(TOPcat);
   cl::ParseCommandLineOptions(argc, argv, "topc - a TOP to llvm compiler\n");
+
+  if (unsafeListRules) {
+    for (const auto &id : RuleToggles::known()) {
+      std::cout << id << "\n";
+    }
+    return EXIT_SUCCESS;
+  }
+  {
+    std::string disabledRules = unsafeDisable;
+    if (const char *env = std::getenv("TOPC_UNSAFE_DISABLE")) {
+      disabledRules += std::string(",") + env;
+    }
+    std::string unknown = RuleToggles::disableList(disabledRules);
+    if (!unknown.empty()) {
+      std::cerr << "topc: unknown rule id for --unsafe-disable: " << unknown
+                << "\n";
+      return EXIT_FAILURE;
+    }
+  }
 
   const bool wantsSource = psource.getValue();
   const bool wantsAst = past.getNumOccurrences() > 0;
@@ -724,6 +760,8 @@ int main(int argc, char *argv[]) {
 
         if (!disopt) {
           Optimizer::optimize(llvmModule.get(), emitSan);
+        } else if (emitSan) {
+          Optimizer::instrumentAddressSanitizer(llvmModule.get());
         }
 
         if (emitHrAsm) {

@@ -62,12 +62,39 @@ void Optimizer::optimize(llvm::Module *theModule, bool asan) {
   modulePassManager.addPass(
       createModuleToFunctionPassAdaptor(std::move(functionPassManager)));
 
-  // Optionally instrument the module with AddressSanitizer.
+  modulePassManager.run(*theModule, moduleAnalysisManager);
+
   if (asan) {
-    LOG_S(1) << "Instrumenting with AddressSanitizer";
-    modulePassManager.addPass(
-        llvm::AddressSanitizerPass(llvm::AddressSanitizerOptions()));
+    instrumentAddressSanitizer(theModule);
+  }
+}
+
+void Optimizer::instrumentAddressSanitizer(llvm::Module *theModule) {
+  LOG_S(1) << "Instrumenting with AddressSanitizer";
+  // The pass instruments only functions that carry the sanitize_address
+  // attribute (clang adds it for -fsanitize=address). Without it, loads and
+  // stores go unchecked and only the runtime's malloc/free interception is
+  // active: double free and leaks are reported, use after free is not.
+  for (auto &fn : *theModule) {
+    if (!fn.isDeclaration()) {
+      fn.addFnAttr(llvm::Attribute::SanitizeAddress);
+    }
   }
 
+  llvm::LoopAnalysisManager loopAnalysisManager;
+  llvm::FunctionAnalysisManager functionAnalysisManager;
+  llvm::CGSCCAnalysisManager cgsccAnalysisManager;
+  llvm::ModuleAnalysisManager moduleAnalysisManager;
+  llvm::PassBuilder passBuilder;
+  passBuilder.registerModuleAnalyses(moduleAnalysisManager);
+  passBuilder.registerCGSCCAnalyses(cgsccAnalysisManager);
+  passBuilder.registerFunctionAnalyses(functionAnalysisManager);
+  passBuilder.registerLoopAnalyses(loopAnalysisManager);
+  passBuilder.crossRegisterProxies(loopAnalysisManager, functionAnalysisManager,
+                                   cgsccAnalysisManager, moduleAnalysisManager);
+
+  llvm::ModulePassManager modulePassManager;
+  modulePassManager.addPass(
+      llvm::AddressSanitizerPass(llvm::AddressSanitizerOptions()));
   modulePassManager.run(*theModule, moduleAnalysisManager);
 }

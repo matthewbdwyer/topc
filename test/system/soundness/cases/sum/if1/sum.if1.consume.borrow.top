@@ -1,0 +1,16 @@
+// soundness grid case sum.if1.consume.borrow
+// kind=sum context=if1 op1=consume op2=borrow
+// expect: reject (ownership state disagreement at control-flow join)
+type Cell = Val(n) | Nope;
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+consume(p) { var t; t = 0; case p of { Val(n) -> t = n; Nope -> t = 0; } return t; }
+look(q) { var t; t = 0; case *q of { Val(n) -> t = n; Nope -> t = 0; } return t; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = Val(5);
+  if (c > 0) { r = r + consume(x); }
+  r = r + look(&x);
+  return 0;
+}

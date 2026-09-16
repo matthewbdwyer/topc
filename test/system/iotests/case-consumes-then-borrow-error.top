@@ -1,0 +1,17 @@
+// A by-value case consumes the box it matches; borrowing the variable
+// afterwards would lend freed memory.
+type Cell = Val(n) | Nope;
+
+peek(c) {
+  var r;
+  r = 0;
+  case *c of { Val(n) -> r = n; Nope -> r = 0; }
+  return r;
+}
+
+main() {
+  var c, r;
+  c = Val(5);
+  case c of { Val(n) -> r = n; Nope -> r = 0; }
+  return peek(&c);
+}

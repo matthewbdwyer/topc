@@ -16,7 +16,8 @@
 #include "TopVar.h"
 
 OwnershipClassifier::OwnershipClassifier(SymbolTable *symTable,
-                                         TypeInference *typeInf) {
+                                         TypeInference *typeInf)
+    : types(typeInf) {
   SEMANTIC_LOG(1, "ownership-classification") << "start";
   std::size_t declarationCount = 0;
   // Classify every function declaration node.
@@ -50,7 +51,12 @@ OwnershipClass OwnershipClassifier::classify(ASTDeclNode *node) const {
   if (it != classes.end()) {
     return it->second;
   }
-  // Unregistered node: conservatively Copy.
+  // Not a symbol-table declaration: a case-arm binding. The symbol table
+  // holds one declaration per name, so a binding that reuses a name is a
+  // separate node; classify it from its own inferred type.
+  if (types != nullptr && node != nullptr) {
+    return classifyType(types->getInferredType(node).get());
+  }
   return OwnershipClass::Copy;
 }
 

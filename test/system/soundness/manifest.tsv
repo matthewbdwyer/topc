@@ -1,0 +1,1119 @@
+name	kind	context	op1	op2	expect	reasons
+int.seq.assign.assign	int	seq	assign	assign	accept	-
+int.seq.assign.consume	int	seq	assign	consume	accept	-
+int.seq.assign.ident	int	seq	assign	ident	accept	-
+int.seq.assign.borrow	int	seq	assign	borrow	accept	-
+int.seq.assign.payload	int	seq	assign	payload	accept	-
+int.seq.assign.none	int	seq	assign	none	accept	-
+int.seq.consume.assign	int	seq	consume	assign	accept	-
+int.seq.consume.consume	int	seq	consume	consume	accept	-
+int.seq.consume.ident	int	seq	consume	ident	accept	-
+int.seq.consume.borrow	int	seq	consume	borrow	accept	-
+int.seq.consume.payload	int	seq	consume	payload	accept	-
+int.seq.consume.none	int	seq	consume	none	accept	-
+int.seq.ident.assign	int	seq	ident	assign	accept	-
+int.seq.ident.consume	int	seq	ident	consume	accept	-
+int.seq.ident.ident	int	seq	ident	ident	accept	-
+int.seq.ident.borrow	int	seq	ident	borrow	accept	-
+int.seq.ident.payload	int	seq	ident	payload	accept	-
+int.seq.ident.none	int	seq	ident	none	accept	-
+int.seq.borrow.assign	int	seq	borrow	assign	accept	-
+int.seq.borrow.consume	int	seq	borrow	consume	accept	-
+int.seq.borrow.ident	int	seq	borrow	ident	accept	-
+int.seq.borrow.borrow	int	seq	borrow	borrow	accept	-
+int.seq.borrow.payload	int	seq	borrow	payload	accept	-
+int.seq.borrow.none	int	seq	borrow	none	accept	-
+int.seq.payload.assign	int	seq	payload	assign	accept	-
+int.seq.payload.consume	int	seq	payload	consume	accept	-
+int.seq.payload.ident	int	seq	payload	ident	accept	-
+int.seq.payload.borrow	int	seq	payload	borrow	accept	-
+int.seq.payload.payload	int	seq	payload	payload	reject	assigned while still owned
+int.seq.payload.none	int	seq	payload	none	accept	-
+int.expr.consume.consume	int	expr	consume	consume	accept	-
+int.expr.consume.borrow	int	expr	consume	borrow	accept	-
+int.expr.borrow.consume	int	expr	borrow	consume	accept	-
+int.expr.borrow.borrow	int	expr	borrow	borrow	accept	-
+int.call.consume.consume	int	call	consume	consume	accept	-
+int.call.consume.borrow	int	call	consume	borrow	accept	-
+int.call.borrow.consume	int	call	borrow	consume	accept	-
+int.call.borrow.borrow	int	call	borrow	borrow	accept	-
+int.if1.assign.assign	int	if1	assign	assign	accept	-
+int.if1.assign.consume	int	if1	assign	consume	accept	-
+int.if1.assign.ident	int	if1	assign	ident	accept	-
+int.if1.assign.borrow	int	if1	assign	borrow	accept	-
+int.if1.assign.payload	int	if1	assign	payload	accept	-
+int.if1.assign.none	int	if1	assign	none	accept	-
+int.if1.consume.assign	int	if1	consume	assign	accept	-
+int.if1.consume.consume	int	if1	consume	consume	accept	-
+int.if1.consume.ident	int	if1	consume	ident	accept	-
+int.if1.consume.borrow	int	if1	consume	borrow	accept	-
+int.if1.consume.payload	int	if1	consume	payload	accept	-
+int.if1.consume.none	int	if1	consume	none	accept	-
+int.if1.ident.assign	int	if1	ident	assign	accept	-
+int.if1.ident.consume	int	if1	ident	consume	accept	-
+int.if1.ident.ident	int	if1	ident	ident	accept	-
+int.if1.ident.borrow	int	if1	ident	borrow	accept	-
+int.if1.ident.payload	int	if1	ident	payload	accept	-
+int.if1.ident.none	int	if1	ident	none	accept	-
+int.if1.borrow.assign	int	if1	borrow	assign	accept	-
+int.if1.borrow.consume	int	if1	borrow	consume	accept	-
+int.if1.borrow.ident	int	if1	borrow	ident	accept	-
+int.if1.borrow.borrow	int	if1	borrow	borrow	accept	-
+int.if1.borrow.payload	int	if1	borrow	payload	accept	-
+int.if1.borrow.none	int	if1	borrow	none	accept	-
+int.if1.payload.assign	int	if1	payload	assign	reject	ownership state disagreement at control-flow join
+int.if1.payload.consume	int	if1	payload	consume	reject	ownership state disagreement at control-flow join
+int.if1.payload.ident	int	if1	payload	ident	reject	ownership state disagreement at control-flow join
+int.if1.payload.borrow	int	if1	payload	borrow	reject	ownership state disagreement at control-flow join
+int.if1.payload.payload	int	if1	payload	payload	reject	ownership state disagreement at control-flow join
+int.if1.payload.none	int	if1	payload	none	reject	ownership state disagreement at control-flow join
+int.if2.assign.assign	int	if2	assign	assign	accept	-
+int.if2.assign.consume	int	if2	assign	consume	accept	-
+int.if2.assign.ident	int	if2	assign	ident	accept	-
+int.if2.assign.borrow	int	if2	assign	borrow	accept	-
+int.if2.assign.payload	int	if2	assign	payload	accept	-
+int.if2.assign.none	int	if2	assign	none	accept	-
+int.if2.consume.assign	int	if2	consume	assign	accept	-
+int.if2.consume.consume	int	if2	consume	consume	accept	-
+int.if2.consume.ident	int	if2	consume	ident	accept	-
+int.if2.consume.borrow	int	if2	consume	borrow	accept	-
+int.if2.consume.payload	int	if2	consume	payload	accept	-
+int.if2.consume.none	int	if2	consume	none	accept	-
+int.if2.ident.assign	int	if2	ident	assign	accept	-
+int.if2.ident.consume	int	if2	ident	consume	accept	-
+int.if2.ident.ident	int	if2	ident	ident	accept	-
+int.if2.ident.borrow	int	if2	ident	borrow	accept	-
+int.if2.ident.payload	int	if2	ident	payload	accept	-
+int.if2.ident.none	int	if2	ident	none	accept	-
+int.if2.borrow.assign	int	if2	borrow	assign	accept	-
+int.if2.borrow.consume	int	if2	borrow	consume	accept	-
+int.if2.borrow.ident	int	if2	borrow	ident	accept	-
+int.if2.borrow.borrow	int	if2	borrow	borrow	accept	-
+int.if2.borrow.payload	int	if2	borrow	payload	accept	-
+int.if2.borrow.none	int	if2	borrow	none	accept	-
+int.if2.payload.assign	int	if2	payload	assign	accept	-
+int.if2.payload.consume	int	if2	payload	consume	accept	-
+int.if2.payload.ident	int	if2	payload	ident	accept	-
+int.if2.payload.borrow	int	if2	payload	borrow	accept	-
+int.if2.payload.payload	int	if2	payload	payload	reject	assigned while still owned
+int.if2.payload.none	int	if2	payload	none	accept	-
+int.loop.assign.assign	int	loop	assign	assign	accept	-
+int.loop.assign.consume	int	loop	assign	consume	accept	-
+int.loop.assign.ident	int	loop	assign	ident	accept	-
+int.loop.assign.borrow	int	loop	assign	borrow	accept	-
+int.loop.assign.payload	int	loop	assign	payload	accept	-
+int.loop.assign.none	int	loop	assign	none	accept	-
+int.loop.consume.assign	int	loop	consume	assign	accept	-
+int.loop.consume.consume	int	loop	consume	consume	accept	-
+int.loop.consume.ident	int	loop	consume	ident	accept	-
+int.loop.consume.borrow	int	loop	consume	borrow	accept	-
+int.loop.consume.payload	int	loop	consume	payload	accept	-
+int.loop.consume.none	int	loop	consume	none	accept	-
+int.loop.ident.assign	int	loop	ident	assign	accept	-
+int.loop.ident.consume	int	loop	ident	consume	accept	-
+int.loop.ident.ident	int	loop	ident	ident	accept	-
+int.loop.ident.borrow	int	loop	ident	borrow	accept	-
+int.loop.ident.payload	int	loop	ident	payload	accept	-
+int.loop.ident.none	int	loop	ident	none	accept	-
+int.loop.borrow.assign	int	loop	borrow	assign	accept	-
+int.loop.borrow.consume	int	loop	borrow	consume	accept	-
+int.loop.borrow.ident	int	loop	borrow	ident	accept	-
+int.loop.borrow.borrow	int	loop	borrow	borrow	accept	-
+int.loop.borrow.payload	int	loop	borrow	payload	accept	-
+int.loop.borrow.none	int	loop	borrow	none	accept	-
+int.loop.payload.assign	int	loop	payload	assign	reject	move inside while-loop body | still owned at the end of a while-loop
+int.loop.payload.consume	int	loop	payload	consume	reject	move inside while-loop body | still owned at the end of a while-loop
+int.loop.payload.ident	int	loop	payload	ident	reject	move inside while-loop body | still owned at the end of a while-loop
+int.loop.payload.borrow	int	loop	payload	borrow	reject	move inside while-loop body | still owned at the end of a while-loop
+int.loop.payload.payload	int	loop	payload	payload	reject	move inside while-loop body | still owned at the end of a while-loop
+int.loop.payload.none	int	loop	payload	none	reject	move inside while-loop body | still owned at the end of a while-loop
+int.cond.consume.assign	int	cond	consume	assign	accept	-
+int.cond.consume.consume	int	cond	consume	consume	accept	-
+int.cond.consume.ident	int	cond	consume	ident	accept	-
+int.cond.consume.borrow	int	cond	consume	borrow	accept	-
+int.cond.consume.payload	int	cond	consume	payload	accept	-
+int.cond.consume.none	int	cond	consume	none	accept	-
+int.cond.borrow.assign	int	cond	borrow	assign	accept	-
+int.cond.borrow.consume	int	cond	borrow	consume	accept	-
+int.cond.borrow.ident	int	cond	borrow	ident	accept	-
+int.cond.borrow.borrow	int	cond	borrow	borrow	accept	-
+int.cond.borrow.payload	int	cond	borrow	payload	accept	-
+int.cond.borrow.none	int	cond	borrow	none	accept	-
+int.arm1.assign.assign	int	arm1	assign	assign	accept	-
+int.arm1.assign.consume	int	arm1	assign	consume	accept	-
+int.arm1.assign.ident	int	arm1	assign	ident	accept	-
+int.arm1.assign.borrow	int	arm1	assign	borrow	accept	-
+int.arm1.assign.payload	int	arm1	assign	payload	accept	-
+int.arm1.assign.none	int	arm1	assign	none	accept	-
+int.arm1.consume.assign	int	arm1	consume	assign	accept	-
+int.arm1.consume.consume	int	arm1	consume	consume	accept	-
+int.arm1.consume.ident	int	arm1	consume	ident	accept	-
+int.arm1.consume.borrow	int	arm1	consume	borrow	accept	-
+int.arm1.consume.payload	int	arm1	consume	payload	accept	-
+int.arm1.consume.none	int	arm1	consume	none	accept	-
+int.arm1.ident.assign	int	arm1	ident	assign	accept	-
+int.arm1.ident.consume	int	arm1	ident	consume	accept	-
+int.arm1.ident.ident	int	arm1	ident	ident	accept	-
+int.arm1.ident.borrow	int	arm1	ident	borrow	accept	-
+int.arm1.ident.payload	int	arm1	ident	payload	accept	-
+int.arm1.ident.none	int	arm1	ident	none	accept	-
+int.arm1.borrow.assign	int	arm1	borrow	assign	accept	-
+int.arm1.borrow.consume	int	arm1	borrow	consume	accept	-
+int.arm1.borrow.ident	int	arm1	borrow	ident	accept	-
+int.arm1.borrow.borrow	int	arm1	borrow	borrow	accept	-
+int.arm1.borrow.payload	int	arm1	borrow	payload	accept	-
+int.arm1.borrow.none	int	arm1	borrow	none	accept	-
+int.arm1.payload.assign	int	arm1	payload	assign	reject	ownership state disagreement at control-flow join
+int.arm1.payload.consume	int	arm1	payload	consume	reject	ownership state disagreement at control-flow join
+int.arm1.payload.ident	int	arm1	payload	ident	reject	ownership state disagreement at control-flow join
+int.arm1.payload.borrow	int	arm1	payload	borrow	reject	ownership state disagreement at control-flow join
+int.arm1.payload.payload	int	arm1	payload	payload	reject	ownership state disagreement at control-flow join
+int.arm1.payload.none	int	arm1	payload	none	reject	ownership state disagreement at control-flow join
+int.gen.pass.pass	int	gen	pass	pass	accept	-
+int.gen.pass.lend	int	gen	pass	lend	accept	-
+int.gen.lend.pass	int	gen	lend	pass	accept	-
+int.gen.lend.lend	int	gen	lend	lend	accept	-
+own.seq.assign.assign	own	seq	assign	assign	reject	used after move | moved more than once | assigned while still owned
+own.seq.assign.consume	own	seq	assign	consume	reject	used after move | moved more than once | assigned while still owned
+own.seq.assign.ident	own	seq	assign	ident	reject	used after move | moved more than once | assigned while still owned
+own.seq.assign.borrow	own	seq	assign	borrow	reject	used after move | moved more than once | assigned while still owned
+own.seq.assign.read	own	seq	assign	read	reject	used after move | moved more than once | assigned while still owned
+own.seq.assign.write	own	seq	assign	write	reject	used after move | moved more than once | assigned while still owned
+own.seq.assign.payload	own	seq	assign	payload	reject	used after move | moved more than once | assigned while still owned
+own.seq.assign.temp	own	seq	assign	temp	accept	-
+own.seq.assign.none	own	seq	assign	none	accept	-
+own.seq.consume.assign	own	seq	consume	assign	reject	used after move | moved more than once | assigned while still owned
+own.seq.consume.consume	own	seq	consume	consume	reject	used after move | moved more than once | assigned while still owned
+own.seq.consume.ident	own	seq	consume	ident	reject	used after move | moved more than once | assigned while still owned
+own.seq.consume.borrow	own	seq	consume	borrow	reject	used after move | moved more than once | assigned while still owned
+own.seq.consume.read	own	seq	consume	read	reject	used after move | moved more than once | assigned while still owned
+own.seq.consume.write	own	seq	consume	write	reject	used after move | moved more than once | assigned while still owned
+own.seq.consume.payload	own	seq	consume	payload	reject	used after move | moved more than once | assigned while still owned
+own.seq.consume.temp	own	seq	consume	temp	accept	-
+own.seq.consume.none	own	seq	consume	none	accept	-
+own.seq.ident.assign	own	seq	ident	assign	reject	used after move | moved more than once | assigned while still owned
+own.seq.ident.consume	own	seq	ident	consume	reject	used after move | moved more than once | assigned while still owned
+own.seq.ident.ident	own	seq	ident	ident	reject	used after move | moved more than once | assigned while still owned
+own.seq.ident.borrow	own	seq	ident	borrow	reject	used after move | moved more than once | assigned while still owned
+own.seq.ident.read	own	seq	ident	read	reject	used after move | moved more than once | assigned while still owned
+own.seq.ident.write	own	seq	ident	write	reject	used after move | moved more than once | assigned while still owned
+own.seq.ident.payload	own	seq	ident	payload	reject	used after move | moved more than once | assigned while still owned
+own.seq.ident.temp	own	seq	ident	temp	accept	-
+own.seq.ident.none	own	seq	ident	none	accept	-
+own.seq.borrow.assign	own	seq	borrow	assign	accept	-
+own.seq.borrow.consume	own	seq	borrow	consume	accept	-
+own.seq.borrow.ident	own	seq	borrow	ident	accept	-
+own.seq.borrow.borrow	own	seq	borrow	borrow	accept	-
+own.seq.borrow.read	own	seq	borrow	read	accept	-
+own.seq.borrow.write	own	seq	borrow	write	accept	-
+own.seq.borrow.payload	own	seq	borrow	payload	accept	-
+own.seq.borrow.temp	own	seq	borrow	temp	accept	-
+own.seq.borrow.none	own	seq	borrow	none	accept	-
+own.seq.read.assign	own	seq	read	assign	accept	-
+own.seq.read.consume	own	seq	read	consume	accept	-
+own.seq.read.ident	own	seq	read	ident	accept	-
+own.seq.read.borrow	own	seq	read	borrow	accept	-
+own.seq.read.read	own	seq	read	read	accept	-
+own.seq.read.write	own	seq	read	write	accept	-
+own.seq.read.payload	own	seq	read	payload	accept	-
+own.seq.read.temp	own	seq	read	temp	accept	-
+own.seq.read.none	own	seq	read	none	accept	-
+own.seq.write.assign	own	seq	write	assign	accept	-
+own.seq.write.consume	own	seq	write	consume	accept	-
+own.seq.write.ident	own	seq	write	ident	accept	-
+own.seq.write.borrow	own	seq	write	borrow	accept	-
+own.seq.write.read	own	seq	write	read	accept	-
+own.seq.write.write	own	seq	write	write	accept	-
+own.seq.write.payload	own	seq	write	payload	accept	-
+own.seq.write.temp	own	seq	write	temp	accept	-
+own.seq.write.none	own	seq	write	none	accept	-
+own.seq.payload.assign	own	seq	payload	assign	reject	used after move | moved more than once | assigned while still owned
+own.seq.payload.consume	own	seq	payload	consume	reject	used after move | moved more than once | assigned while still owned
+own.seq.payload.ident	own	seq	payload	ident	reject	used after move | moved more than once | assigned while still owned
+own.seq.payload.borrow	own	seq	payload	borrow	reject	used after move | moved more than once | assigned while still owned
+own.seq.payload.read	own	seq	payload	read	reject	used after move | moved more than once | assigned while still owned
+own.seq.payload.write	own	seq	payload	write	reject	used after move | moved more than once | assigned while still owned
+own.seq.payload.payload	own	seq	payload	payload	reject	used after move | moved more than once | assigned while still owned
+own.seq.payload.temp	own	seq	payload	temp	accept	-
+own.seq.payload.none	own	seq	payload	none	accept	-
+own.seq.temp.assign	own	seq	temp	assign	accept	-
+own.seq.temp.consume	own	seq	temp	consume	accept	-
+own.seq.temp.ident	own	seq	temp	ident	accept	-
+own.seq.temp.borrow	own	seq	temp	borrow	accept	-
+own.seq.temp.read	own	seq	temp	read	accept	-
+own.seq.temp.write	own	seq	temp	write	accept	-
+own.seq.temp.payload	own	seq	temp	payload	accept	-
+own.seq.temp.temp	own	seq	temp	temp	accept	-
+own.seq.temp.none	own	seq	temp	none	accept	-
+own.expr.consume.consume	own	expr	consume	consume	reject	used after move | moved more than once | assigned while still owned
+own.expr.consume.borrow	own	expr	consume	borrow	reject	used after move | moved more than once | assigned while still owned
+own.expr.consume.read	own	expr	consume	read	reject	used after move | moved more than once | assigned while still owned
+own.expr.consume.temp	own	expr	consume	temp	accept	-
+own.expr.borrow.consume	own	expr	borrow	consume	accept	-
+own.expr.borrow.borrow	own	expr	borrow	borrow	accept	-
+own.expr.borrow.read	own	expr	borrow	read	accept	-
+own.expr.borrow.temp	own	expr	borrow	temp	accept	-
+own.expr.read.consume	own	expr	read	consume	accept	-
+own.expr.read.borrow	own	expr	read	borrow	accept	-
+own.expr.read.read	own	expr	read	read	accept	-
+own.expr.read.temp	own	expr	read	temp	accept	-
+own.expr.temp.consume	own	expr	temp	consume	accept	-
+own.expr.temp.borrow	own	expr	temp	borrow	accept	-
+own.expr.temp.read	own	expr	temp	read	accept	-
+own.expr.temp.temp	own	expr	temp	temp	accept	-
+own.call.consume.consume	own	call	consume	consume	reject	used after move | moved more than once
+own.call.consume.borrow	own	call	consume	borrow	reject	borrows it; a borrowed owner must stay alive
+own.call.consume.read	own	call	consume	read	reject	used after move | moved more than once
+own.call.consume.temp	own	call	consume	temp	accept	-
+own.call.borrow.consume	own	call	borrow	consume	reject	borrows it; a borrowed owner must stay alive
+own.call.borrow.borrow	own	call	borrow	borrow	accept	-
+own.call.borrow.read	own	call	borrow	read	accept	-
+own.call.borrow.temp	own	call	borrow	temp	accept	-
+own.call.read.consume	own	call	read	consume	accept	-
+own.call.read.borrow	own	call	read	borrow	accept	-
+own.call.read.read	own	call	read	read	accept	-
+own.call.read.temp	own	call	read	temp	accept	-
+own.call.temp.consume	own	call	temp	consume	accept	-
+own.call.temp.borrow	own	call	temp	borrow	accept	-
+own.call.temp.read	own	call	temp	read	accept	-
+own.call.temp.temp	own	call	temp	temp	accept	-
+own.if1.assign.assign	own	if1	assign	assign	reject	ownership state disagreement at control-flow join
+own.if1.assign.consume	own	if1	assign	consume	reject	ownership state disagreement at control-flow join
+own.if1.assign.ident	own	if1	assign	ident	reject	ownership state disagreement at control-flow join
+own.if1.assign.borrow	own	if1	assign	borrow	reject	ownership state disagreement at control-flow join
+own.if1.assign.read	own	if1	assign	read	reject	ownership state disagreement at control-flow join
+own.if1.assign.write	own	if1	assign	write	reject	ownership state disagreement at control-flow join
+own.if1.assign.payload	own	if1	assign	payload	reject	ownership state disagreement at control-flow join
+own.if1.assign.temp	own	if1	assign	temp	reject	ownership state disagreement at control-flow join
+own.if1.assign.none	own	if1	assign	none	reject	ownership state disagreement at control-flow join
+own.if1.consume.assign	own	if1	consume	assign	reject	ownership state disagreement at control-flow join
+own.if1.consume.consume	own	if1	consume	consume	reject	ownership state disagreement at control-flow join
+own.if1.consume.ident	own	if1	consume	ident	reject	ownership state disagreement at control-flow join
+own.if1.consume.borrow	own	if1	consume	borrow	reject	ownership state disagreement at control-flow join
+own.if1.consume.read	own	if1	consume	read	reject	ownership state disagreement at control-flow join
+own.if1.consume.write	own	if1	consume	write	reject	ownership state disagreement at control-flow join
+own.if1.consume.payload	own	if1	consume	payload	reject	ownership state disagreement at control-flow join
+own.if1.consume.temp	own	if1	consume	temp	reject	ownership state disagreement at control-flow join
+own.if1.consume.none	own	if1	consume	none	reject	ownership state disagreement at control-flow join
+own.if1.ident.assign	own	if1	ident	assign	reject	ownership state disagreement at control-flow join
+own.if1.ident.consume	own	if1	ident	consume	reject	ownership state disagreement at control-flow join
+own.if1.ident.ident	own	if1	ident	ident	reject	ownership state disagreement at control-flow join
+own.if1.ident.borrow	own	if1	ident	borrow	reject	ownership state disagreement at control-flow join
+own.if1.ident.read	own	if1	ident	read	reject	ownership state disagreement at control-flow join
+own.if1.ident.write	own	if1	ident	write	reject	ownership state disagreement at control-flow join
+own.if1.ident.payload	own	if1	ident	payload	reject	ownership state disagreement at control-flow join
+own.if1.ident.temp	own	if1	ident	temp	reject	ownership state disagreement at control-flow join
+own.if1.ident.none	own	if1	ident	none	reject	ownership state disagreement at control-flow join
+own.if1.borrow.assign	own	if1	borrow	assign	accept	-
+own.if1.borrow.consume	own	if1	borrow	consume	accept	-
+own.if1.borrow.ident	own	if1	borrow	ident	accept	-
+own.if1.borrow.borrow	own	if1	borrow	borrow	accept	-
+own.if1.borrow.read	own	if1	borrow	read	accept	-
+own.if1.borrow.write	own	if1	borrow	write	accept	-
+own.if1.borrow.payload	own	if1	borrow	payload	accept	-
+own.if1.borrow.temp	own	if1	borrow	temp	accept	-
+own.if1.borrow.none	own	if1	borrow	none	accept	-
+own.if1.read.assign	own	if1	read	assign	accept	-
+own.if1.read.consume	own	if1	read	consume	accept	-
+own.if1.read.ident	own	if1	read	ident	accept	-
+own.if1.read.borrow	own	if1	read	borrow	accept	-
+own.if1.read.read	own	if1	read	read	accept	-
+own.if1.read.write	own	if1	read	write	accept	-
+own.if1.read.payload	own	if1	read	payload	accept	-
+own.if1.read.temp	own	if1	read	temp	accept	-
+own.if1.read.none	own	if1	read	none	accept	-
+own.if1.write.assign	own	if1	write	assign	accept	-
+own.if1.write.consume	own	if1	write	consume	accept	-
+own.if1.write.ident	own	if1	write	ident	accept	-
+own.if1.write.borrow	own	if1	write	borrow	accept	-
+own.if1.write.read	own	if1	write	read	accept	-
+own.if1.write.write	own	if1	write	write	accept	-
+own.if1.write.payload	own	if1	write	payload	accept	-
+own.if1.write.temp	own	if1	write	temp	accept	-
+own.if1.write.none	own	if1	write	none	accept	-
+own.if1.payload.assign	own	if1	payload	assign	reject	ownership state disagreement at control-flow join
+own.if1.payload.consume	own	if1	payload	consume	reject	ownership state disagreement at control-flow join
+own.if1.payload.ident	own	if1	payload	ident	reject	ownership state disagreement at control-flow join
+own.if1.payload.borrow	own	if1	payload	borrow	reject	ownership state disagreement at control-flow join
+own.if1.payload.read	own	if1	payload	read	reject	ownership state disagreement at control-flow join
+own.if1.payload.write	own	if1	payload	write	reject	ownership state disagreement at control-flow join
+own.if1.payload.payload	own	if1	payload	payload	reject	ownership state disagreement at control-flow join
+own.if1.payload.temp	own	if1	payload	temp	reject	ownership state disagreement at control-flow join
+own.if1.payload.none	own	if1	payload	none	reject	ownership state disagreement at control-flow join
+own.if1.temp.assign	own	if1	temp	assign	accept	-
+own.if1.temp.consume	own	if1	temp	consume	accept	-
+own.if1.temp.ident	own	if1	temp	ident	accept	-
+own.if1.temp.borrow	own	if1	temp	borrow	accept	-
+own.if1.temp.read	own	if1	temp	read	accept	-
+own.if1.temp.write	own	if1	temp	write	accept	-
+own.if1.temp.payload	own	if1	temp	payload	accept	-
+own.if1.temp.temp	own	if1	temp	temp	accept	-
+own.if1.temp.none	own	if1	temp	none	accept	-
+own.if2.assign.assign	own	if2	assign	assign	reject	used after move | moved more than once | assigned while still owned
+own.if2.assign.consume	own	if2	assign	consume	reject	used after move | moved more than once | assigned while still owned
+own.if2.assign.ident	own	if2	assign	ident	reject	used after move | moved more than once | assigned while still owned
+own.if2.assign.borrow	own	if2	assign	borrow	reject	used after move | moved more than once | assigned while still owned
+own.if2.assign.read	own	if2	assign	read	reject	used after move | moved more than once | assigned while still owned
+own.if2.assign.write	own	if2	assign	write	reject	used after move | moved more than once | assigned while still owned
+own.if2.assign.payload	own	if2	assign	payload	reject	used after move | moved more than once | assigned while still owned
+own.if2.assign.temp	own	if2	assign	temp	accept	-
+own.if2.assign.none	own	if2	assign	none	accept	-
+own.if2.consume.assign	own	if2	consume	assign	reject	used after move | moved more than once | assigned while still owned
+own.if2.consume.consume	own	if2	consume	consume	reject	used after move | moved more than once | assigned while still owned
+own.if2.consume.ident	own	if2	consume	ident	reject	used after move | moved more than once | assigned while still owned
+own.if2.consume.borrow	own	if2	consume	borrow	reject	used after move | moved more than once | assigned while still owned
+own.if2.consume.read	own	if2	consume	read	reject	used after move | moved more than once | assigned while still owned
+own.if2.consume.write	own	if2	consume	write	reject	used after move | moved more than once | assigned while still owned
+own.if2.consume.payload	own	if2	consume	payload	reject	used after move | moved more than once | assigned while still owned
+own.if2.consume.temp	own	if2	consume	temp	accept	-
+own.if2.consume.none	own	if2	consume	none	accept	-
+own.if2.ident.assign	own	if2	ident	assign	reject	used after move | moved more than once | assigned while still owned
+own.if2.ident.consume	own	if2	ident	consume	reject	used after move | moved more than once | assigned while still owned
+own.if2.ident.ident	own	if2	ident	ident	reject	used after move | moved more than once | assigned while still owned
+own.if2.ident.borrow	own	if2	ident	borrow	reject	used after move | moved more than once | assigned while still owned
+own.if2.ident.read	own	if2	ident	read	reject	used after move | moved more than once | assigned while still owned
+own.if2.ident.write	own	if2	ident	write	reject	used after move | moved more than once | assigned while still owned
+own.if2.ident.payload	own	if2	ident	payload	reject	used after move | moved more than once | assigned while still owned
+own.if2.ident.temp	own	if2	ident	temp	accept	-
+own.if2.ident.none	own	if2	ident	none	accept	-
+own.if2.borrow.assign	own	if2	borrow	assign	accept	-
+own.if2.borrow.consume	own	if2	borrow	consume	accept	-
+own.if2.borrow.ident	own	if2	borrow	ident	accept	-
+own.if2.borrow.borrow	own	if2	borrow	borrow	accept	-
+own.if2.borrow.read	own	if2	borrow	read	accept	-
+own.if2.borrow.write	own	if2	borrow	write	accept	-
+own.if2.borrow.payload	own	if2	borrow	payload	accept	-
+own.if2.borrow.temp	own	if2	borrow	temp	accept	-
+own.if2.borrow.none	own	if2	borrow	none	accept	-
+own.if2.read.assign	own	if2	read	assign	accept	-
+own.if2.read.consume	own	if2	read	consume	accept	-
+own.if2.read.ident	own	if2	read	ident	accept	-
+own.if2.read.borrow	own	if2	read	borrow	accept	-
+own.if2.read.read	own	if2	read	read	accept	-
+own.if2.read.write	own	if2	read	write	accept	-
+own.if2.read.payload	own	if2	read	payload	accept	-
+own.if2.read.temp	own	if2	read	temp	accept	-
+own.if2.read.none	own	if2	read	none	accept	-
+own.if2.write.assign	own	if2	write	assign	accept	-
+own.if2.write.consume	own	if2	write	consume	accept	-
+own.if2.write.ident	own	if2	write	ident	accept	-
+own.if2.write.borrow	own	if2	write	borrow	accept	-
+own.if2.write.read	own	if2	write	read	accept	-
+own.if2.write.write	own	if2	write	write	accept	-
+own.if2.write.payload	own	if2	write	payload	accept	-
+own.if2.write.temp	own	if2	write	temp	accept	-
+own.if2.write.none	own	if2	write	none	accept	-
+own.if2.payload.assign	own	if2	payload	assign	reject	used after move | moved more than once | assigned while still owned
+own.if2.payload.consume	own	if2	payload	consume	reject	used after move | moved more than once | assigned while still owned
+own.if2.payload.ident	own	if2	payload	ident	reject	used after move | moved more than once | assigned while still owned
+own.if2.payload.borrow	own	if2	payload	borrow	reject	used after move | moved more than once | assigned while still owned
+own.if2.payload.read	own	if2	payload	read	reject	used after move | moved more than once | assigned while still owned
+own.if2.payload.write	own	if2	payload	write	reject	used after move | moved more than once | assigned while still owned
+own.if2.payload.payload	own	if2	payload	payload	reject	used after move | moved more than once | assigned while still owned
+own.if2.payload.temp	own	if2	payload	temp	accept	-
+own.if2.payload.none	own	if2	payload	none	accept	-
+own.if2.temp.assign	own	if2	temp	assign	accept	-
+own.if2.temp.consume	own	if2	temp	consume	accept	-
+own.if2.temp.ident	own	if2	temp	ident	accept	-
+own.if2.temp.borrow	own	if2	temp	borrow	accept	-
+own.if2.temp.read	own	if2	temp	read	accept	-
+own.if2.temp.write	own	if2	temp	write	accept	-
+own.if2.temp.payload	own	if2	temp	payload	accept	-
+own.if2.temp.temp	own	if2	temp	temp	accept	-
+own.if2.temp.none	own	if2	temp	none	accept	-
+own.loop.assign.assign	own	loop	assign	assign	reject	move inside while-loop body | still owned at the end of a while-loop
+own.loop.assign.consume	own	loop	assign	consume	reject	move inside while-loop body | still owned at the end of a while-loop
+own.loop.assign.ident	own	loop	assign	ident	reject	move inside while-loop body | still owned at the end of a while-loop
+own.loop.assign.borrow	own	loop	assign	borrow	reject	move inside while-loop body | still owned at the end of a while-loop
+own.loop.assign.read	own	loop	assign	read	reject	move inside while-loop body | still owned at the end of a while-loop
+own.loop.assign.write	own	loop	assign	write	reject	move inside while-loop body | still owned at the end of a while-loop
+own.loop.assign.payload	own	loop	assign	payload	reject	move inside while-loop body | still owned at the end of a while-loop
+own.loop.assign.temp	own	loop	assign	temp	reject	move inside while-loop body | still owned at the end of a while-loop
+own.loop.assign.none	own	loop	assign	none	reject	move inside while-loop body | still owned at the end of a while-loop
+own.loop.consume.assign	own	loop	consume	assign	reject	move inside while-loop body | still owned at the end of a while-loop
+own.loop.consume.consume	own	loop	consume	consume	reject	move inside while-loop body | still owned at the end of a while-loop
+own.loop.consume.ident	own	loop	consume	ident	reject	move inside while-loop body | still owned at the end of a while-loop
+own.loop.consume.borrow	own	loop	consume	borrow	reject	move inside while-loop body | still owned at the end of a while-loop
+own.loop.consume.read	own	loop	consume	read	reject	move inside while-loop body | still owned at the end of a while-loop
+own.loop.consume.write	own	loop	consume	write	reject	move inside while-loop body | still owned at the end of a while-loop
+own.loop.consume.payload	own	loop	consume	payload	reject	move inside while-loop body | still owned at the end of a while-loop
+own.loop.consume.temp	own	loop	consume	temp	reject	move inside while-loop body | still owned at the end of a while-loop
+own.loop.consume.none	own	loop	consume	none	reject	move inside while-loop body | still owned at the end of a while-loop
+own.loop.ident.assign	own	loop	ident	assign	reject	move inside while-loop body | still owned at the end of a while-loop
+own.loop.ident.consume	own	loop	ident	consume	reject	move inside while-loop body | still owned at the end of a while-loop
+own.loop.ident.ident	own	loop	ident	ident	reject	move inside while-loop body | still owned at the end of a while-loop
+own.loop.ident.borrow	own	loop	ident	borrow	reject	move inside while-loop body | still owned at the end of a while-loop
+own.loop.ident.read	own	loop	ident	read	reject	move inside while-loop body | still owned at the end of a while-loop
+own.loop.ident.write	own	loop	ident	write	reject	move inside while-loop body | still owned at the end of a while-loop
+own.loop.ident.payload	own	loop	ident	payload	reject	move inside while-loop body | still owned at the end of a while-loop
+own.loop.ident.temp	own	loop	ident	temp	reject	move inside while-loop body | still owned at the end of a while-loop
+own.loop.ident.none	own	loop	ident	none	reject	move inside while-loop body | still owned at the end of a while-loop
+own.loop.borrow.assign	own	loop	borrow	assign	accept	-
+own.loop.borrow.consume	own	loop	borrow	consume	accept	-
+own.loop.borrow.ident	own	loop	borrow	ident	accept	-
+own.loop.borrow.borrow	own	loop	borrow	borrow	accept	-
+own.loop.borrow.read	own	loop	borrow	read	accept	-
+own.loop.borrow.write	own	loop	borrow	write	accept	-
+own.loop.borrow.payload	own	loop	borrow	payload	accept	-
+own.loop.borrow.temp	own	loop	borrow	temp	accept	-
+own.loop.borrow.none	own	loop	borrow	none	accept	-
+own.loop.read.assign	own	loop	read	assign	accept	-
+own.loop.read.consume	own	loop	read	consume	accept	-
+own.loop.read.ident	own	loop	read	ident	accept	-
+own.loop.read.borrow	own	loop	read	borrow	accept	-
+own.loop.read.read	own	loop	read	read	accept	-
+own.loop.read.write	own	loop	read	write	accept	-
+own.loop.read.payload	own	loop	read	payload	accept	-
+own.loop.read.temp	own	loop	read	temp	accept	-
+own.loop.read.none	own	loop	read	none	accept	-
+own.loop.write.assign	own	loop	write	assign	accept	-
+own.loop.write.consume	own	loop	write	consume	accept	-
+own.loop.write.ident	own	loop	write	ident	accept	-
+own.loop.write.borrow	own	loop	write	borrow	accept	-
+own.loop.write.read	own	loop	write	read	accept	-
+own.loop.write.write	own	loop	write	write	accept	-
+own.loop.write.payload	own	loop	write	payload	accept	-
+own.loop.write.temp	own	loop	write	temp	accept	-
+own.loop.write.none	own	loop	write	none	accept	-
+own.loop.payload.assign	own	loop	payload	assign	reject	move inside while-loop body | still owned at the end of a while-loop
+own.loop.payload.consume	own	loop	payload	consume	reject	move inside while-loop body | still owned at the end of a while-loop
+own.loop.payload.ident	own	loop	payload	ident	reject	move inside while-loop body | still owned at the end of a while-loop
+own.loop.payload.borrow	own	loop	payload	borrow	reject	move inside while-loop body | still owned at the end of a while-loop
+own.loop.payload.read	own	loop	payload	read	reject	move inside while-loop body | still owned at the end of a while-loop
+own.loop.payload.write	own	loop	payload	write	reject	move inside while-loop body | still owned at the end of a while-loop
+own.loop.payload.payload	own	loop	payload	payload	reject	move inside while-loop body | still owned at the end of a while-loop
+own.loop.payload.temp	own	loop	payload	temp	reject	move inside while-loop body | still owned at the end of a while-loop
+own.loop.payload.none	own	loop	payload	none	reject	move inside while-loop body | still owned at the end of a while-loop
+own.loop.temp.assign	own	loop	temp	assign	accept	-
+own.loop.temp.consume	own	loop	temp	consume	accept	-
+own.loop.temp.ident	own	loop	temp	ident	accept	-
+own.loop.temp.borrow	own	loop	temp	borrow	accept	-
+own.loop.temp.read	own	loop	temp	read	accept	-
+own.loop.temp.write	own	loop	temp	write	accept	-
+own.loop.temp.payload	own	loop	temp	payload	accept	-
+own.loop.temp.temp	own	loop	temp	temp	accept	-
+own.loop.temp.none	own	loop	temp	none	accept	-
+own.cond.consume.assign	own	cond	consume	assign	reject	move in while-loop condition
+own.cond.consume.consume	own	cond	consume	consume	reject	move in while-loop condition
+own.cond.consume.ident	own	cond	consume	ident	reject	move in while-loop condition
+own.cond.consume.borrow	own	cond	consume	borrow	reject	move in while-loop condition
+own.cond.consume.read	own	cond	consume	read	reject	move in while-loop condition
+own.cond.consume.write	own	cond	consume	write	reject	move in while-loop condition
+own.cond.consume.payload	own	cond	consume	payload	reject	move in while-loop condition
+own.cond.consume.temp	own	cond	consume	temp	reject	move in while-loop condition
+own.cond.consume.none	own	cond	consume	none	reject	move in while-loop condition
+own.cond.borrow.assign	own	cond	borrow	assign	accept	-
+own.cond.borrow.consume	own	cond	borrow	consume	accept	-
+own.cond.borrow.ident	own	cond	borrow	ident	accept	-
+own.cond.borrow.borrow	own	cond	borrow	borrow	accept	-
+own.cond.borrow.read	own	cond	borrow	read	accept	-
+own.cond.borrow.write	own	cond	borrow	write	accept	-
+own.cond.borrow.payload	own	cond	borrow	payload	accept	-
+own.cond.borrow.temp	own	cond	borrow	temp	accept	-
+own.cond.borrow.none	own	cond	borrow	none	accept	-
+own.cond.read.assign	own	cond	read	assign	accept	-
+own.cond.read.consume	own	cond	read	consume	accept	-
+own.cond.read.ident	own	cond	read	ident	accept	-
+own.cond.read.borrow	own	cond	read	borrow	accept	-
+own.cond.read.read	own	cond	read	read	accept	-
+own.cond.read.write	own	cond	read	write	accept	-
+own.cond.read.payload	own	cond	read	payload	accept	-
+own.cond.read.temp	own	cond	read	temp	accept	-
+own.cond.read.none	own	cond	read	none	accept	-
+own.cond.temp.assign	own	cond	temp	assign	accept	-
+own.cond.temp.consume	own	cond	temp	consume	accept	-
+own.cond.temp.ident	own	cond	temp	ident	accept	-
+own.cond.temp.borrow	own	cond	temp	borrow	accept	-
+own.cond.temp.read	own	cond	temp	read	accept	-
+own.cond.temp.write	own	cond	temp	write	accept	-
+own.cond.temp.payload	own	cond	temp	payload	accept	-
+own.cond.temp.temp	own	cond	temp	temp	accept	-
+own.cond.temp.none	own	cond	temp	none	accept	-
+own.arm1.assign.assign	own	arm1	assign	assign	reject	ownership state disagreement at control-flow join
+own.arm1.assign.consume	own	arm1	assign	consume	reject	ownership state disagreement at control-flow join
+own.arm1.assign.ident	own	arm1	assign	ident	reject	ownership state disagreement at control-flow join
+own.arm1.assign.borrow	own	arm1	assign	borrow	reject	ownership state disagreement at control-flow join
+own.arm1.assign.read	own	arm1	assign	read	reject	ownership state disagreement at control-flow join
+own.arm1.assign.write	own	arm1	assign	write	reject	ownership state disagreement at control-flow join
+own.arm1.assign.payload	own	arm1	assign	payload	reject	ownership state disagreement at control-flow join
+own.arm1.assign.temp	own	arm1	assign	temp	reject	ownership state disagreement at control-flow join
+own.arm1.assign.none	own	arm1	assign	none	reject	ownership state disagreement at control-flow join
+own.arm1.consume.assign	own	arm1	consume	assign	reject	ownership state disagreement at control-flow join
+own.arm1.consume.consume	own	arm1	consume	consume	reject	ownership state disagreement at control-flow join
+own.arm1.consume.ident	own	arm1	consume	ident	reject	ownership state disagreement at control-flow join
+own.arm1.consume.borrow	own	arm1	consume	borrow	reject	ownership state disagreement at control-flow join
+own.arm1.consume.read	own	arm1	consume	read	reject	ownership state disagreement at control-flow join
+own.arm1.consume.write	own	arm1	consume	write	reject	ownership state disagreement at control-flow join
+own.arm1.consume.payload	own	arm1	consume	payload	reject	ownership state disagreement at control-flow join
+own.arm1.consume.temp	own	arm1	consume	temp	reject	ownership state disagreement at control-flow join
+own.arm1.consume.none	own	arm1	consume	none	reject	ownership state disagreement at control-flow join
+own.arm1.ident.assign	own	arm1	ident	assign	reject	ownership state disagreement at control-flow join
+own.arm1.ident.consume	own	arm1	ident	consume	reject	ownership state disagreement at control-flow join
+own.arm1.ident.ident	own	arm1	ident	ident	reject	ownership state disagreement at control-flow join
+own.arm1.ident.borrow	own	arm1	ident	borrow	reject	ownership state disagreement at control-flow join
+own.arm1.ident.read	own	arm1	ident	read	reject	ownership state disagreement at control-flow join
+own.arm1.ident.write	own	arm1	ident	write	reject	ownership state disagreement at control-flow join
+own.arm1.ident.payload	own	arm1	ident	payload	reject	ownership state disagreement at control-flow join
+own.arm1.ident.temp	own	arm1	ident	temp	reject	ownership state disagreement at control-flow join
+own.arm1.ident.none	own	arm1	ident	none	reject	ownership state disagreement at control-flow join
+own.arm1.borrow.assign	own	arm1	borrow	assign	accept	-
+own.arm1.borrow.consume	own	arm1	borrow	consume	accept	-
+own.arm1.borrow.ident	own	arm1	borrow	ident	accept	-
+own.arm1.borrow.borrow	own	arm1	borrow	borrow	accept	-
+own.arm1.borrow.read	own	arm1	borrow	read	accept	-
+own.arm1.borrow.write	own	arm1	borrow	write	accept	-
+own.arm1.borrow.payload	own	arm1	borrow	payload	accept	-
+own.arm1.borrow.temp	own	arm1	borrow	temp	accept	-
+own.arm1.borrow.none	own	arm1	borrow	none	accept	-
+own.arm1.read.assign	own	arm1	read	assign	accept	-
+own.arm1.read.consume	own	arm1	read	consume	accept	-
+own.arm1.read.ident	own	arm1	read	ident	accept	-
+own.arm1.read.borrow	own	arm1	read	borrow	accept	-
+own.arm1.read.read	own	arm1	read	read	accept	-
+own.arm1.read.write	own	arm1	read	write	accept	-
+own.arm1.read.payload	own	arm1	read	payload	accept	-
+own.arm1.read.temp	own	arm1	read	temp	accept	-
+own.arm1.read.none	own	arm1	read	none	accept	-
+own.arm1.write.assign	own	arm1	write	assign	accept	-
+own.arm1.write.consume	own	arm1	write	consume	accept	-
+own.arm1.write.ident	own	arm1	write	ident	accept	-
+own.arm1.write.borrow	own	arm1	write	borrow	accept	-
+own.arm1.write.read	own	arm1	write	read	accept	-
+own.arm1.write.write	own	arm1	write	write	accept	-
+own.arm1.write.payload	own	arm1	write	payload	accept	-
+own.arm1.write.temp	own	arm1	write	temp	accept	-
+own.arm1.write.none	own	arm1	write	none	accept	-
+own.arm1.payload.assign	own	arm1	payload	assign	reject	ownership state disagreement at control-flow join
+own.arm1.payload.consume	own	arm1	payload	consume	reject	ownership state disagreement at control-flow join
+own.arm1.payload.ident	own	arm1	payload	ident	reject	ownership state disagreement at control-flow join
+own.arm1.payload.borrow	own	arm1	payload	borrow	reject	ownership state disagreement at control-flow join
+own.arm1.payload.read	own	arm1	payload	read	reject	ownership state disagreement at control-flow join
+own.arm1.payload.write	own	arm1	payload	write	reject	ownership state disagreement at control-flow join
+own.arm1.payload.payload	own	arm1	payload	payload	reject	ownership state disagreement at control-flow join
+own.arm1.payload.temp	own	arm1	payload	temp	reject	ownership state disagreement at control-flow join
+own.arm1.payload.none	own	arm1	payload	none	reject	ownership state disagreement at control-flow join
+own.arm1.temp.assign	own	arm1	temp	assign	accept	-
+own.arm1.temp.consume	own	arm1	temp	consume	accept	-
+own.arm1.temp.ident	own	arm1	temp	ident	accept	-
+own.arm1.temp.borrow	own	arm1	temp	borrow	accept	-
+own.arm1.temp.read	own	arm1	temp	read	accept	-
+own.arm1.temp.write	own	arm1	temp	write	accept	-
+own.arm1.temp.payload	own	arm1	temp	payload	accept	-
+own.arm1.temp.temp	own	arm1	temp	temp	accept	-
+own.arm1.temp.none	own	arm1	temp	none	accept	-
+own.gen.pass.pass	own	gen	pass	pass	reject	which uses it again after passing it on
+own.gen.pass.lend	own	gen	pass	lend	reject	which uses it again after passing it on
+own.gen.lend.pass	own	gen	lend	pass	accept	-
+own.gen.lend.lend	own	gen	lend	lend	reject	neither returned nor borrowed nor passed on
+sum.seq.assign.assign	sum	seq	assign	assign	reject	used after move | moved more than once | assigned while still owned
+sum.seq.assign.consume	sum	seq	assign	consume	reject	used after move | moved more than once | assigned while still owned
+sum.seq.assign.ident	sum	seq	assign	ident	reject	used after move | moved more than once | assigned while still owned
+sum.seq.assign.borrow	sum	seq	assign	borrow	reject	used after move | moved more than once | assigned while still owned
+sum.seq.assign.casev	sum	seq	assign	casev	reject	used after move | moved more than once | assigned while still owned
+sum.seq.assign.payload	sum	seq	assign	payload	reject	used after move | moved more than once | assigned while still owned
+sum.seq.assign.none	sum	seq	assign	none	accept	-
+sum.seq.consume.assign	sum	seq	consume	assign	reject	used after move | moved more than once | assigned while still owned
+sum.seq.consume.consume	sum	seq	consume	consume	reject	used after move | moved more than once | assigned while still owned
+sum.seq.consume.ident	sum	seq	consume	ident	reject	used after move | moved more than once | assigned while still owned
+sum.seq.consume.borrow	sum	seq	consume	borrow	reject	used after move | moved more than once | assigned while still owned
+sum.seq.consume.casev	sum	seq	consume	casev	reject	used after move | moved more than once | assigned while still owned
+sum.seq.consume.payload	sum	seq	consume	payload	reject	used after move | moved more than once | assigned while still owned
+sum.seq.consume.none	sum	seq	consume	none	accept	-
+sum.seq.ident.assign	sum	seq	ident	assign	reject	used after move | moved more than once | assigned while still owned
+sum.seq.ident.consume	sum	seq	ident	consume	reject	used after move | moved more than once | assigned while still owned
+sum.seq.ident.ident	sum	seq	ident	ident	reject	used after move | moved more than once | assigned while still owned
+sum.seq.ident.borrow	sum	seq	ident	borrow	reject	used after move | moved more than once | assigned while still owned
+sum.seq.ident.casev	sum	seq	ident	casev	reject	used after move | moved more than once | assigned while still owned
+sum.seq.ident.payload	sum	seq	ident	payload	reject	used after move | moved more than once | assigned while still owned
+sum.seq.ident.none	sum	seq	ident	none	accept	-
+sum.seq.borrow.assign	sum	seq	borrow	assign	accept	-
+sum.seq.borrow.consume	sum	seq	borrow	consume	accept	-
+sum.seq.borrow.ident	sum	seq	borrow	ident	accept	-
+sum.seq.borrow.borrow	sum	seq	borrow	borrow	accept	-
+sum.seq.borrow.casev	sum	seq	borrow	casev	accept	-
+sum.seq.borrow.payload	sum	seq	borrow	payload	accept	-
+sum.seq.borrow.none	sum	seq	borrow	none	accept	-
+sum.seq.casev.assign	sum	seq	casev	assign	reject	used after move | moved more than once | assigned while still owned
+sum.seq.casev.consume	sum	seq	casev	consume	reject	used after move | moved more than once | assigned while still owned
+sum.seq.casev.ident	sum	seq	casev	ident	reject	used after move | moved more than once | assigned while still owned
+sum.seq.casev.borrow	sum	seq	casev	borrow	reject	used after move | moved more than once | assigned while still owned
+sum.seq.casev.casev	sum	seq	casev	casev	reject	used after move | moved more than once | assigned while still owned
+sum.seq.casev.payload	sum	seq	casev	payload	reject	used after move | moved more than once | assigned while still owned
+sum.seq.casev.none	sum	seq	casev	none	accept	-
+sum.seq.payload.assign	sum	seq	payload	assign	reject	used after move | moved more than once | assigned while still owned
+sum.seq.payload.consume	sum	seq	payload	consume	reject	used after move | moved more than once | assigned while still owned
+sum.seq.payload.ident	sum	seq	payload	ident	reject	used after move | moved more than once | assigned while still owned
+sum.seq.payload.borrow	sum	seq	payload	borrow	reject	used after move | moved more than once | assigned while still owned
+sum.seq.payload.casev	sum	seq	payload	casev	reject	used after move | moved more than once | assigned while still owned
+sum.seq.payload.payload	sum	seq	payload	payload	reject	used after move | moved more than once | assigned while still owned
+sum.seq.payload.none	sum	seq	payload	none	accept	-
+sum.expr.consume.consume	sum	expr	consume	consume	reject	used after move | moved more than once | assigned while still owned
+sum.expr.consume.borrow	sum	expr	consume	borrow	reject	used after move | moved more than once | assigned while still owned
+sum.expr.borrow.consume	sum	expr	borrow	consume	accept	-
+sum.expr.borrow.borrow	sum	expr	borrow	borrow	accept	-
+sum.call.consume.consume	sum	call	consume	consume	reject	used after move | moved more than once
+sum.call.consume.borrow	sum	call	consume	borrow	reject	borrows it; a borrowed owner must stay alive
+sum.call.borrow.consume	sum	call	borrow	consume	reject	borrows it; a borrowed owner must stay alive
+sum.call.borrow.borrow	sum	call	borrow	borrow	accept	-
+sum.if1.assign.assign	sum	if1	assign	assign	reject	ownership state disagreement at control-flow join
+sum.if1.assign.consume	sum	if1	assign	consume	reject	ownership state disagreement at control-flow join
+sum.if1.assign.ident	sum	if1	assign	ident	reject	ownership state disagreement at control-flow join
+sum.if1.assign.borrow	sum	if1	assign	borrow	reject	ownership state disagreement at control-flow join
+sum.if1.assign.casev	sum	if1	assign	casev	reject	ownership state disagreement at control-flow join
+sum.if1.assign.payload	sum	if1	assign	payload	reject	ownership state disagreement at control-flow join
+sum.if1.assign.none	sum	if1	assign	none	reject	ownership state disagreement at control-flow join
+sum.if1.consume.assign	sum	if1	consume	assign	reject	ownership state disagreement at control-flow join
+sum.if1.consume.consume	sum	if1	consume	consume	reject	ownership state disagreement at control-flow join
+sum.if1.consume.ident	sum	if1	consume	ident	reject	ownership state disagreement at control-flow join
+sum.if1.consume.borrow	sum	if1	consume	borrow	reject	ownership state disagreement at control-flow join
+sum.if1.consume.casev	sum	if1	consume	casev	reject	ownership state disagreement at control-flow join
+sum.if1.consume.payload	sum	if1	consume	payload	reject	ownership state disagreement at control-flow join
+sum.if1.consume.none	sum	if1	consume	none	reject	ownership state disagreement at control-flow join
+sum.if1.ident.assign	sum	if1	ident	assign	reject	ownership state disagreement at control-flow join
+sum.if1.ident.consume	sum	if1	ident	consume	reject	ownership state disagreement at control-flow join
+sum.if1.ident.ident	sum	if1	ident	ident	reject	ownership state disagreement at control-flow join
+sum.if1.ident.borrow	sum	if1	ident	borrow	reject	ownership state disagreement at control-flow join
+sum.if1.ident.casev	sum	if1	ident	casev	reject	ownership state disagreement at control-flow join
+sum.if1.ident.payload	sum	if1	ident	payload	reject	ownership state disagreement at control-flow join
+sum.if1.ident.none	sum	if1	ident	none	reject	ownership state disagreement at control-flow join
+sum.if1.borrow.assign	sum	if1	borrow	assign	accept	-
+sum.if1.borrow.consume	sum	if1	borrow	consume	accept	-
+sum.if1.borrow.ident	sum	if1	borrow	ident	accept	-
+sum.if1.borrow.borrow	sum	if1	borrow	borrow	accept	-
+sum.if1.borrow.casev	sum	if1	borrow	casev	accept	-
+sum.if1.borrow.payload	sum	if1	borrow	payload	accept	-
+sum.if1.borrow.none	sum	if1	borrow	none	accept	-
+sum.if1.casev.assign	sum	if1	casev	assign	reject	ownership state disagreement at control-flow join
+sum.if1.casev.consume	sum	if1	casev	consume	reject	ownership state disagreement at control-flow join
+sum.if1.casev.ident	sum	if1	casev	ident	reject	ownership state disagreement at control-flow join
+sum.if1.casev.borrow	sum	if1	casev	borrow	reject	ownership state disagreement at control-flow join
+sum.if1.casev.casev	sum	if1	casev	casev	reject	ownership state disagreement at control-flow join
+sum.if1.casev.payload	sum	if1	casev	payload	reject	ownership state disagreement at control-flow join
+sum.if1.casev.none	sum	if1	casev	none	reject	ownership state disagreement at control-flow join
+sum.if1.payload.assign	sum	if1	payload	assign	reject	ownership state disagreement at control-flow join
+sum.if1.payload.consume	sum	if1	payload	consume	reject	ownership state disagreement at control-flow join
+sum.if1.payload.ident	sum	if1	payload	ident	reject	ownership state disagreement at control-flow join
+sum.if1.payload.borrow	sum	if1	payload	borrow	reject	ownership state disagreement at control-flow join
+sum.if1.payload.casev	sum	if1	payload	casev	reject	ownership state disagreement at control-flow join
+sum.if1.payload.payload	sum	if1	payload	payload	reject	ownership state disagreement at control-flow join
+sum.if1.payload.none	sum	if1	payload	none	reject	ownership state disagreement at control-flow join
+sum.if2.assign.assign	sum	if2	assign	assign	reject	used after move | moved more than once | assigned while still owned
+sum.if2.assign.consume	sum	if2	assign	consume	reject	used after move | moved more than once | assigned while still owned
+sum.if2.assign.ident	sum	if2	assign	ident	reject	used after move | moved more than once | assigned while still owned
+sum.if2.assign.borrow	sum	if2	assign	borrow	reject	used after move | moved more than once | assigned while still owned
+sum.if2.assign.casev	sum	if2	assign	casev	reject	used after move | moved more than once | assigned while still owned
+sum.if2.assign.payload	sum	if2	assign	payload	reject	used after move | moved more than once | assigned while still owned
+sum.if2.assign.none	sum	if2	assign	none	accept	-
+sum.if2.consume.assign	sum	if2	consume	assign	reject	used after move | moved more than once | assigned while still owned
+sum.if2.consume.consume	sum	if2	consume	consume	reject	used after move | moved more than once | assigned while still owned
+sum.if2.consume.ident	sum	if2	consume	ident	reject	used after move | moved more than once | assigned while still owned
+sum.if2.consume.borrow	sum	if2	consume	borrow	reject	used after move | moved more than once | assigned while still owned
+sum.if2.consume.casev	sum	if2	consume	casev	reject	used after move | moved more than once | assigned while still owned
+sum.if2.consume.payload	sum	if2	consume	payload	reject	used after move | moved more than once | assigned while still owned
+sum.if2.consume.none	sum	if2	consume	none	accept	-
+sum.if2.ident.assign	sum	if2	ident	assign	reject	used after move | moved more than once | assigned while still owned
+sum.if2.ident.consume	sum	if2	ident	consume	reject	used after move | moved more than once | assigned while still owned
+sum.if2.ident.ident	sum	if2	ident	ident	reject	used after move | moved more than once | assigned while still owned
+sum.if2.ident.borrow	sum	if2	ident	borrow	reject	used after move | moved more than once | assigned while still owned
+sum.if2.ident.casev	sum	if2	ident	casev	reject	used after move | moved more than once | assigned while still owned
+sum.if2.ident.payload	sum	if2	ident	payload	reject	used after move | moved more than once | assigned while still owned
+sum.if2.ident.none	sum	if2	ident	none	accept	-
+sum.if2.borrow.assign	sum	if2	borrow	assign	accept	-
+sum.if2.borrow.consume	sum	if2	borrow	consume	accept	-
+sum.if2.borrow.ident	sum	if2	borrow	ident	accept	-
+sum.if2.borrow.borrow	sum	if2	borrow	borrow	accept	-
+sum.if2.borrow.casev	sum	if2	borrow	casev	accept	-
+sum.if2.borrow.payload	sum	if2	borrow	payload	accept	-
+sum.if2.borrow.none	sum	if2	borrow	none	accept	-
+sum.if2.casev.assign	sum	if2	casev	assign	reject	used after move | moved more than once | assigned while still owned
+sum.if2.casev.consume	sum	if2	casev	consume	reject	used after move | moved more than once | assigned while still owned
+sum.if2.casev.ident	sum	if2	casev	ident	reject	used after move | moved more than once | assigned while still owned
+sum.if2.casev.borrow	sum	if2	casev	borrow	reject	used after move | moved more than once | assigned while still owned
+sum.if2.casev.casev	sum	if2	casev	casev	reject	used after move | moved more than once | assigned while still owned
+sum.if2.casev.payload	sum	if2	casev	payload	reject	used after move | moved more than once | assigned while still owned
+sum.if2.casev.none	sum	if2	casev	none	accept	-
+sum.if2.payload.assign	sum	if2	payload	assign	reject	used after move | moved more than once | assigned while still owned
+sum.if2.payload.consume	sum	if2	payload	consume	reject	used after move | moved more than once | assigned while still owned
+sum.if2.payload.ident	sum	if2	payload	ident	reject	used after move | moved more than once | assigned while still owned
+sum.if2.payload.borrow	sum	if2	payload	borrow	reject	used after move | moved more than once | assigned while still owned
+sum.if2.payload.casev	sum	if2	payload	casev	reject	used after move | moved more than once | assigned while still owned
+sum.if2.payload.payload	sum	if2	payload	payload	reject	used after move | moved more than once | assigned while still owned
+sum.if2.payload.none	sum	if2	payload	none	accept	-
+sum.loop.assign.assign	sum	loop	assign	assign	reject	move inside while-loop body | still owned at the end of a while-loop
+sum.loop.assign.consume	sum	loop	assign	consume	reject	move inside while-loop body | still owned at the end of a while-loop
+sum.loop.assign.ident	sum	loop	assign	ident	reject	move inside while-loop body | still owned at the end of a while-loop
+sum.loop.assign.borrow	sum	loop	assign	borrow	reject	move inside while-loop body | still owned at the end of a while-loop
+sum.loop.assign.casev	sum	loop	assign	casev	reject	move inside while-loop body | still owned at the end of a while-loop
+sum.loop.assign.payload	sum	loop	assign	payload	reject	move inside while-loop body | still owned at the end of a while-loop
+sum.loop.assign.none	sum	loop	assign	none	reject	move inside while-loop body | still owned at the end of a while-loop
+sum.loop.consume.assign	sum	loop	consume	assign	reject	move inside while-loop body | still owned at the end of a while-loop
+sum.loop.consume.consume	sum	loop	consume	consume	reject	move inside while-loop body | still owned at the end of a while-loop
+sum.loop.consume.ident	sum	loop	consume	ident	reject	move inside while-loop body | still owned at the end of a while-loop
+sum.loop.consume.borrow	sum	loop	consume	borrow	reject	move inside while-loop body | still owned at the end of a while-loop
+sum.loop.consume.casev	sum	loop	consume	casev	reject	move inside while-loop body | still owned at the end of a while-loop
+sum.loop.consume.payload	sum	loop	consume	payload	reject	move inside while-loop body | still owned at the end of a while-loop
+sum.loop.consume.none	sum	loop	consume	none	reject	move inside while-loop body | still owned at the end of a while-loop
+sum.loop.ident.assign	sum	loop	ident	assign	reject	move inside while-loop body | still owned at the end of a while-loop
+sum.loop.ident.consume	sum	loop	ident	consume	reject	move inside while-loop body | still owned at the end of a while-loop
+sum.loop.ident.ident	sum	loop	ident	ident	reject	move inside while-loop body | still owned at the end of a while-loop
+sum.loop.ident.borrow	sum	loop	ident	borrow	reject	move inside while-loop body | still owned at the end of a while-loop
+sum.loop.ident.casev	sum	loop	ident	casev	reject	move inside while-loop body | still owned at the end of a while-loop
+sum.loop.ident.payload	sum	loop	ident	payload	reject	move inside while-loop body | still owned at the end of a while-loop
+sum.loop.ident.none	sum	loop	ident	none	reject	move inside while-loop body | still owned at the end of a while-loop
+sum.loop.borrow.assign	sum	loop	borrow	assign	accept	-
+sum.loop.borrow.consume	sum	loop	borrow	consume	accept	-
+sum.loop.borrow.ident	sum	loop	borrow	ident	accept	-
+sum.loop.borrow.borrow	sum	loop	borrow	borrow	accept	-
+sum.loop.borrow.casev	sum	loop	borrow	casev	accept	-
+sum.loop.borrow.payload	sum	loop	borrow	payload	accept	-
+sum.loop.borrow.none	sum	loop	borrow	none	accept	-
+sum.loop.casev.assign	sum	loop	casev	assign	reject	move inside while-loop body | still owned at the end of a while-loop
+sum.loop.casev.consume	sum	loop	casev	consume	reject	move inside while-loop body | still owned at the end of a while-loop
+sum.loop.casev.ident	sum	loop	casev	ident	reject	move inside while-loop body | still owned at the end of a while-loop
+sum.loop.casev.borrow	sum	loop	casev	borrow	reject	move inside while-loop body | still owned at the end of a while-loop
+sum.loop.casev.casev	sum	loop	casev	casev	reject	move inside while-loop body | still owned at the end of a while-loop
+sum.loop.casev.payload	sum	loop	casev	payload	reject	move inside while-loop body | still owned at the end of a while-loop
+sum.loop.casev.none	sum	loop	casev	none	reject	move inside while-loop body | still owned at the end of a while-loop
+sum.loop.payload.assign	sum	loop	payload	assign	reject	move inside while-loop body | still owned at the end of a while-loop
+sum.loop.payload.consume	sum	loop	payload	consume	reject	move inside while-loop body | still owned at the end of a while-loop
+sum.loop.payload.ident	sum	loop	payload	ident	reject	move inside while-loop body | still owned at the end of a while-loop
+sum.loop.payload.borrow	sum	loop	payload	borrow	reject	move inside while-loop body | still owned at the end of a while-loop
+sum.loop.payload.casev	sum	loop	payload	casev	reject	move inside while-loop body | still owned at the end of a while-loop
+sum.loop.payload.payload	sum	loop	payload	payload	reject	move inside while-loop body | still owned at the end of a while-loop
+sum.loop.payload.none	sum	loop	payload	none	reject	move inside while-loop body | still owned at the end of a while-loop
+sum.cond.consume.assign	sum	cond	consume	assign	reject	move in while-loop condition
+sum.cond.consume.consume	sum	cond	consume	consume	reject	move in while-loop condition
+sum.cond.consume.ident	sum	cond	consume	ident	reject	move in while-loop condition
+sum.cond.consume.borrow	sum	cond	consume	borrow	reject	move in while-loop condition
+sum.cond.consume.casev	sum	cond	consume	casev	reject	move in while-loop condition
+sum.cond.consume.payload	sum	cond	consume	payload	reject	move in while-loop condition
+sum.cond.consume.none	sum	cond	consume	none	reject	move in while-loop condition
+sum.cond.borrow.assign	sum	cond	borrow	assign	accept	-
+sum.cond.borrow.consume	sum	cond	borrow	consume	accept	-
+sum.cond.borrow.ident	sum	cond	borrow	ident	accept	-
+sum.cond.borrow.borrow	sum	cond	borrow	borrow	accept	-
+sum.cond.borrow.casev	sum	cond	borrow	casev	accept	-
+sum.cond.borrow.payload	sum	cond	borrow	payload	accept	-
+sum.cond.borrow.none	sum	cond	borrow	none	accept	-
+sum.arm1.assign.assign	sum	arm1	assign	assign	reject	ownership state disagreement at control-flow join
+sum.arm1.assign.consume	sum	arm1	assign	consume	reject	ownership state disagreement at control-flow join
+sum.arm1.assign.ident	sum	arm1	assign	ident	reject	ownership state disagreement at control-flow join
+sum.arm1.assign.borrow	sum	arm1	assign	borrow	reject	ownership state disagreement at control-flow join
+sum.arm1.assign.casev	sum	arm1	assign	casev	reject	ownership state disagreement at control-flow join
+sum.arm1.assign.payload	sum	arm1	assign	payload	reject	ownership state disagreement at control-flow join
+sum.arm1.assign.none	sum	arm1	assign	none	reject	ownership state disagreement at control-flow join
+sum.arm1.consume.assign	sum	arm1	consume	assign	reject	ownership state disagreement at control-flow join
+sum.arm1.consume.consume	sum	arm1	consume	consume	reject	ownership state disagreement at control-flow join
+sum.arm1.consume.ident	sum	arm1	consume	ident	reject	ownership state disagreement at control-flow join
+sum.arm1.consume.borrow	sum	arm1	consume	borrow	reject	ownership state disagreement at control-flow join
+sum.arm1.consume.casev	sum	arm1	consume	casev	reject	ownership state disagreement at control-flow join
+sum.arm1.consume.payload	sum	arm1	consume	payload	reject	ownership state disagreement at control-flow join
+sum.arm1.consume.none	sum	arm1	consume	none	reject	ownership state disagreement at control-flow join
+sum.arm1.ident.assign	sum	arm1	ident	assign	reject	ownership state disagreement at control-flow join
+sum.arm1.ident.consume	sum	arm1	ident	consume	reject	ownership state disagreement at control-flow join
+sum.arm1.ident.ident	sum	arm1	ident	ident	reject	ownership state disagreement at control-flow join
+sum.arm1.ident.borrow	sum	arm1	ident	borrow	reject	ownership state disagreement at control-flow join
+sum.arm1.ident.casev	sum	arm1	ident	casev	reject	ownership state disagreement at control-flow join
+sum.arm1.ident.payload	sum	arm1	ident	payload	reject	ownership state disagreement at control-flow join
+sum.arm1.ident.none	sum	arm1	ident	none	reject	ownership state disagreement at control-flow join
+sum.arm1.borrow.assign	sum	arm1	borrow	assign	accept	-
+sum.arm1.borrow.consume	sum	arm1	borrow	consume	accept	-
+sum.arm1.borrow.ident	sum	arm1	borrow	ident	accept	-
+sum.arm1.borrow.borrow	sum	arm1	borrow	borrow	accept	-
+sum.arm1.borrow.casev	sum	arm1	borrow	casev	accept	-
+sum.arm1.borrow.payload	sum	arm1	borrow	payload	accept	-
+sum.arm1.borrow.none	sum	arm1	borrow	none	accept	-
+sum.arm1.casev.assign	sum	arm1	casev	assign	reject	ownership state disagreement at control-flow join
+sum.arm1.casev.consume	sum	arm1	casev	consume	reject	ownership state disagreement at control-flow join
+sum.arm1.casev.ident	sum	arm1	casev	ident	reject	ownership state disagreement at control-flow join
+sum.arm1.casev.borrow	sum	arm1	casev	borrow	reject	ownership state disagreement at control-flow join
+sum.arm1.casev.casev	sum	arm1	casev	casev	reject	ownership state disagreement at control-flow join
+sum.arm1.casev.payload	sum	arm1	casev	payload	reject	ownership state disagreement at control-flow join
+sum.arm1.casev.none	sum	arm1	casev	none	reject	ownership state disagreement at control-flow join
+sum.arm1.payload.assign	sum	arm1	payload	assign	reject	ownership state disagreement at control-flow join
+sum.arm1.payload.consume	sum	arm1	payload	consume	reject	ownership state disagreement at control-flow join
+sum.arm1.payload.ident	sum	arm1	payload	ident	reject	ownership state disagreement at control-flow join
+sum.arm1.payload.borrow	sum	arm1	payload	borrow	reject	ownership state disagreement at control-flow join
+sum.arm1.payload.casev	sum	arm1	payload	casev	reject	ownership state disagreement at control-flow join
+sum.arm1.payload.payload	sum	arm1	payload	payload	reject	ownership state disagreement at control-flow join
+sum.arm1.payload.none	sum	arm1	payload	none	reject	ownership state disagreement at control-flow join
+sum.gen.pass.pass	sum	gen	pass	pass	reject	which uses it again after passing it on
+sum.gen.pass.lend	sum	gen	pass	lend	reject	which uses it again after passing it on
+sum.gen.lend.pass	sum	gen	lend	pass	accept	-
+sum.gen.lend.lend	sum	gen	lend	lend	reject	neither returned nor borrowed nor passed on
+sum.shadow.consume.consume	sum	shadow	consume	consume	reject	used after move | moved more than once | assigned while still owned
+sum.shadow.consume.borrow	sum	shadow	consume	borrow	reject	used after move | moved more than once | assigned while still owned
+sum.shadow.consume.casev	sum	shadow	consume	casev	reject	used after move | moved more than once | assigned while still owned
+sum.shadow.consume.payload	sum	shadow	consume	payload	reject	used after move | moved more than once | assigned while still owned
+sum.shadow.consume.none	sum	shadow	consume	none	accept	-
+sum.shadow.borrow.consume	sum	shadow	borrow	consume	accept	-
+sum.shadow.borrow.borrow	sum	shadow	borrow	borrow	accept	-
+sum.shadow.borrow.casev	sum	shadow	borrow	casev	accept	-
+sum.shadow.borrow.payload	sum	shadow	borrow	payload	accept	-
+sum.shadow.borrow.none	sum	shadow	borrow	none	accept	-
+sum.shadow.casev.consume	sum	shadow	casev	consume	reject	used after move | moved more than once | assigned while still owned
+sum.shadow.casev.borrow	sum	shadow	casev	borrow	reject	used after move | moved more than once | assigned while still owned
+sum.shadow.casev.casev	sum	shadow	casev	casev	reject	used after move | moved more than once | assigned while still owned
+sum.shadow.casev.payload	sum	shadow	casev	payload	reject	used after move | moved more than once | assigned while still owned
+sum.shadow.casev.none	sum	shadow	casev	none	accept	-
+sum.shadow.payload.consume	sum	shadow	payload	consume	reject	used after move | moved more than once | assigned while still owned
+sum.shadow.payload.borrow	sum	shadow	payload	borrow	reject	used after move | moved more than once | assigned while still owned
+sum.shadow.payload.casev	sum	shadow	payload	casev	reject	used after move | moved more than once | assigned while still owned
+sum.shadow.payload.payload	sum	shadow	payload	payload	reject	used after move | moved more than once | assigned while still owned
+sum.shadow.payload.none	sum	shadow	payload	none	accept	-
+sumown.seq.assign.assign	sumown	seq	assign	assign	reject	used after move | moved more than once | assigned while still owned
+sumown.seq.assign.consume	sumown	seq	assign	consume	reject	used after move | moved more than once | assigned while still owned
+sumown.seq.assign.ident	sumown	seq	assign	ident	reject	used after move | moved more than once | assigned while still owned
+sumown.seq.assign.borrow	sumown	seq	assign	borrow	reject	used after move | moved more than once | assigned while still owned
+sumown.seq.assign.casev	sumown	seq	assign	casev	reject	used after move | moved more than once | assigned while still owned
+sumown.seq.assign.payload	sumown	seq	assign	payload	reject	used after move | moved more than once | assigned while still owned
+sumown.seq.assign.none	sumown	seq	assign	none	accept	-
+sumown.seq.consume.assign	sumown	seq	consume	assign	reject	used after move | moved more than once | assigned while still owned
+sumown.seq.consume.consume	sumown	seq	consume	consume	reject	used after move | moved more than once | assigned while still owned
+sumown.seq.consume.ident	sumown	seq	consume	ident	reject	used after move | moved more than once | assigned while still owned
+sumown.seq.consume.borrow	sumown	seq	consume	borrow	reject	used after move | moved more than once | assigned while still owned
+sumown.seq.consume.casev	sumown	seq	consume	casev	reject	used after move | moved more than once | assigned while still owned
+sumown.seq.consume.payload	sumown	seq	consume	payload	reject	used after move | moved more than once | assigned while still owned
+sumown.seq.consume.none	sumown	seq	consume	none	accept	-
+sumown.seq.ident.assign	sumown	seq	ident	assign	reject	used after move | moved more than once | assigned while still owned
+sumown.seq.ident.consume	sumown	seq	ident	consume	reject	used after move | moved more than once | assigned while still owned
+sumown.seq.ident.ident	sumown	seq	ident	ident	reject	used after move | moved more than once | assigned while still owned
+sumown.seq.ident.borrow	sumown	seq	ident	borrow	reject	used after move | moved more than once | assigned while still owned
+sumown.seq.ident.casev	sumown	seq	ident	casev	reject	used after move | moved more than once | assigned while still owned
+sumown.seq.ident.payload	sumown	seq	ident	payload	reject	used after move | moved more than once | assigned while still owned
+sumown.seq.ident.none	sumown	seq	ident	none	accept	-
+sumown.seq.borrow.assign	sumown	seq	borrow	assign	accept	-
+sumown.seq.borrow.consume	sumown	seq	borrow	consume	accept	-
+sumown.seq.borrow.ident	sumown	seq	borrow	ident	accept	-
+sumown.seq.borrow.borrow	sumown	seq	borrow	borrow	accept	-
+sumown.seq.borrow.casev	sumown	seq	borrow	casev	accept	-
+sumown.seq.borrow.payload	sumown	seq	borrow	payload	accept	-
+sumown.seq.borrow.none	sumown	seq	borrow	none	accept	-
+sumown.seq.casev.assign	sumown	seq	casev	assign	reject	used after move | moved more than once | assigned while still owned
+sumown.seq.casev.consume	sumown	seq	casev	consume	reject	used after move | moved more than once | assigned while still owned
+sumown.seq.casev.ident	sumown	seq	casev	ident	reject	used after move | moved more than once | assigned while still owned
+sumown.seq.casev.borrow	sumown	seq	casev	borrow	reject	used after move | moved more than once | assigned while still owned
+sumown.seq.casev.casev	sumown	seq	casev	casev	reject	used after move | moved more than once | assigned while still owned
+sumown.seq.casev.payload	sumown	seq	casev	payload	reject	used after move | moved more than once | assigned while still owned
+sumown.seq.casev.none	sumown	seq	casev	none	accept	-
+sumown.seq.payload.assign	sumown	seq	payload	assign	reject	used after move | moved more than once | assigned while still owned
+sumown.seq.payload.consume	sumown	seq	payload	consume	reject	used after move | moved more than once | assigned while still owned
+sumown.seq.payload.ident	sumown	seq	payload	ident	reject	used after move | moved more than once | assigned while still owned
+sumown.seq.payload.borrow	sumown	seq	payload	borrow	reject	used after move | moved more than once | assigned while still owned
+sumown.seq.payload.casev	sumown	seq	payload	casev	reject	used after move | moved more than once | assigned while still owned
+sumown.seq.payload.payload	sumown	seq	payload	payload	reject	used after move | moved more than once | assigned while still owned
+sumown.seq.payload.none	sumown	seq	payload	none	accept	-
+sumown.expr.consume.consume	sumown	expr	consume	consume	reject	used after move | moved more than once | assigned while still owned
+sumown.expr.consume.borrow	sumown	expr	consume	borrow	reject	used after move | moved more than once | assigned while still owned
+sumown.expr.borrow.consume	sumown	expr	borrow	consume	accept	-
+sumown.expr.borrow.borrow	sumown	expr	borrow	borrow	accept	-
+sumown.call.consume.consume	sumown	call	consume	consume	reject	used after move | moved more than once
+sumown.call.consume.borrow	sumown	call	consume	borrow	reject	borrows it; a borrowed owner must stay alive
+sumown.call.borrow.consume	sumown	call	borrow	consume	reject	borrows it; a borrowed owner must stay alive
+sumown.call.borrow.borrow	sumown	call	borrow	borrow	accept	-
+sumown.if1.assign.assign	sumown	if1	assign	assign	reject	ownership state disagreement at control-flow join
+sumown.if1.assign.consume	sumown	if1	assign	consume	reject	ownership state disagreement at control-flow join
+sumown.if1.assign.ident	sumown	if1	assign	ident	reject	ownership state disagreement at control-flow join
+sumown.if1.assign.borrow	sumown	if1	assign	borrow	reject	ownership state disagreement at control-flow join
+sumown.if1.assign.casev	sumown	if1	assign	casev	reject	ownership state disagreement at control-flow join
+sumown.if1.assign.payload	sumown	if1	assign	payload	reject	ownership state disagreement at control-flow join
+sumown.if1.assign.none	sumown	if1	assign	none	reject	ownership state disagreement at control-flow join
+sumown.if1.consume.assign	sumown	if1	consume	assign	reject	ownership state disagreement at control-flow join
+sumown.if1.consume.consume	sumown	if1	consume	consume	reject	ownership state disagreement at control-flow join
+sumown.if1.consume.ident	sumown	if1	consume	ident	reject	ownership state disagreement at control-flow join
+sumown.if1.consume.borrow	sumown	if1	consume	borrow	reject	ownership state disagreement at control-flow join
+sumown.if1.consume.casev	sumown	if1	consume	casev	reject	ownership state disagreement at control-flow join
+sumown.if1.consume.payload	sumown	if1	consume	payload	reject	ownership state disagreement at control-flow join
+sumown.if1.consume.none	sumown	if1	consume	none	reject	ownership state disagreement at control-flow join
+sumown.if1.ident.assign	sumown	if1	ident	assign	reject	ownership state disagreement at control-flow join
+sumown.if1.ident.consume	sumown	if1	ident	consume	reject	ownership state disagreement at control-flow join
+sumown.if1.ident.ident	sumown	if1	ident	ident	reject	ownership state disagreement at control-flow join
+sumown.if1.ident.borrow	sumown	if1	ident	borrow	reject	ownership state disagreement at control-flow join
+sumown.if1.ident.casev	sumown	if1	ident	casev	reject	ownership state disagreement at control-flow join
+sumown.if1.ident.payload	sumown	if1	ident	payload	reject	ownership state disagreement at control-flow join
+sumown.if1.ident.none	sumown	if1	ident	none	reject	ownership state disagreement at control-flow join
+sumown.if1.borrow.assign	sumown	if1	borrow	assign	accept	-
+sumown.if1.borrow.consume	sumown	if1	borrow	consume	accept	-
+sumown.if1.borrow.ident	sumown	if1	borrow	ident	accept	-
+sumown.if1.borrow.borrow	sumown	if1	borrow	borrow	accept	-
+sumown.if1.borrow.casev	sumown	if1	borrow	casev	accept	-
+sumown.if1.borrow.payload	sumown	if1	borrow	payload	accept	-
+sumown.if1.borrow.none	sumown	if1	borrow	none	accept	-
+sumown.if1.casev.assign	sumown	if1	casev	assign	reject	ownership state disagreement at control-flow join
+sumown.if1.casev.consume	sumown	if1	casev	consume	reject	ownership state disagreement at control-flow join
+sumown.if1.casev.ident	sumown	if1	casev	ident	reject	ownership state disagreement at control-flow join
+sumown.if1.casev.borrow	sumown	if1	casev	borrow	reject	ownership state disagreement at control-flow join
+sumown.if1.casev.casev	sumown	if1	casev	casev	reject	ownership state disagreement at control-flow join
+sumown.if1.casev.payload	sumown	if1	casev	payload	reject	ownership state disagreement at control-flow join
+sumown.if1.casev.none	sumown	if1	casev	none	reject	ownership state disagreement at control-flow join
+sumown.if1.payload.assign	sumown	if1	payload	assign	reject	ownership state disagreement at control-flow join
+sumown.if1.payload.consume	sumown	if1	payload	consume	reject	ownership state disagreement at control-flow join
+sumown.if1.payload.ident	sumown	if1	payload	ident	reject	ownership state disagreement at control-flow join
+sumown.if1.payload.borrow	sumown	if1	payload	borrow	reject	ownership state disagreement at control-flow join
+sumown.if1.payload.casev	sumown	if1	payload	casev	reject	ownership state disagreement at control-flow join
+sumown.if1.payload.payload	sumown	if1	payload	payload	reject	ownership state disagreement at control-flow join
+sumown.if1.payload.none	sumown	if1	payload	none	reject	ownership state disagreement at control-flow join
+sumown.if2.assign.assign	sumown	if2	assign	assign	reject	used after move | moved more than once | assigned while still owned
+sumown.if2.assign.consume	sumown	if2	assign	consume	reject	used after move | moved more than once | assigned while still owned
+sumown.if2.assign.ident	sumown	if2	assign	ident	reject	used after move | moved more than once | assigned while still owned
+sumown.if2.assign.borrow	sumown	if2	assign	borrow	reject	used after move | moved more than once | assigned while still owned
+sumown.if2.assign.casev	sumown	if2	assign	casev	reject	used after move | moved more than once | assigned while still owned
+sumown.if2.assign.payload	sumown	if2	assign	payload	reject	used after move | moved more than once | assigned while still owned
+sumown.if2.assign.none	sumown	if2	assign	none	accept	-
+sumown.if2.consume.assign	sumown	if2	consume	assign	reject	used after move | moved more than once | assigned while still owned
+sumown.if2.consume.consume	sumown	if2	consume	consume	reject	used after move | moved more than once | assigned while still owned
+sumown.if2.consume.ident	sumown	if2	consume	ident	reject	used after move | moved more than once | assigned while still owned
+sumown.if2.consume.borrow	sumown	if2	consume	borrow	reject	used after move | moved more than once | assigned while still owned
+sumown.if2.consume.casev	sumown	if2	consume	casev	reject	used after move | moved more than once | assigned while still owned
+sumown.if2.consume.payload	sumown	if2	consume	payload	reject	used after move | moved more than once | assigned while still owned
+sumown.if2.consume.none	sumown	if2	consume	none	accept	-
+sumown.if2.ident.assign	sumown	if2	ident	assign	reject	used after move | moved more than once | assigned while still owned
+sumown.if2.ident.consume	sumown	if2	ident	consume	reject	used after move | moved more than once | assigned while still owned
+sumown.if2.ident.ident	sumown	if2	ident	ident	reject	used after move | moved more than once | assigned while still owned
+sumown.if2.ident.borrow	sumown	if2	ident	borrow	reject	used after move | moved more than once | assigned while still owned
+sumown.if2.ident.casev	sumown	if2	ident	casev	reject	used after move | moved more than once | assigned while still owned
+sumown.if2.ident.payload	sumown	if2	ident	payload	reject	used after move | moved more than once | assigned while still owned
+sumown.if2.ident.none	sumown	if2	ident	none	accept	-
+sumown.if2.borrow.assign	sumown	if2	borrow	assign	accept	-
+sumown.if2.borrow.consume	sumown	if2	borrow	consume	accept	-
+sumown.if2.borrow.ident	sumown	if2	borrow	ident	accept	-
+sumown.if2.borrow.borrow	sumown	if2	borrow	borrow	accept	-
+sumown.if2.borrow.casev	sumown	if2	borrow	casev	accept	-
+sumown.if2.borrow.payload	sumown	if2	borrow	payload	accept	-
+sumown.if2.borrow.none	sumown	if2	borrow	none	accept	-
+sumown.if2.casev.assign	sumown	if2	casev	assign	reject	used after move | moved more than once | assigned while still owned
+sumown.if2.casev.consume	sumown	if2	casev	consume	reject	used after move | moved more than once | assigned while still owned
+sumown.if2.casev.ident	sumown	if2	casev	ident	reject	used after move | moved more than once | assigned while still owned
+sumown.if2.casev.borrow	sumown	if2	casev	borrow	reject	used after move | moved more than once | assigned while still owned
+sumown.if2.casev.casev	sumown	if2	casev	casev	reject	used after move | moved more than once | assigned while still owned
+sumown.if2.casev.payload	sumown	if2	casev	payload	reject	used after move | moved more than once | assigned while still owned
+sumown.if2.casev.none	sumown	if2	casev	none	accept	-
+sumown.if2.payload.assign	sumown	if2	payload	assign	reject	used after move | moved more than once | assigned while still owned
+sumown.if2.payload.consume	sumown	if2	payload	consume	reject	used after move | moved more than once | assigned while still owned
+sumown.if2.payload.ident	sumown	if2	payload	ident	reject	used after move | moved more than once | assigned while still owned
+sumown.if2.payload.borrow	sumown	if2	payload	borrow	reject	used after move | moved more than once | assigned while still owned
+sumown.if2.payload.casev	sumown	if2	payload	casev	reject	used after move | moved more than once | assigned while still owned
+sumown.if2.payload.payload	sumown	if2	payload	payload	reject	used after move | moved more than once | assigned while still owned
+sumown.if2.payload.none	sumown	if2	payload	none	accept	-
+sumown.loop.assign.assign	sumown	loop	assign	assign	reject	move inside while-loop body | still owned at the end of a while-loop
+sumown.loop.assign.consume	sumown	loop	assign	consume	reject	move inside while-loop body | still owned at the end of a while-loop
+sumown.loop.assign.ident	sumown	loop	assign	ident	reject	move inside while-loop body | still owned at the end of a while-loop
+sumown.loop.assign.borrow	sumown	loop	assign	borrow	reject	move inside while-loop body | still owned at the end of a while-loop
+sumown.loop.assign.casev	sumown	loop	assign	casev	reject	move inside while-loop body | still owned at the end of a while-loop
+sumown.loop.assign.payload	sumown	loop	assign	payload	reject	move inside while-loop body | still owned at the end of a while-loop
+sumown.loop.assign.none	sumown	loop	assign	none	reject	move inside while-loop body | still owned at the end of a while-loop
+sumown.loop.consume.assign	sumown	loop	consume	assign	reject	move inside while-loop body | still owned at the end of a while-loop
+sumown.loop.consume.consume	sumown	loop	consume	consume	reject	move inside while-loop body | still owned at the end of a while-loop
+sumown.loop.consume.ident	sumown	loop	consume	ident	reject	move inside while-loop body | still owned at the end of a while-loop
+sumown.loop.consume.borrow	sumown	loop	consume	borrow	reject	move inside while-loop body | still owned at the end of a while-loop
+sumown.loop.consume.casev	sumown	loop	consume	casev	reject	move inside while-loop body | still owned at the end of a while-loop
+sumown.loop.consume.payload	sumown	loop	consume	payload	reject	move inside while-loop body | still owned at the end of a while-loop
+sumown.loop.consume.none	sumown	loop	consume	none	reject	move inside while-loop body | still owned at the end of a while-loop
+sumown.loop.ident.assign	sumown	loop	ident	assign	reject	move inside while-loop body | still owned at the end of a while-loop
+sumown.loop.ident.consume	sumown	loop	ident	consume	reject	move inside while-loop body | still owned at the end of a while-loop
+sumown.loop.ident.ident	sumown	loop	ident	ident	reject	move inside while-loop body | still owned at the end of a while-loop
+sumown.loop.ident.borrow	sumown	loop	ident	borrow	reject	move inside while-loop body | still owned at the end of a while-loop
+sumown.loop.ident.casev	sumown	loop	ident	casev	reject	move inside while-loop body | still owned at the end of a while-loop
+sumown.loop.ident.payload	sumown	loop	ident	payload	reject	move inside while-loop body | still owned at the end of a while-loop
+sumown.loop.ident.none	sumown	loop	ident	none	reject	move inside while-loop body | still owned at the end of a while-loop
+sumown.loop.borrow.assign	sumown	loop	borrow	assign	accept	-
+sumown.loop.borrow.consume	sumown	loop	borrow	consume	accept	-
+sumown.loop.borrow.ident	sumown	loop	borrow	ident	accept	-
+sumown.loop.borrow.borrow	sumown	loop	borrow	borrow	accept	-
+sumown.loop.borrow.casev	sumown	loop	borrow	casev	accept	-
+sumown.loop.borrow.payload	sumown	loop	borrow	payload	accept	-
+sumown.loop.borrow.none	sumown	loop	borrow	none	accept	-
+sumown.loop.casev.assign	sumown	loop	casev	assign	reject	move inside while-loop body | still owned at the end of a while-loop
+sumown.loop.casev.consume	sumown	loop	casev	consume	reject	move inside while-loop body | still owned at the end of a while-loop
+sumown.loop.casev.ident	sumown	loop	casev	ident	reject	move inside while-loop body | still owned at the end of a while-loop
+sumown.loop.casev.borrow	sumown	loop	casev	borrow	reject	move inside while-loop body | still owned at the end of a while-loop
+sumown.loop.casev.casev	sumown	loop	casev	casev	reject	move inside while-loop body | still owned at the end of a while-loop
+sumown.loop.casev.payload	sumown	loop	casev	payload	reject	move inside while-loop body | still owned at the end of a while-loop
+sumown.loop.casev.none	sumown	loop	casev	none	reject	move inside while-loop body | still owned at the end of a while-loop
+sumown.loop.payload.assign	sumown	loop	payload	assign	reject	move inside while-loop body | still owned at the end of a while-loop
+sumown.loop.payload.consume	sumown	loop	payload	consume	reject	move inside while-loop body | still owned at the end of a while-loop
+sumown.loop.payload.ident	sumown	loop	payload	ident	reject	move inside while-loop body | still owned at the end of a while-loop
+sumown.loop.payload.borrow	sumown	loop	payload	borrow	reject	move inside while-loop body | still owned at the end of a while-loop
+sumown.loop.payload.casev	sumown	loop	payload	casev	reject	move inside while-loop body | still owned at the end of a while-loop
+sumown.loop.payload.payload	sumown	loop	payload	payload	reject	move inside while-loop body | still owned at the end of a while-loop
+sumown.loop.payload.none	sumown	loop	payload	none	reject	move inside while-loop body | still owned at the end of a while-loop
+sumown.cond.consume.assign	sumown	cond	consume	assign	reject	move in while-loop condition
+sumown.cond.consume.consume	sumown	cond	consume	consume	reject	move in while-loop condition
+sumown.cond.consume.ident	sumown	cond	consume	ident	reject	move in while-loop condition
+sumown.cond.consume.borrow	sumown	cond	consume	borrow	reject	move in while-loop condition
+sumown.cond.consume.casev	sumown	cond	consume	casev	reject	move in while-loop condition
+sumown.cond.consume.payload	sumown	cond	consume	payload	reject	move in while-loop condition
+sumown.cond.consume.none	sumown	cond	consume	none	reject	move in while-loop condition
+sumown.cond.borrow.assign	sumown	cond	borrow	assign	accept	-
+sumown.cond.borrow.consume	sumown	cond	borrow	consume	accept	-
+sumown.cond.borrow.ident	sumown	cond	borrow	ident	accept	-
+sumown.cond.borrow.borrow	sumown	cond	borrow	borrow	accept	-
+sumown.cond.borrow.casev	sumown	cond	borrow	casev	accept	-
+sumown.cond.borrow.payload	sumown	cond	borrow	payload	accept	-
+sumown.cond.borrow.none	sumown	cond	borrow	none	accept	-
+sumown.arm1.assign.assign	sumown	arm1	assign	assign	reject	ownership state disagreement at control-flow join
+sumown.arm1.assign.consume	sumown	arm1	assign	consume	reject	ownership state disagreement at control-flow join
+sumown.arm1.assign.ident	sumown	arm1	assign	ident	reject	ownership state disagreement at control-flow join
+sumown.arm1.assign.borrow	sumown	arm1	assign	borrow	reject	ownership state disagreement at control-flow join
+sumown.arm1.assign.casev	sumown	arm1	assign	casev	reject	ownership state disagreement at control-flow join
+sumown.arm1.assign.payload	sumown	arm1	assign	payload	reject	ownership state disagreement at control-flow join
+sumown.arm1.assign.none	sumown	arm1	assign	none	reject	ownership state disagreement at control-flow join
+sumown.arm1.consume.assign	sumown	arm1	consume	assign	reject	ownership state disagreement at control-flow join
+sumown.arm1.consume.consume	sumown	arm1	consume	consume	reject	ownership state disagreement at control-flow join
+sumown.arm1.consume.ident	sumown	arm1	consume	ident	reject	ownership state disagreement at control-flow join
+sumown.arm1.consume.borrow	sumown	arm1	consume	borrow	reject	ownership state disagreement at control-flow join
+sumown.arm1.consume.casev	sumown	arm1	consume	casev	reject	ownership state disagreement at control-flow join
+sumown.arm1.consume.payload	sumown	arm1	consume	payload	reject	ownership state disagreement at control-flow join
+sumown.arm1.consume.none	sumown	arm1	consume	none	reject	ownership state disagreement at control-flow join
+sumown.arm1.ident.assign	sumown	arm1	ident	assign	reject	ownership state disagreement at control-flow join
+sumown.arm1.ident.consume	sumown	arm1	ident	consume	reject	ownership state disagreement at control-flow join
+sumown.arm1.ident.ident	sumown	arm1	ident	ident	reject	ownership state disagreement at control-flow join
+sumown.arm1.ident.borrow	sumown	arm1	ident	borrow	reject	ownership state disagreement at control-flow join
+sumown.arm1.ident.casev	sumown	arm1	ident	casev	reject	ownership state disagreement at control-flow join
+sumown.arm1.ident.payload	sumown	arm1	ident	payload	reject	ownership state disagreement at control-flow join
+sumown.arm1.ident.none	sumown	arm1	ident	none	reject	ownership state disagreement at control-flow join
+sumown.arm1.borrow.assign	sumown	arm1	borrow	assign	accept	-
+sumown.arm1.borrow.consume	sumown	arm1	borrow	consume	accept	-
+sumown.arm1.borrow.ident	sumown	arm1	borrow	ident	accept	-
+sumown.arm1.borrow.borrow	sumown	arm1	borrow	borrow	accept	-
+sumown.arm1.borrow.casev	sumown	arm1	borrow	casev	accept	-
+sumown.arm1.borrow.payload	sumown	arm1	borrow	payload	accept	-
+sumown.arm1.borrow.none	sumown	arm1	borrow	none	accept	-
+sumown.arm1.casev.assign	sumown	arm1	casev	assign	reject	ownership state disagreement at control-flow join
+sumown.arm1.casev.consume	sumown	arm1	casev	consume	reject	ownership state disagreement at control-flow join
+sumown.arm1.casev.ident	sumown	arm1	casev	ident	reject	ownership state disagreement at control-flow join
+sumown.arm1.casev.borrow	sumown	arm1	casev	borrow	reject	ownership state disagreement at control-flow join
+sumown.arm1.casev.casev	sumown	arm1	casev	casev	reject	ownership state disagreement at control-flow join
+sumown.arm1.casev.payload	sumown	arm1	casev	payload	reject	ownership state disagreement at control-flow join
+sumown.arm1.casev.none	sumown	arm1	casev	none	reject	ownership state disagreement at control-flow join
+sumown.arm1.payload.assign	sumown	arm1	payload	assign	reject	ownership state disagreement at control-flow join
+sumown.arm1.payload.consume	sumown	arm1	payload	consume	reject	ownership state disagreement at control-flow join
+sumown.arm1.payload.ident	sumown	arm1	payload	ident	reject	ownership state disagreement at control-flow join
+sumown.arm1.payload.borrow	sumown	arm1	payload	borrow	reject	ownership state disagreement at control-flow join
+sumown.arm1.payload.casev	sumown	arm1	payload	casev	reject	ownership state disagreement at control-flow join
+sumown.arm1.payload.payload	sumown	arm1	payload	payload	reject	ownership state disagreement at control-flow join
+sumown.arm1.payload.none	sumown	arm1	payload	none	reject	ownership state disagreement at control-flow join
+sumown.gen.pass.pass	sumown	gen	pass	pass	reject	which uses it again after passing it on
+sumown.gen.pass.lend	sumown	gen	pass	lend	reject	which uses it again after passing it on
+sumown.gen.lend.pass	sumown	gen	lend	pass	accept	-
+sumown.gen.lend.lend	sumown	gen	lend	lend	reject	neither returned nor borrowed nor passed on
+sumown.shadow.consume.consume	sumown	shadow	consume	consume	reject	used after move | moved more than once | assigned while still owned
+sumown.shadow.consume.borrow	sumown	shadow	consume	borrow	reject	used after move | moved more than once | assigned while still owned
+sumown.shadow.consume.casev	sumown	shadow	consume	casev	reject	used after move | moved more than once | assigned while still owned
+sumown.shadow.consume.payload	sumown	shadow	consume	payload	reject	used after move | moved more than once | assigned while still owned
+sumown.shadow.consume.none	sumown	shadow	consume	none	accept	-
+sumown.shadow.borrow.consume	sumown	shadow	borrow	consume	accept	-
+sumown.shadow.borrow.borrow	sumown	shadow	borrow	borrow	accept	-
+sumown.shadow.borrow.casev	sumown	shadow	borrow	casev	accept	-
+sumown.shadow.borrow.payload	sumown	shadow	borrow	payload	accept	-
+sumown.shadow.borrow.none	sumown	shadow	borrow	none	accept	-
+sumown.shadow.casev.consume	sumown	shadow	casev	consume	reject	used after move | moved more than once | assigned while still owned
+sumown.shadow.casev.borrow	sumown	shadow	casev	borrow	reject	used after move | moved more than once | assigned while still owned
+sumown.shadow.casev.casev	sumown	shadow	casev	casev	reject	used after move | moved more than once | assigned while still owned
+sumown.shadow.casev.payload	sumown	shadow	casev	payload	reject	used after move | moved more than once | assigned while still owned
+sumown.shadow.casev.none	sumown	shadow	casev	none	accept	-
+sumown.shadow.payload.consume	sumown	shadow	payload	consume	reject	used after move | moved more than once | assigned while still owned
+sumown.shadow.payload.borrow	sumown	shadow	payload	borrow	reject	used after move | moved more than once | assigned while still owned
+sumown.shadow.payload.casev	sumown	shadow	payload	casev	reject	used after move | moved more than once | assigned while still owned
+sumown.shadow.payload.payload	sumown	shadow	payload	payload	reject	used after move | moved more than once | assigned while still owned
+sumown.shadow.payload.none	sumown	shadow	payload	none	accept	-

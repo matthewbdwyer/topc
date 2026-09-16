@@ -1,0 +1,16 @@
+// soundness grid case sum.loop.consume.none
+// kind=sum context=loop op1=consume op2=none
+// expect: reject (move inside while-loop body | still owned at the end of a while-loop)
+type Cell = Val(n) | Nope;
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+consume(p) { var t; t = 0; case p of { Val(n) -> t = n; Nope -> t = 0; } return t; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = Val(5);
+  i = 2;
+  while (i > 0) { r = r + consume(x); i = i - 1; }
+  
+  return 0;
+}

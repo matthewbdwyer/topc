@@ -1,0 +1,15 @@
+// soundness grid case sum.loop.payload.casev
+// kind=sum context=loop op1=payload op2=casev
+// expect: reject (move inside while-loop body | still owned at the end of a while-loop)
+type Cell = Val(n) | Nope;
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = Val(5);
+  i = 2;
+  while (i > 0) { w = Wrap(x); i = i - 1; }
+  case x of { Val(n) -> r = r + n; Nope -> r = r + 0; }
+  return 0;
+}

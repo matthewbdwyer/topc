@@ -1,0 +1,14 @@
+// soundness grid case own.seq.assign.consume
+// kind=own context=seq op1=assign op2=consume
+// expect: reject (used after move | moved more than once | assigned while still owned)
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+consume(p) { return *p; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = alloc 5;
+  y = x;
+  r = r + consume(x);
+  return 0;
+}

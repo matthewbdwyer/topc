@@ -1,0 +1,29 @@
+// The same rule for a sum-typed owner: `both` consumes the box with a
+// by-value match and reads the borrowed copy of it afterwards.
+type Cell = Val(n) | Nope;
+
+eat(c) {
+  var r;
+  r = 0;
+  case c of { Val(n) -> r = n; Nope -> r = 0; }
+  return r;
+}
+
+peek(c) {
+  var r;
+  r = 0;
+  case *c of { Val(n) -> r = n; Nope -> r = 0; }
+  return r;
+}
+
+both(c, d) {
+  var x;
+  x = eat(c);
+  return x + peek(d);
+}
+
+main() {
+  var c;
+  c = Val(5);
+  return both(c, &c);
+}

@@ -1,0 +1,51 @@
+// A by-value match consumes its scrutinee: the box is freed by the match and
+// the owned payloads move into the arm's binders. A binder that is only read
+// is freed at the end of its arm; one that is moved on is freed by its new
+// owner. Exits 0; clean under LeakSanitizer (these used to leak).
+type Chain = Nil | Link(head, tail);
+
+sink(p) { return *p; }
+
+readHead(c) {
+  var r;
+  r = 0;
+  case c of {
+    Nil -> r = 0;
+    Link(h, t) -> r = *h;
+  }
+  return r;
+}
+
+sumAll(c) {
+  var r;
+  r = 0;
+  case c of {
+    Nil -> r = 0;
+    Link(h, t) -> r = sink(h) + sumAll(t);
+  }
+  return r;
+}
+
+firstOnly(c) {
+  var r;
+  r = 0;
+  case c of {
+    Nil -> r = 0;
+    Link(h, t) -> r = sink(h);
+  }
+  return r;
+}
+
+wrap(p) { return Link(p, Nil); }
+
+main() {
+  var a, b, c, d;
+  a = alloc 1;
+  if (readHead(wrap(a)) != 1) error 1;
+  b = alloc 2;
+  c = alloc 3;
+  if (sumAll(Link(b, Link(c, Nil))) != 5) error 2;
+  d = alloc 4;
+  if (firstOnly(Link(d, Link(alloc 5, Nil))) != 4) error 3;
+  return 0;
+}

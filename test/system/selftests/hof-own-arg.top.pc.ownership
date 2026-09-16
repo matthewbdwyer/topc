@@ -22,7 +22,9 @@
   [ownership] - function len : Copy
   [ownership] 10:4 local len.l : Own
   [ownership] 11:6 local len.r : Copy
+  [move] 12:1 move l (ownership consumed by case)
   [move] 14:1 move t (ownership moved via function argument)
+  [move] 14:1 own t (ownership received from the matched payload)
   [ownership] 14:9 local len.h : Copy
   [ownership] 14:12 local len.t : Own
   [ownership] - function main : Copy

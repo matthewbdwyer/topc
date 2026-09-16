@@ -1,0 +1,14 @@
+// soundness grid case sum.shadow.payload.none
+// kind=sum context=shadow op1=payload op2=none
+// expect: accept
+type Cell = Val(n) | Nope;
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = Val(5);
+  y = Val(9);
+  case y of { Val(n) -> { w = Wrap(x);  r = r + n; } Nope -> { w = Wrap(x);  } }
+  return 0;
+}

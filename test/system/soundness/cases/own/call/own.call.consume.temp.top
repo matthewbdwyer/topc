@@ -1,0 +1,15 @@
+// soundness grid case own.call.consume.temp
+// kind=own context=call op1=consume op2=temp
+// expect: accept
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+consume(p) { return *p; }
+make() { var p; p = alloc 7; return p; }
+pair(a1, a2) { return consume(a1) + a2; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = alloc 5;
+  r = r + pair(x, *make());
+  return 0;
+}

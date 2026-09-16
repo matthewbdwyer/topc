@@ -1,0 +1,14 @@
+// soundness grid case sumown.seq.casev.assign
+// kind=sumown context=seq op1=casev op2=assign
+// expect: reject (used after move | moved more than once | assigned while still owned)
+type Box = Full(v) | Empty;
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = Full(alloc 5);
+  case x of { Full(v) -> r = r + *v; Empty -> r = r + 0; }
+  y = x;
+  return 0;
+}

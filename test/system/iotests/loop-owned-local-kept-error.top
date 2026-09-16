@@ -1,0 +1,14 @@
+// Destruction happens where a variable goes out of scope, at function exit,
+// so an owned value allocated in a loop body must be moved on or freed within
+// the iteration; otherwise the next iteration's assignment would leak it.
+main() {
+  var p, i, r;
+  i = 2;
+  r = 0;
+  while (i > 0) {
+    p = alloc i;
+    r = r + *p;
+    i = i - 1;
+  }
+  return r;
+}

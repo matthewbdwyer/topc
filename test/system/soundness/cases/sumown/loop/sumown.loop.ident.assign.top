@@ -1,0 +1,16 @@
+// soundness grid case sumown.loop.ident.assign
+// kind=sumown context=loop op1=ident op2=assign
+// expect: reject (move inside while-loop body | still owned at the end of a while-loop)
+type Box = Full(v) | Empty;
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+ident(z) { return z; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = Full(alloc 5);
+  i = 2;
+  while (i > 0) { y = ident(x); i = i - 1; }
+  y = x;
+  return 0;
+}

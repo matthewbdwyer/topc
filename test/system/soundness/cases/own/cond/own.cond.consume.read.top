@@ -1,0 +1,15 @@
+// soundness grid case own.cond.consume.read
+// kind=own context=cond op1=consume op2=read
+// expect: reject (move in while-loop condition)
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+consume(p) { return *p; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = alloc 5;
+  i = 0;
+  while (consume(x) > i) { i = i + 1000; }
+  r = r + *x;
+  return 0;
+}

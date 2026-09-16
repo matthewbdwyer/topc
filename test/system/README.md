@@ -45,6 +45,13 @@ Golden reference files:
 - `*.top.pc.ownership` — expected ownership/move constraints (`topc --pownership --constraint`)
 - `*.top.pc.borrow` — expected borrow constraints (`topc --pborrow --constraint`)
 
+### `soundness/` (explicit only)
+
+A generated, bounded-exhaustive grid of about 1,100 ownership programs with
+expected verdicts derived from the ownership rules. Not run by default; run it
+with `run.py --soundness` (or `bin/runtests.sh -s -- --soundness`). See
+`soundness/README.md`.
+
 ### `iotests/`
 
 Programs that read input from `argv[1]` and produce output on stdout.

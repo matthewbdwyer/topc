@@ -1,0 +1,11 @@
+// Moves take effect in evaluation order, within a statement as well as
+// across statements: `sink(a)` frees a before `read(&a)` runs.
+sink(p) { return *p; }
+read(q) { return **q; }
+
+main() {
+  var a, x;
+  a = alloc 1;
+  x = sink(a) + read(&a);
+  return x;
+}

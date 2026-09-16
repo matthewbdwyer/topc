@@ -1,0 +1,23 @@
+// An owning reference returned by a call, or made by alloc, and dereferenced
+// directly is never bound to a variable; the generated code frees it once the
+// value is read or written. Exits 0; clean under LeakSanitizer (these used to
+// leak). A reference borrowed through a call is not freed.
+mk(n) { var p; p = alloc n; return p; }
+identity(r) { return r; }
+
+main() {
+  var x, i, n;
+  x = *mk(5);
+  if (x != 5) error 1;
+  output *mk(6);
+  if (*mk(7) != 7) error 2;
+  if (*alloc 8 != 8) error 3;
+  *mk(9) = 3;
+  i = 3;
+  while (*mk(i) > 0) {
+    i = i - 1;
+  }
+  n = 10;
+  if (*identity(&n) != 10) error 4;
+  return i;
+}

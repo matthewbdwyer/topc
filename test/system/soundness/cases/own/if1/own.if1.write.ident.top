@@ -1,0 +1,14 @@
+// soundness grid case own.if1.write.ident
+// kind=own context=if1 op1=write op2=ident
+// expect: accept
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+ident(z) { return z; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = alloc 5;
+  if (c > 0) { *x = 3; }
+  y = ident(x);
+  return 0;
+}

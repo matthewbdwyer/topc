@@ -1,0 +1,12 @@
+// Whether a variable must be freed is decided at compile time, so after a
+// branch an owned variable must be owned on every path or on none. Here `a`
+// is assigned only when c > 0.
+main(c) {
+  var a, r;
+  r = 0;
+  if (c > 0) {
+    a = alloc 1;
+    r = *a;
+  }
+  return r;
+}

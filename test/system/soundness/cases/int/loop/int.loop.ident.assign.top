@@ -1,0 +1,15 @@
+// soundness grid case int.loop.ident.assign
+// kind=int context=loop op1=ident op2=assign
+// expect: accept
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+ident(z) { return z; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = 5;
+  i = 2;
+  while (i > 0) { y = ident(x); i = i - 1; }
+  y = x;
+  return 0;
+}

@@ -1,0 +1,14 @@
+// soundness grid case own.if1.read.temp
+// kind=own context=if1 op1=read op2=temp
+// expect: accept
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+make() { var p; p = alloc 7; return p; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = alloc 5;
+  if (c > 0) { r = r + *x; }
+  r = r + *make();
+  return 0;
+}

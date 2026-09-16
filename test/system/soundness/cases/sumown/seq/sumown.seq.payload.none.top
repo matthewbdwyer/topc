@@ -1,0 +1,14 @@
+// soundness grid case sumown.seq.payload.none
+// kind=sumown context=seq op1=payload op2=none
+// expect: accept
+type Box = Full(v) | Empty;
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = Full(alloc 5);
+  w = Wrap(x);
+  
+  return 0;
+}

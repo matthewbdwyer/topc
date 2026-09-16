@@ -1,0 +1,10 @@
+// A sibling actual that consumes the owner runs before the call starts, so
+// the borrow passed alongside it would already dangle.
+sink(p) { return *p; }
+read(q, n) { return **q + n; }
+
+main() {
+  var a;
+  a = alloc 1;
+  return read(&a, sink(a));
+}

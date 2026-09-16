@@ -1,0 +1,15 @@
+// soundness grid case own.seq.temp.ident
+// kind=own context=seq op1=temp op2=ident
+// expect: accept
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+ident(z) { return z; }
+make() { var p; p = alloc 7; return p; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = alloc 5;
+  r = r + *make();
+  y = ident(x);
+  return 0;
+}

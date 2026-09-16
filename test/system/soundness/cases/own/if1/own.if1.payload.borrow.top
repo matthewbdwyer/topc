@@ -1,0 +1,14 @@
+// soundness grid case own.if1.payload.borrow
+// kind=own context=if1 op1=payload op2=borrow
+// expect: reject (ownership state disagreement at control-flow join)
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+look(q) { return **q; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = alloc 5;
+  if (c > 0) { w = Wrap(x); }
+  r = r + look(&x);
+  return 0;
+}

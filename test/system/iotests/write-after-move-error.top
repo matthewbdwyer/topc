@@ -1,0 +1,11 @@
+// Writing through an owning pointer is a use of it. After `a` is moved into
+// `sink` (which frees it), `*a = 5` would write to freed memory.
+sink(p) { return *p; }
+
+main() {
+  var a, r;
+  a = alloc 1;
+  r = sink(a);
+  *a = 5;
+  return r;
+}

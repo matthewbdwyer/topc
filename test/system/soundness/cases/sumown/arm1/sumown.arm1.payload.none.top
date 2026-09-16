@@ -1,0 +1,15 @@
+// soundness grid case sumown.arm1.payload.none
+// kind=sumown context=arm1 op1=payload op2=none
+// expect: reject (ownership state disagreement at control-flow join)
+type Box = Full(v) | Empty;
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = Full(alloc 5);
+  sel = On(1);
+  case sel of { On(k) -> { w = Wrap(x); } Off -> r = r + 0; }
+  
+  return 0;
+}

@@ -1,0 +1,14 @@
+// soundness grid case int.if2.payload.borrow
+// kind=int context=if2 op1=payload op2=borrow
+// expect: accept
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+look(q) { return *q; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = 5;
+  if (c > 0) { w = Wrap(x); } else { w = Wrap(x); }
+  r = r + look(&x);
+  return 0;
+}

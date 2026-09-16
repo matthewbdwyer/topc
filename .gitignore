@@ -56,3 +56,7 @@ coverage.out/
 corretto.key*
 kitware-archive.sh*
 llvm.sh*
+
+# Python bytecode (test runners)
+__pycache__/
+*.pyc

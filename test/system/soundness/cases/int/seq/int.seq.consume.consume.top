@@ -1,0 +1,14 @@
+// soundness grid case int.seq.consume.consume
+// kind=int context=seq op1=consume op2=consume
+// expect: accept
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+consume(p) { return p + 1; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = 5;
+  r = r + consume(x);
+  r = r + consume(x);
+  return 0;
+}

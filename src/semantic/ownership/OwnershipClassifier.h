@@ -66,4 +66,5 @@ public:
 
 private:
   std::map<ASTDeclNode *, OwnershipClass> classes;
+  TypeInference *types = nullptr;
 };

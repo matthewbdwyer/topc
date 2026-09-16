@@ -1,0 +1,17 @@
+// Whether `take(z)` moves an owned value out of a borrow depends on what `z`
+// borrows, which only the caller of `f` knows. The requirement can be passed
+// to the caller only through a formal, not a local copy of one, so this is
+// rejected where it is written.
+take(p) { return *p; }
+
+f(q) {
+  var z;
+  z = q;
+  return take(z);
+}
+
+main() {
+  var n;
+  n = 3;
+  return f(&n);
+}

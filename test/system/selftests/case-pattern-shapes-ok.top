@@ -1,0 +1,41 @@
+// Nested patterns and a wildcard over an owned payload: the match frees what
+// it does not bind, and binders are freed where their arm ends.
+// Exits 0; clean under ASan/LSan.
+type Chain = Nil | Link(head, tail);
+type Cells = End | Cell(value, rest);
+
+len(c) {
+  var r;
+  r = 0;
+  case c of {
+    Nil -> r = 0;
+    Link(_, t) -> r = 1 + len(t);
+  }
+  return r;
+}
+
+count(c) {
+  var r;
+  r = 0;
+  case c of {
+    End -> r = 0;
+    Cell(_, rest) -> r = 1 + count(rest);
+  }
+  return r;
+}
+
+main() {
+  var c, d, r, s;
+  c = Link(1, Link(2, Nil));
+  r = 0;
+  case c of {
+    Nil -> r = 0;
+    Link(h, Nil) -> r = h;
+    Link(h, Link(h2, t)) -> r = h + h2 + len(t);
+  }
+  if (r != 3) error 1;
+  d = Cell(alloc 7, Cell(alloc 8, End));
+  s = count(d);
+  if (s != 2) error 2;
+  return 0;
+}

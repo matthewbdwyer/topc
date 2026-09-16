@@ -1,0 +1,14 @@
+// soundness grid case own.seq.ident.write
+// kind=own context=seq op1=ident op2=write
+// expect: reject (used after move | moved more than once | assigned while still owned)
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+ident(z) { return z; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = alloc 5;
+  y = ident(x);
+  *x = 3;
+  return 0;
+}

@@ -31,6 +31,16 @@ void _top_error(int64_t x) {
 }
 
 /*
+ * Integer division by zero, and INT64_MIN / -1, are runtime errors in TOP.
+ * Generated code checks the operands and calls this before dividing.
+ */
+void _top_division_error(int64_t line, int64_t overflow) {
+  printf("[error] Error: %s on line %" PRId64 "\n",
+         overflow ? "integer division overflow" : "division by zero", line);
+  exit(-1);
+}
+
+/*
  * If the compiled program has no "main" function then one is created
  * that calls this function.
  */

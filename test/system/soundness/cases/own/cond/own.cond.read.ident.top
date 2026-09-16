@@ -1,0 +1,15 @@
+// soundness grid case own.cond.read.ident
+// kind=own context=cond op1=read op2=ident
+// expect: accept
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+ident(z) { return z; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = alloc 5;
+  i = 0;
+  while (*x > i) { i = i + 1000; }
+  y = ident(x);
+  return 0;
+}

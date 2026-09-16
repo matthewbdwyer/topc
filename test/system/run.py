@@ -104,6 +104,56 @@ EXPECTED_ERROR_SUBSTRINGS = {
         "cannot be moved out",
     "alias-write-own-error.top":
         "cannot overwrite the owned value",
+    "generic-reuse-after-pass-error.top":
+        "which uses it again after passing it on",
+    "generic-return-after-pass-error.top":
+        "which uses it again after passing it on",
+    "generic-borrow-after-pass-error.top":
+        "which uses it again after passing it on",
+    "generic-overwrite-owned-error.top":
+        "overwrites an owned value through the borrow",
+    "call-move-while-borrowed-error.top":
+        "is moved while the call both(a, &a) borrows it",
+    "call-borrow-then-move-error.top":
+        "is moved while the call both(&a, a) borrows it",
+    "sibling-arg-move-borrowed-error.top":
+        "is moved while the call read(&a, sink(a)) borrows it",
+    "payload-arg-move-borrowed-error.top":
+        "is moved while the call both(Link(a, Nil), &a) borrows it",
+    "sum-move-while-borrowed-error.top":
+        "is moved while the call both(c, &c) borrows it",
+    "expr-move-then-use-error.top":
+        "variable 'a' used after move",
+    "write-after-move-error.top":
+        "variable 'a' used after move",
+    "while-cond-move-error.top":
+        "move in while-loop condition",
+    "loop-owned-local-kept-error.top":
+        "is still owned at the end of a while-loop iteration",
+    "join-assigned-then-only-error.top":
+        "is assigned on one path and not on another",
+    "join-assigned-else-only-error.top":
+        "is assigned on one path and not on another",
+    "join-assigned-one-arm-error.top":
+        "is assigned on one path and not on another",
+    "join-sum-assigned-then-only-error.top":
+        "is assigned on one path and not on another",
+    "alias-binder-name-reuse-error.top":
+        "'v' is bound by matching a borrowed value",
+    "loop-body-move-error.top":
+        "move inside while-loop body",
+    "case-in-loop-error.top":
+        "move inside while-loop body",
+    "join-moved-one-branch-error.top":
+        "one path leaves it Moved and the other leaves it Owned",
+    "case-consumes-then-borrow-error.top":
+        "variable 'c' used after move",
+    "borrow-returned-through-value-error.top":
+        "function id returns a borrow",
+    "generic-deref-local-copy-error.top":
+        "cannot tell whether argument 0 (z) refers to an owned value",
+    "generic-double-deref-error.top":
+        "cannot tell whether '(*(*r))' is an owned value",
 }
 
 # ---------------------------------------------------------------------------
@@ -140,6 +190,11 @@ def _run(cmd: Sequence, *,
 # via ASAN_OPTIONS. This applies only to the compiled program runs, not to topc
 # itself.
 LSAN_ENV = {**os.environ, "ASAN_OPTIONS": "detect_leaks=1"}
+
+# Every program the suite runs is compiled with --san, so that AddressSanitizer
+# checks the generated code's reads and writes (use after free, out-of-bounds),
+# not only the frees and leaks that linking with -fsanitize=address intercepts.
+SAN_FLAGS = ["--san"]
 
 
 def _compile(srcfile: Path, out_bc: Path,
@@ -200,7 +255,7 @@ def run_selftest(srcfile: Path, scratch: Path,
     bc  = scratch / f"{srcfile.stem}.bc"
     exe = scratch / srcfile.stem
 
-    r = _compile(srcfile, bc, extra_flags)
+    r = _compile(srcfile, bc, list(extra_flags) + SAN_FLAGS)
     if r.returncode != 0:
         return TestResult(name, False,
                           f"compile failed:\n{r.stderr.strip()}",
@@ -244,7 +299,7 @@ def run_iotest(expected_file: Path, scratch: Path) -> TestResult:
     bc  = scratch / f"{program_name}.bc"
     exe = scratch / program_name
 
-    r = _compile(src, bc)
+    r = _compile(src, bc, SAN_FLAGS)
     if r.returncode != 0:
         return TestResult(name, False,
                           f"compile failed:\n{r.stderr.strip()}",
@@ -315,7 +370,7 @@ def run_polytest(srcfile: Path, scratch: Path) -> List[TestResult]:
     exe = scratch / srcfile.stem
     t0  = time.monotonic()
 
-    r = _compile(srcfile, bc, [])
+    r = _compile(srcfile, bc, SAN_FLAGS)
     if r.returncode != 0:
         results.append(TestResult(f"{base}.run", False,
                                   f"compile failed:\n{r.stderr.strip()}",
@@ -399,6 +454,21 @@ def run_driver_tests(scratch: Path) -> List[TestResult]:
             return f"LLVM IR mismatch:\n{diff}"
         return None
     check("driver.fib.ll", asm_explicit_output)
+
+    # -- --san instruments memory accesses, with and without -do -----------------
+    def san_instruments_accesses(extra):
+        def check_ir():
+            out = scratch / "san-fib.ll"
+            r = _run([str(TOPC), "--san", "--asm"] + extra +
+                     [str(IOTESTS_DIR / "fib.top"), "-o", str(out)])
+            if r.returncode != 0:
+                return f"topc --san --asm failed: {r.stderr.strip()}"
+            if "__asan_load" not in out.read_text():
+                return "--san emitted no __asan_load checks (functions lack sanitize_address)"
+            return None
+        return check_ir
+    check("driver.san.instruments_accesses", san_instruments_accesses([]))
+    check("driver.san.instruments_accesses_do", san_instruments_accesses(["-do"]))
 
     # -- --pcallgraph call graph ------------------------------------------------
     def pcallgraph_fib():
@@ -686,6 +756,49 @@ def _record(result: TestResult,
 
 
 # ---------------------------------------------------------------------------
+# Soundness grid (explicit: --soundness)
+# ---------------------------------------------------------------------------
+
+def run_soundness(args) -> int:
+    """Run every checked-in case of the ownership soundness grid.
+
+    Not part of the default run: about 1,100 generated programs, each compiled
+    with --san and, when accepted, run twice under ASan/LSan. See
+    test/system/soundness/README.md.
+    """
+    sys.path.insert(0, str(SCRIPT_DIR / "soundness"))
+    import generate as soundness_generate  # noqa: E402
+    import runner as soundness_runner      # noqa: E402
+
+    stale = [p for p, text in soundness_generate.expected_files().items()
+             if not p.exists() or p.read_text() != text]
+    if stale:
+        print(f"soundness: {len(stale)} checked-in case(s) differ from grid.py; "
+              "run test/system/soundness/generate.py and review the diff",
+              file=sys.stderr)
+        return 1
+
+    runner = soundness_runner.Runner(TOPC, RTLIB, TOPCLANG)
+    t0 = time.monotonic()
+    results = runner.run(soundness_runner.load(), max(args.jobs, 1))
+    all_results = []
+    for entry, cls, detail in sorted(results, key=lambda t: t[0].name):
+        ok = cls in ("OK", "ILLTYPED")
+        _record(TestResult(f"soundness.{entry.name}", ok,
+                           "" if ok else f"{cls}: {detail}"),
+                all_results, args.verbose)
+    print()
+    print(soundness_runner.summary(results) +
+          f"  ({time.monotonic() - t0:.0f}s)")
+    failed = [r for r in all_results if not r.passed]
+    for r in failed[:50]:
+        print(f"  FAIL: {r.name}\n        {r.message}")
+    if args.junit:
+        write_junit(all_results, Path(args.junit))
+    return 1 if failed else 0
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -697,6 +810,9 @@ def main() -> int:
                         help="write JUnit XML results to FILE")
     parser.add_argument("--verbose", "-v", action="store_true",
                         help="print failure detail immediately")
+    parser.add_argument("--soundness", action="store_true",
+                        help="run only the ownership soundness grid "
+                             "(test/system/soundness; not part of the default run)")
     args = parser.parse_args()
 
     if not TOPCLANG:
@@ -705,6 +821,9 @@ def main() -> int:
     if not TOPC.exists():
         print(f"error: topc not found at {TOPC}", file=sys.stderr)
         return 1
+
+    if args.soundness:
+        return run_soundness(args)
 
     scratch_root = Path(tempfile.mkdtemp(prefix="topc_tests_"))
     all_results: List[TestResult] = []

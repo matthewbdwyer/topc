@@ -1,0 +1,13 @@
+// soundness grid case own.if2.write.assign
+// kind=own context=if2 op1=write op2=assign
+// expect: accept
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = alloc 5;
+  if (c > 0) { *x = 3; } else { *x = 3; }
+  y = x;
+  return 0;
+}

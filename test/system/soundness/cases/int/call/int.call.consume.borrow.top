@@ -1,0 +1,15 @@
+// soundness grid case int.call.consume.borrow
+// kind=int context=call op1=consume op2=borrow
+// expect: accept
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+consume(p) { return p + 1; }
+look(q) { return *q; }
+pair(a1, a2) { return consume(a1) + look(a2); }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = 5;
+  r = r + pair(x, &x);
+  return 0;
+}

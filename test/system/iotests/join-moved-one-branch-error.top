@@ -1,0 +1,16 @@
+// Moving an owned variable on one branch only leaves it Moved on one path
+// and Owned on the other; whether to free it at exit cannot be decided
+// statically.
+sink(p) { return *p; }
+
+main(c) {
+  var a, r;
+  a = alloc 1;
+  r = 0;
+  if (c > 0) {
+    r = sink(a);
+  } else {
+    r = *a;
+  }
+  return r;
+}

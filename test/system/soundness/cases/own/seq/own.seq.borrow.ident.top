@@ -1,0 +1,15 @@
+// soundness grid case own.seq.borrow.ident
+// kind=own context=seq op1=borrow op2=ident
+// expect: accept
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+ident(z) { return z; }
+look(q) { return **q; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = alloc 5;
+  r = r + look(&x);
+  y = ident(x);
+  return 0;
+}

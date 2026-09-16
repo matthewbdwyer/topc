@@ -1,0 +1,13 @@
+// A sum-typed local assigned on one path only. Destroying it on the other
+// path would read the tag of a box that was never allocated.
+type Cell = Val(n) | Nope;
+
+main(c) {
+  var x, r;
+  r = 0;
+  if (c > 0) {
+    x = Val(1);
+    r = 1;
+  }
+  return r;
+}

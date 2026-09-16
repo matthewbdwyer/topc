@@ -54,6 +54,7 @@ struct CodeGenContext {
   llvm::Function *inputIntrinsic  = nullptr;
   llvm::Function *outputIntrinsic = nullptr;
   llvm::Function *errorIntrinsic  = nullptr;
+  llvm::Function *divisionErrorIntrinsic = nullptr;
   llvm::Function *callocFun       = nullptr;
   llvm::Function *freeFun         = nullptr;
 

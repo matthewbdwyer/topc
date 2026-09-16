@@ -1,0 +1,44 @@
+// Case binders are scoped to their arm. Reusing a name in both branches of an
+// if, in sibling cases, and in a nested case that shadows an enclosing binder
+// all resolve to the right payload and free each one exactly once.
+// Exits 0; clean under ASan/LSan (the first shape used to leak, the last
+// failed to compile).
+type Box = Full(v) | Empty;
+
+sink(p) { return *p; }
+
+branches(c) {
+  var x, r;
+  r = 0;
+  x = Full(alloc 5);
+  if (c > 0) {
+    case x of { Full(v) -> r = r + *v; Empty -> r = r + 0; }
+  } else {
+    case x of { Full(v) -> r = r + *v; Empty -> r = r + 0; }
+  }
+  return r;
+}
+
+nested() {
+  var x, y, r;
+  x = Full(alloc 5);
+  y = Full(alloc 6);
+  r = 0;
+  case x of {
+    Full(v) -> {
+      case y of { Full(v) -> r = r + *v; Empty -> r = r + 0; }
+      r = r + sink(v);
+    }
+    Empty -> {
+      case y of { Full(w) -> r = *w; Empty -> r = 0; }
+    }
+  }
+  return r;
+}
+
+main() {
+  if (branches(1) != 5) error 1;
+  if (branches(0) != 5) error 2;
+  if (nested() != 11) error 3;
+  return 0;
+}

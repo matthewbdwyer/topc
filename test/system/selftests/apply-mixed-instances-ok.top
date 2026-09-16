@@ -1,0 +1,16 @@
+// A generic higher-order function instantiated with a consuming function in
+// one call and a copying one in another. The call graph gives `f(x)` both
+// targets; inside the generic body `x` has a variable type, so neither target
+// consumes it there, and each call site decides consumption from its own
+// actual. Exits 0; clean under ASan/LSan.
+sink(p) { return *p; }
+inc(n) { return n + 1; }
+apply(f, x) { return f(x); }
+
+main() {
+  var a, r;
+  a = alloc 1;
+  r = apply(sink, a) + apply(inc, 3);
+  if (r != 5) error 1;
+  return 0;
+}

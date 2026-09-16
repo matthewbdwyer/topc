@@ -1,12 +1,15 @@
 #include "ASTSumCtorExpr.h"
 #include "DestructionPass.h"
+#include "RuleToggles.h"
 #include "../SemanticLogging.h"
 
 #include "ASTAssignStmt.h"
 #include "ASTAllocExpr.h"
 #include "ASTBorrowExpr.h"
 #include "ASTBlockStmt.h"
+#include "ASTCaseArm.h"
 #include "ASTCaseStmt.h"
+#include "ASTDeRefExpr.h"
 #include "ASTDestroyStmt.h"
 #include "ASTErrorStmt.h"
 #include "ASTFunction.h"
@@ -19,6 +22,7 @@
 #include "ASTWhileStmt.h"
 
 #include <algorithm>
+#include <optional>
 #include <vector>
 
 // ---------------------------------------------------------------------------
@@ -80,6 +84,9 @@ void DestructionPass::processFunction(ASTFunction *f) {
               return a->getName() < b->getName();
             });
 
+  if (!RuleToggles::enabled("destroy-at-exit")) {
+    toDestroy.clear();
+  }
   for (auto *decl : toDestroy) {
     SEMANTIC_LOG(2, "destruction")
         << "function=" << f->getName() << " insert variable="
@@ -107,12 +114,15 @@ DestructionPass::StateMap DestructionPass::analyzeStmt(ASTStmt *stmt,
     return state;
   }
 
-  // If statement — MoveAnalysis guarantees both branches agree at the join.
+  // If statement — MoveAnalysis guarantees the branches agree on which Own
+  // variables are Owned; join them the same way it does.
   if (auto *ifStmt = dynamic_cast<ASTIfStmt *>(stmt)) {
     consumeCallArgMoves(ifStmt->getCondition(), state);
     auto thenState = analyzeStmt(ifStmt->getThen(), state);
-    // Either branch is equivalent at the join; return thenState.
-    return thenState;
+    StateMap elseState = ifStmt->getElse() != nullptr
+                             ? analyzeStmt(ifStmt->getElse(), state)
+                             : state;
+    return MoveAnalysis::joinStates({thenState, elseState}, false);
   }
 
   // While — MoveAnalysis guarantees the body does not change Own state.
@@ -146,11 +156,16 @@ DestructionPass::StateMap DestructionPass::analyzeStmt(ASTStmt *stmt,
     if (scrutDecl && classifier->classify(scrutDecl) == OwnershipClass::Own) {
       state[scrutDecl] = OwnershipState::Moved;
     }
-    auto arms = caseStmt->getArms();
-    if (!arms.empty()) {
-      return analyzeStmt(arms[0]->getBody(), state);
+    bool byValue =
+        dynamic_cast<ASTDeRefExpr *>(caseStmt->getCaseExpr()) == nullptr;
+    std::vector<StateMap> armStates;
+    for (auto *arm : caseStmt->getArms()) {
+      armStates.push_back(processArm(arm, byValue, state));
     }
-    return state;
+    if (armStates.empty()) {
+      return state; // LCOV_EXCL_LINE -- the parser requires at least one arm
+    }
+    return MoveAnalysis::joinStates(armStates, false);
   }
 
   // Output / Error: consume owned call-argument moves in the expression.
@@ -164,6 +179,72 @@ DestructionPass::StateMap DestructionPass::analyzeStmt(ASTStmt *stmt,
   }
 
   // ASTDestroyStmt, DeclStmt, etc.: no ownership state change.
+  return state;
+}
+
+// ---------------------------------------------------------------------------
+// Case arms: free owned binders that are still Owned at the end of the arm
+// ---------------------------------------------------------------------------
+
+DestructionPass::StateMap DestructionPass::processArm(ASTCaseArm *arm,
+                                                      bool byValue,
+                                                      StateMap state) {
+  // Same keying as MoveAnalysis::analyzeArm: state under the declaration that
+  // uses resolve to; the destroy names the arm's own binding, whose alloca and
+  // type are the ones code generation has in scope for the arm.
+  struct Binder {
+    ASTDeclNode *binding;
+    ASTDeclNode *key;
+    std::optional<OwnershipState> previous;
+  };
+  std::vector<Binder> binders;
+  for (auto *binding : MoveAnalysis::ownedBinders(arm, byValue, classifier)) {
+    ASTDeclNode *key = resolveVar(binding->getName());
+    if (key == nullptr) {
+      key = binding; // LCOV_EXCL_LINE -- every binding is registered by name
+    }
+    auto it = state.find(key);
+    binders.push_back({binding, key,
+                       it != state.end()
+                           ? std::optional<OwnershipState>(it->second)
+                           : std::nullopt});
+    state[key] = OwnershipState::Owned;
+  }
+  state = analyzeStmt(arm->getBody(), std::move(state));
+
+  std::vector<ASTDeclNode *> toDestroy;
+  for (auto &binder : binders) {
+    auto it = state.find(binder.key);
+    if (it != state.end() && it->second == OwnershipState::Owned) {
+      toDestroy.push_back(binder.binding);
+    }
+    if (binder.previous.has_value()) {
+      state[binder.key] = *binder.previous;
+    } else {
+      state.erase(binder.key);
+    }
+  }
+  if (toDestroy.empty() || !RuleToggles::enabled("destroy-arm-binders")) {
+    return state;
+  }
+
+  // The binders are in scope only inside the arm, so their destroys go at the
+  // end of the arm's body: wrap the body in a block that ends with them.
+  std::shared_ptr<ASTStmt> body;
+  for (auto &child : arm->getChildren()) {
+    if (child.get() == arm->getBody()) {
+      body = std::dynamic_pointer_cast<ASTStmt>(child);
+    }
+  }
+  std::vector<std::shared_ptr<ASTStmt>> stmts{body};
+  for (auto *binder : toDestroy) {
+    SEMANTIC_LOG(2, "destruction")
+        << "function=" << currentFuncDecl->getName()
+        << " insert arm-binder=" << binder->getName();
+    stmts.push_back(std::make_shared<ASTDestroyStmt>(binder));
+  }
+  auto block = std::make_shared<ASTBlockStmt>(std::move(stmts));
+  arm->replaceChild(arm->getBody(), block);
   return state;
 }
 

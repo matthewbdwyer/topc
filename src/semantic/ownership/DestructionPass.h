@@ -13,6 +13,7 @@
 
 class ASTAssignStmt;
 class ASTBlockStmt;
+class ASTCaseArm;
 class ASTNode;
 class ASTFunction;
 class ASTIfStmt;
@@ -51,6 +52,7 @@ private:
   void      processFunction(ASTFunction *f);
   StateMap  analyzeStmt(ASTStmt *stmt, StateMap state);
   StateMap  analyzeAssign(ASTAssignStmt *stmt, StateMap state);
+  StateMap  processArm(ASTCaseArm *arm, bool byValue, StateMap state);
   void consumeCallArgMoves(ASTNode *node, StateMap &state);
 
   /*! \brief Resolve a variable name to its ASTDeclNode in the current scope. */

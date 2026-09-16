@@ -1,0 +1,15 @@
+// soundness grid case sum.seq.consume.consume
+// kind=sum context=seq op1=consume op2=consume
+// expect: reject (used after move | moved more than once | assigned while still owned)
+type Cell = Val(n) | Nope;
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+consume(p) { var t; t = 0; case p of { Val(n) -> t = n; Nope -> t = 0; } return t; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = Val(5);
+  r = r + consume(x);
+  r = r + consume(x);
+  return 0;
+}

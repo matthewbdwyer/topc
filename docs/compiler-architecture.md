@@ -147,6 +147,15 @@ instantiation cannot free a value of variable type. Passing on only counts if
 the receiving formal disposes of the value in turn; drops propagate backwards
 through generic callees to a fixed point.
 
+The same walk records, in evaluation order, a formal that is **used again
+after it may have been passed on** (including under `&`, and in a second
+iteration of a loop). A generic formal so used carries a `Self` copy
+requirement: at an owned instance the first pass consumed it. Assigning to the
+formal starts a new value. Every requirement also records its reasons
+(`RequirementReason`: moves out of a borrow, overwrites through a borrow,
+lends to a move-out, used after passed on), which select the diagnostic when a
+call violates it.
+
 From the summaries, `FunctionEffectSummaries` derives one **call effect** per
 call site: which actuals the call consumes. An actual is classified from its
 solved type (a variable reference resolves to its declaration). For each
@@ -201,9 +210,16 @@ Conflicting origins become `Unknown` rather than being treated as copies.
 `MoveAnalysis` applies formal modes at calls and uses return origins to determine
 whether a call result carries ownership. An owned formal starts the function
 Owned (the caller moved it in), and an owned variable used as a constructor
-payload is moved, so both are tracked exactly like owned locals. It rejects
-uses after move, repeated moves, overwriting a live owner, and incompatible
-ownership state at control-flow joins.
+payload is moved, so both are tracked exactly like owned locals. Expressions
+are walked in code-generation order (an assignment's `*e` target, then its
+right-hand side; a callee, then its actuals left to right), and a move takes
+effect where it happens. It rejects uses after move (including writes through
+a moved owning pointer), repeated moves, overwriting a live owner, moving an
+owner that an actual of the same call borrows, a move in a `while` condition,
+a loop body that changes which variables are Owned, and a join where a
+variable is Owned on some paths but not all (`MoveAnalysis::joinStates`, which
+`DestructionPass` shares). The Own binders of a by-value `case` are Owned for
+their arm and leave scope at its end.
 
 Borrow validation has four responsibilities at different stages:
 
@@ -235,7 +251,19 @@ arguments. A function that receives a borrow may independently return
 function summaries to destroy only values that remain active owners. It does not
 destroy moved-from bindings, Copy values, or borrow-derived aliases. Algebraic
 values are destroyed structurally, including owned payloads and recursive
-contents.
+contents. Variables still Owned at function exit are destroyed before the
+return; by-value `case` binders still Owned at the end of their arm are
+destroyed there (the arm body is wrapped in a block that ends with the
+destroys, while code generation still has the binders in scope).
+
+Code generation frees two things no destroy statement names: the box of a
+by-value `case` scrutinee after the match, and an owning reference produced
+by a call or `alloc` and dereferenced directly (`*mk()`), after the load or
+store. It also guards every integer division: a zero divisor, or `INT64_MIN`
+divided by `-1`, calls `_top_division_error` instead of executing an
+undefined `sdiv`. With `--san`, every generated function is marked
+`sanitize_address` before the AddressSanitizer pass runs (with or without
+`-do`), so reads and writes are instrumented, not only allocation calls.
 
 ## Analysis Views
 

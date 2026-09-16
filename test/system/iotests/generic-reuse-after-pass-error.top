@@ -1,0 +1,19 @@
+// A generic formal may not be used again after it is passed on. `twice` has
+// type ((a) -> b, a) -> b and passes x to f twice. At an owned instance the
+// first call consumes x (here `sink` frees it), so the second reads freed
+// memory and frees it again. The body is fine for a Copy instance, so the
+// rejection is at the call, where the instance is known.
+sink(p) { return *p; }
+
+twice(f, x) {
+  var r;
+  r = f(x);
+  r = f(x);
+  return r;
+}
+
+main() {
+  var a;
+  a = alloc 1;
+  return twice(sink, a);
+}

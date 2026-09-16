@@ -1,0 +1,15 @@
+// soundness grid case own.loop.temp.temp
+// kind=own context=loop op1=temp op2=temp
+// expect: accept
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+make() { var p; p = alloc 7; return p; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = alloc 5;
+  i = 2;
+  while (i > 0) { r = r + *make(); i = i - 1; }
+  r = r + *make();
+  return 0;
+}

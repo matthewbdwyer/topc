@@ -1,4 +1,5 @@
 #include "BorrowChecker.h"
+#include "RuleToggles.h"
 
 #include "ASTAssignStmt.h"
 #include "ASTBinaryExpr.h"
@@ -103,7 +104,7 @@ void BorrowChecker::endVisit(ASTBorrowExpr *element) {
         << ": borrow expression must be an immediate function argument"
            " — storing a borrow in a variable or using it in any other"
            " position is not permitted";
-    throw SemanticError(oss.str());
+    if (RuleToggles::enabled("borrow-position")) throw SemanticError(oss.str());
   }
 
   trace.push_back({element->getLine(), element->getColumn(), repr.str(), true});
@@ -308,7 +309,7 @@ void BorrowChecker::rejectBorrowEscape(ASTExpr *expr,
       << ": borrow-derived value " << repr.str() << " escapes into " << sink
       << "; a borrowed alias may only flow through immediate call arguments. "
          "Return or store a copy instead.";
-  throw SemanticError(oss.str());
+  if (RuleToggles::enabled("borrow-escape")) throw SemanticError(oss.str());
 }
 
 // ---------------------------------------------------------------------------

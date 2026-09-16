@@ -310,7 +310,7 @@ TEST_CASE("AliasCheck: a generic write-through instantiated at an owned slot is 
     setVal(p, v) { *p = v; return 0; }
     main() { var a, d; a = alloc 1; d = setVal(&a, alloc 2); return 0; }
   )";
-  expectError(program, "moves an owned value out of the borrow");
+  expectError(program, "overwrites an owned value through the borrow");
 }
 
 // ---- things that must keep working ------------------------------------------
@@ -384,4 +384,80 @@ TEST_CASE("AliasCheck: copy requirements are recorded on the summary and inherit
   CHECK(outer->formalRequirement[0] == R::Referent);  // passes q on to take
   CHECK(lend->formalRequirement[0] == R::Self);       // passes &x on to take
   CHECK(peek->formalRequirement[0] == R::None);       // **p only reads a Copy
+}
+
+// ---- a generic formal used again after it is passed on ----------------------
+
+TEST_CASE("FunctionEffectSummaries: a generic formal used after it is passed on must be Copy",
+          "[FunctionEffectSummaries]") {
+  std::stringstream twice;
+  twice << R"(
+    sink(p) { return *p; }
+    twice(f, x) { var r; r = f(x); r = f(x); return r; }
+    main() { var a; a = alloc 1; return twice(sink, a); }
+  )";
+  expectError(twice, "which uses it again after passing it on");
+
+  std::stringstream returnedToo;
+  returnedToo << R"(
+    sink(p) { return *p; }
+    keep(f, x) { var r; r = f(x); return x; }
+    main() { var a, b; a = alloc 1; b = keep(sink, a); return *b; }
+  )";
+  expectError(returnedToo, "which uses it again after passing it on");
+
+  std::stringstream borrowedAfter;
+  borrowedAfter << R"(
+    sink(p) { return *p; }
+    read(q) { return **q; }
+    keep(f, g, x) { var r; r = f(x); return r + g(&x); }
+    main() { var a; a = alloc 1; return keep(sink, read, a); }
+  )";
+  expectError(borrowedAfter, "which uses it again after passing it on");
+
+  std::stringstream inLoop;
+  inLoop << R"(
+    sink(p) { return *p; }
+    rep(f, x, n) { var r; r = 0; while (n > 0) { r = f(x); n = n - 1; } return r; }
+    main() { var a; a = alloc 1; return rep(sink, a, 2); }
+  )";
+  // The second iteration uses x after the first passed it on.
+  expectError(inLoop, "which uses it again after passing it on");
+}
+
+TEST_CASE("FunctionEffectSummaries: reuse is fine at a Copy instance, and reassignment starts a new value",
+          "[FunctionEffectSummaries]") {
+  std::stringstream copyInstance;
+  copyInstance << R"(
+    sink(p) { return *p; }
+    twice(f, x) { var r; r = f(x); r = f(x); return r; }
+    main() { var n; n = 1; return twice(sink, &n) - 1; }
+  )";
+  expectAccepted(copyInstance);
+
+  std::stringstream fold;
+  fold << R"(
+    type List = Nil | Cons(head, tail);
+    push(acc, n) { return Cons(n, acc); }
+    count(l) { var r; r = 0; case l of { Nil -> r = 0; Cons(h, t) -> r = 1 + count(t); } return r; }
+    fold(f, n, acc) { while (n > 0) { acc = f(acc, n); n = n - 1; } return acc; }
+    main() { var l; l = fold(push, 3, Nil); return count(l) - 3; }
+  )";
+  expectAccepted(fold);
+
+  using R = FunctionEffectSummaries::CopyRequirement;
+  std::stringstream summary;
+  summary << R"(
+    sink(p) { return *p; }
+    twice(f, x) { var r; r = f(x); r = f(x); return r; }
+    main() { var n; n = 1; return twice(sink, &n); }
+  )";
+  auto ast = ASTHelper::build_ast(summary);
+  auto analysis = SemanticAnalysis::analyze(ast.get());
+  auto *twiceSummary = analysis->getFunctionEffectSummaries()->get(
+      analysis->getSymbolTable()->getFunction("twice"));
+  REQUIRE(twiceSummary != nullptr);
+  CHECK(twiceSummary->formalRequirement[1] == R::Self);
+  CHECK((twiceSummary->formalRequirementReasons[1] &
+         FunctionEffectSummaries::UsedAfterPassedOn) != 0);
 }

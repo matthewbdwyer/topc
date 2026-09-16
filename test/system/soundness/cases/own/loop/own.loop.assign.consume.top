@@ -1,0 +1,15 @@
+// soundness grid case own.loop.assign.consume
+// kind=own context=loop op1=assign op2=consume
+// expect: reject (move inside while-loop body | still owned at the end of a while-loop)
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+consume(p) { return *p; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = alloc 5;
+  i = 2;
+  while (i > 0) { y = x; i = i - 1; }
+  r = r + consume(x);
+  return 0;
+}

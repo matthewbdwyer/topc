@@ -1,0 +1,21 @@
+// Binders are scoped to their arm even when two cases in one function reuse a
+// name. Here `v` under `case *p` is an alias of the caller's payload, and a
+// later by-value case also binds `v`. Taking the alias (`k = v`) must still be
+// rejected; before binders were scoped by arm, the name resolved to the later
+// by-value binder and the program freed the caller's cell twice.
+type Box = Full(v) | Empty;
+
+steal(p, b) {
+  var r, k;
+  r = 0;
+  case *p of { Full(v) -> k = v; Empty -> k = alloc 0; }
+  case b of { Full(v) -> r = *v; Empty -> r = 0; }
+  return *k + r;
+}
+
+main() {
+  var x;
+  x = Full(alloc 5);
+  output steal(&x, Full(alloc 1));
+  return 0;
+}

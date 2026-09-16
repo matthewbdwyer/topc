@@ -1,0 +1,25 @@
+// Placing the owner in a constructor payload is a move too. `eat` consumes
+// the chain, freeing the cell the second actual borrows.
+type Chain = Nil | Link(head, tail);
+
+eat(c) {
+  var r;
+  r = 0;
+  case c of {
+    Nil -> r = 0;
+    Link(h, t) -> r = *h;
+  }
+  return r;
+}
+
+both(c, q) {
+  var r;
+  r = eat(c);
+  return r + **q;
+}
+
+main() {
+  var a;
+  a = alloc 1;
+  return both(Link(a, Nil), &a);
+}

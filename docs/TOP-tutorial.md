@@ -87,6 +87,15 @@ The only primitive data type is `int`. Integer literals, negative integer
 literals, and `input` all have type `int`. Arithmetic operators are `+`, `-`,
 `*`, and `/`. Comparisons return an integer used as false or true.
 
+An `int` is 64 bits; a literal outside that range is a parse error. `+`, `-`,
+and `*` wrap around on overflow. Division truncates toward zero, and the two
+divisions with no defined result stop the program with a runtime error that
+names the line: dividing by zero, and dividing the smallest `int` by `-1`.
+
+```text
+[error] Error: division by zero on line 6
+```
+
 ```top
 main() {
   var n, total;
@@ -709,6 +718,18 @@ topc: owned value passed to generic formal 'p' of 'sink' on line 7 is neither re
 
 Pass `&x` instead when the callee only needs to look at the value.
 
+- For the same reason, a generic body may not use a formal again after passing
+  it on: at an owned instance the first call consumed it. `twice(f, x)` that
+  calls `f(x)` twice is fine at an `int` or a borrow and rejected at an owned
+  value, at the call:
+
+```text
+topc: call twice(sink, a) on line 3 passes an owned value to generic formal 'x' of 'twice', which uses it again after passing it on
+```
+
+  Assigning to the formal starts a new value, so an accumulator loop such as
+  `acc = f(acc, n);` is fine.
+
 Inspect the inferred types, ownership classes, move trace, and destruction
 summary together:
 
@@ -753,10 +774,22 @@ values of owning reference type and are therefore reported as `Own`, but
 exit, so the compiler inserts one automatic destruction in `main`. Section 12
 shows where that destruction is inserted.
 
-Control-flow joins must agree about ownership state. If one branch moves a
-value out of a binding and another leaves that binding as its owner, later use
-is rejected. Overwriting a binding that still owns a live value is also
-rejected because it would abandon a resource.
+Whether a binding must be freed is decided at compile time, so its ownership
+state at every point must be the same on every path that reaches it:
+
+- Moves take effect in evaluation order, inside a statement as well as across
+  statements: in `sink(a) + read(&a)` the borrow comes after the move and is a
+  use after move. Writing through an owning pointer (`*a = 5`) is a use too.
+- After an `if` or `case`, a binding owned on one path must be owned on every
+  path. Moving it on one branch only, or assigning it on one branch only, is
+  rejected (`ownership state disagreement at control-flow join`).
+- A `while` condition and body may not change which bindings are owned: the
+  condition runs once more than the body (`move in while-loop condition`), and
+  a value allocated in the body must be moved on within the iteration
+  (`is still owned at the end of a while-loop iteration`).
+
+Overwriting a binding that still owns a live value is also rejected because it
+would abandon a resource.
 
 Uncommenting `return *first` in the example asks the compiler to dereference a
 binding after the value it owned moved to `second`. Full compilation reports:
@@ -793,6 +826,15 @@ main() {
 The borrow does not move `value`. Its usable lifetime is confined to the call
 chain, and the original storage remains responsible for its lifetime. Storing
 `&value` in a variable or returning it is rejected.
+
+Because the borrow lives until the call returns, the owner must stay alive
+for that call: the same call may not also move it, whether through another
+argument (`both(a, &a)`, `both(&a, a)`) or through an argument expression that
+runs first (`read(&a, sink(a))`):
+
+```text
+topc: Ownership error on line 3: variable 'a' is moved while the call both(a, &a) borrows it; a borrowed owner must stay alive until the call returns
+```
 
 Borrow analysis can show the accepted borrow site:
 
@@ -1041,6 +1083,13 @@ main() {
 The allocation is freed automatically. A moved-from binding is not destroyed;
 the value in the destination binding is destroyed instead.
 
+Destruction happens where an owner goes out of scope. A binding is freed at
+function exit. The binders of a by-value `case` (`case c of`) own the
+payloads the match moved out of the box, and a binder still owning its value
+at the end of its arm is freed there. An owning reference that is returned by
+a call or made by `alloc` and dereferenced directly (`*mk()`) is never bound,
+so it is freed as soon as its value is read or written.
+
 Destruction follows structure recursively:
 
 1. An owning reference releases its heap allocation.
@@ -1182,7 +1231,10 @@ expressions that contributed those incompatible requirements.
 | Used after move | The value was moved out of this binding earlier |
 | Moved more than once | A move was attempted from an invalidated binding |
 | Assigned while still owned | Assignment would overwrite a binding that still owns a live value |
-| Ownership state disagreement | Control-flow paths reach a join where a binding has incompatible ownership states |
+| Ownership state disagreement | Control-flow paths reach a join where a binding is owned on one path and not another |
+| Move in while-loop condition / still owned at the end of a while-loop iteration | A loop condition or body changes which bindings are owned |
+| Moved while the call borrows it | One call both borrows an owner and moves it |
+| Uses it again after passing it on | A generic body reuses a formal it passed on, called with an owned value |
 | Borrow must be an immediate argument | A direct borrow appears outside a call argument |
 | Borrow-derived value escapes | Borrow provenance reaches a forbidden sink |
 

@@ -1,0 +1,15 @@
+// soundness grid case own.arm1.consume.payload
+// kind=own context=arm1 op1=consume op2=payload
+// expect: reject (ownership state disagreement at control-flow join)
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+consume(p) { return *p; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = alloc 5;
+  sel = On(1);
+  case sel of { On(k) -> { r = r + consume(x); } Off -> r = r + 0; }
+  w = Wrap(x);
+  return 0;
+}

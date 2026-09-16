@@ -1,0 +1,15 @@
+// soundness grid case own.call.borrow.consume
+// kind=own context=call op1=borrow op2=consume
+// expect: reject (borrows it; a borrowed owner must stay alive)
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+consume(p) { return *p; }
+look(q) { return **q; }
+pair(a1, a2) { return look(a1) + consume(a2); }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = alloc 5;
+  r = r + pair(&x, x);
+  return 0;
+}

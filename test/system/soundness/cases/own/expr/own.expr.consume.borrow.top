@@ -1,0 +1,14 @@
+// soundness grid case own.expr.consume.borrow
+// kind=own context=expr op1=consume op2=borrow
+// expect: reject (used after move | moved more than once | assigned while still owned)
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+consume(p) { return *p; }
+look(q) { return **q; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = alloc 5;
+  r = r + consume(x) + look(&x);
+  return 0;
+}

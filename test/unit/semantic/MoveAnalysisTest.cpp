@@ -4,6 +4,8 @@
 #include "SemanticAnalysis.h"
 #include "SemanticError.h"
 #include "SymbolTable.h"
+#include "ASTDestroyStmt.h"
+#include "ASTVisitor.h"
 
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_string.hpp>
@@ -90,18 +92,20 @@ TEST_CASE("MoveAnalysis: rejectDoubleMove — r = p after p already moved",
 
 TEST_CASE("MoveAnalysis: moveInBothBranches — accepted, p moved on both paths",
           "[MoveAnalysis]") {
-  // if (c) q = p; else r = p;   both branches move p → OK at join
+  // if (c) q = p; else q = p;   both branches move p into q → OK at join.
+  // (Moving p into q on one branch and into r on the other is rejected: q and
+  // r would each be owned on only one path, and one of them would leak.)
   std::stringstream program;
   program << R"(
     type Flag = On | Off;
     main() {
-      var c, p, q, r;
+      var c, p, q;
       c = 1;
       p = alloc 5;
       if (c) {
         q = p;
       } else {
-        r = p;
+        q = p;
       }
       return 0;
     }
@@ -444,4 +448,153 @@ TEST_CASE("MoveAnalysis: indirect call through a function-typed parameter moves 
     }
   }
   REQUIRE(sawMoveV);
+}
+
+// ---------------------------------------------------------------------------
+// Evaluation order, call-held borrows, loop conditions, joins over
+// uninitialized variables, and case binders (topc-soundness-plan B2-B5).
+// ---------------------------------------------------------------------------
+
+TEST_CASE("MoveAnalysis: a move earlier in the same expression is seen by a later use",
+          "[MoveAnalysis]") {
+  std::stringstream program;
+  program << R"(
+    sink(p) { return *p; }
+    read(q) { return **q; }
+    main() { var a, x; a = alloc 1; x = sink(a) + read(&a); return x; }
+  )";
+  expectError(program, "variable 'a' used after move");
+}
+
+TEST_CASE("MoveAnalysis: a call may not move an owner that one of its actuals borrows",
+          "[MoveAnalysis]") {
+  std::stringstream consumeThenBorrow;
+  consumeThenBorrow << R"(
+    sink(p) { return *p; }
+    both(p, q) { var r; r = sink(p); return r + **q; }
+    main() { var a; a = alloc 1; return both(a, &a); }
+  )";
+  expectError(consumeThenBorrow, "is moved while the call both(a, &a) borrows it");
+
+  std::stringstream borrowThenConsume;
+  borrowThenConsume << R"(
+    sink(p) { return *p; }
+    both(q, p) { var r; r = sink(p); return r + **q; }
+    main() { var a; a = alloc 1; return both(&a, a); }
+  )";
+  expectError(borrowThenConsume, "is moved while the call both(&a, a) borrows it");
+
+  std::stringstream siblingArgument;
+  siblingArgument << R"(
+    sink(p) { return *p; }
+    read(q, n) { return **q + n; }
+    main() { var a; a = alloc 1; return read(&a, sink(a)); }
+  )";
+  expectError(siblingArgument, "borrows it");
+}
+
+TEST_CASE("MoveAnalysis: borrowing in one call and moving in the next is fine",
+          "[MoveAnalysis]") {
+  std::stringstream program;
+  program << R"(
+    sink(p) { return *p; }
+    read(q) { return **q; }
+    main() { var a, b, x, y; a = alloc 1; b = alloc 2;
+      x = read(&a); y = sink(a) + read(&b); return x + y; }
+  )";
+  expectAccepted(program);
+}
+
+TEST_CASE("MoveAnalysis: writing through a moved owning pointer is a use after move",
+          "[MoveAnalysis]") {
+  std::stringstream program;
+  program << R"(
+    sink(p) { return *p; }
+    main() { var a, r; a = alloc 1; r = sink(a); *a = 5; return r; }
+  )";
+  expectError(program, "variable 'a' used after move");
+}
+
+TEST_CASE("MoveAnalysis: a move in a while condition is rejected",
+          "[MoveAnalysis]") {
+  std::stringstream program;
+  program << R"(
+    sink(p) { return *p; }
+    main() { var a, i; a = alloc 1; i = 0;
+      while (sink(a) > i) { i = i + 5; } return i; }
+  )";
+  expectError(program, "move in while-loop condition");
+}
+
+TEST_CASE("MoveAnalysis: an owned local kept past a loop iteration is rejected by name",
+          "[MoveAnalysis]") {
+  std::stringstream program;
+  program << R"(
+    main() { var p, i, r; i = 2; r = 0;
+      while (i > 0) { p = alloc i; r = r + *p; i = i - 1; } return r; }
+  )";
+  expectError(program,
+              "variable 'p' is still owned at the end of a while-loop iteration");
+}
+
+TEST_CASE("MoveAnalysis: an owned local assigned on only one path is rejected",
+          "[MoveAnalysis]") {
+  std::stringstream thenOnly;
+  thenOnly << R"(
+    main(c) { var a, r; r = 0; if (c > 0) { a = alloc 1; r = *a; } return r; }
+  )";
+  expectError(thenOnly, "variable 'a' is assigned on one path and not on another");
+
+  std::stringstream elseOnly;
+  elseOnly << R"(
+    main(c) { var a, r; r = 0; if (c > 0) { r = 1; } else { a = alloc 1; r = *a; } return r; }
+  )";
+  expectError(elseOnly, "variable 'a' is assigned on one path and not on another");
+
+  std::stringstream oneArm;
+  oneArm << R"(
+    type Cell = Val(n) | Nope;
+    main(c) { var x, a, r; r = 0; x = Nope;
+      case x of { Val(n) -> r = n; Nope -> a = alloc 7; } return r; }
+  )";
+  expectError(oneArm, "variable 'a' is assigned on one path and not on another");
+}
+
+TEST_CASE("MoveAnalysis: an owned binder of a by-value case is tracked for its arm",
+          "[MoveAnalysis]") {
+  std::stringstream movedTwice;
+  movedTwice << R"(
+    type Chain = Nil | Link(head, tail);
+    sink(p) { return *p; }
+    main() { var c, r; c = Link(alloc 1, Nil); r = 0;
+      case c of { Nil -> r = 0; Link(h, t) -> r = sink(h) + sink(h); } return r; }
+  )";
+  expectError(movedTwice, "variable 'h' moved more than once");
+}
+
+namespace {
+struct DestroyCounter : public ASTVisitor {
+  int count = 0;
+  bool visit(ASTDestroyStmt *) override {
+    count++;
+    return true;
+  }
+};
+} // namespace
+
+TEST_CASE("DestructionPass: owned case binders still owned at the end of an arm are freed there",
+          "[DestructionPass]") {
+  std::stringstream program;
+  program << R"(
+    type Chain = Nil | Link(head, tail);
+    sink(p) { return *p; }
+    main() { var c, r; c = Link(alloc 1, Nil); r = 0;
+      case c of { Nil -> r = 0; Link(h, t) -> r = *h; } return r; }
+  )";
+  auto ast = ASTHelper::build_ast(program);
+  REQUIRE_NOTHROW(SemanticAnalysis::analyze(ast.get()));
+  DestroyCounter counter;
+  ast->findFunctionByName("main")->accept(&counter);
+  // h and t at the end of the Link arm; c was consumed by the match.
+  REQUIRE(counter.count == 2);
 }

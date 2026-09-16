@@ -1,0 +1,15 @@
+// soundness grid case sumown.if1.ident.assign
+// kind=sumown context=if1 op1=ident op2=assign
+// expect: reject (ownership state disagreement at control-flow join)
+type Box = Full(v) | Empty;
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+ident(z) { return z; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = Full(alloc 5);
+  if (c > 0) { y = ident(x); }
+  y = x;
+  return 0;
+}

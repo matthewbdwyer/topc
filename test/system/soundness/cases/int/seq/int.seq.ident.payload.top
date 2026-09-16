@@ -1,0 +1,14 @@
+// soundness grid case int.seq.ident.payload
+// kind=int context=seq op1=ident op2=payload
+// expect: accept
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+ident(z) { return z; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = 5;
+  y = ident(x);
+  w = Wrap(x);
+  return 0;
+}
