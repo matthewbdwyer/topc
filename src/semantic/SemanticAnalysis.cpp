@@ -1,9 +1,8 @@
 #include "SemanticAnalysis.h"
 #include "AliasCheck.h"
 #include "BorrowChecker.h"
-#include "CheckAllocPayload.h"
+#include "OwnershipTypeRules.h"
 #include "CheckAssignable.h"
-#include "CheckBorrowComponents.h"
 #include "CheckBorrowPositions.h"
 #include "CheckCaseCompleteness.h"
 #include "CheckPatternTypes.h"
@@ -28,7 +27,7 @@ std::shared_ptr<SemanticAnalysis> SemanticAnalysis::analyze(ASTProgram *ast) {
   auto intraproceduralCFGs = IntraproceduralCFGs::build(ast);
   auto callGraph = CallGraph::build(ast, symTable.get());
   auto typeResults = TypeInference::run(ast, callGraph.get(), symTable.get());
-  CheckAllocPayload::check(ast, typeResults.get());
+  OwnershipTypeRules::checkAllocPayloads(ast, typeResults.get());
   auto ownershipClassifier = std::make_shared<OwnershipClassifier>(
       symTable.get(), typeResults.get());
   auto aliasRequirements = AliasCheck::run(ast, symTable.get(),
@@ -39,7 +38,7 @@ std::shared_ptr<SemanticAnalysis> SemanticAnalysis::analyze(ASTProgram *ast) {
       callGraph.get(), &aliasRequirements);
   BorrowChecker::checkInterprocedural(ast, symTable.get(),
                                       functionEffectSummaries.get());
-  CheckBorrowComponents::check(ast, symTable.get(), typeResults.get());
+  OwnershipTypeRules::checkBorrowComponents(ast, symTable.get(), typeResults.get());
   MoveAnalysis(ast, symTable.get(), ownershipClassifier.get(),
                functionEffectSummaries.get());
   DestructionPass::run(ast, symTable.get(), ownershipClassifier.get(),

@@ -11,8 +11,7 @@
 #include "SemanticError.h"
 #include "TypeConstraintCollectVisitor.h"
 #include "SyntaxTree.h"
-#include "CheckAllocPayload.h"
-#include "CheckBorrowComponents.h"
+#include "OwnershipTypeRules.h"
 #include "AliasCheck.h"
 #include "CheckAssignable.h"
 #include "CheckBorrowPositions.h"
@@ -611,7 +610,7 @@ int main(int argc, char *argv[]) {
         ensureCallGraphResult();
         typeResults = TypeInference::run(ast.get(), callGraph.get(),
                                          symTable.get());
-        CheckAllocPayload::check(ast.get(), typeResults.get());
+        OwnershipTypeRules::checkAllocPayloads(ast.get(), typeResults.get());
       };
 
       auto ensureFunctionEffects = [&]() {
@@ -636,7 +635,7 @@ int main(int argc, char *argv[]) {
         ensureFunctionEffects();
         BorrowChecker::checkInterprocedural(ast.get(), symTable.get(),
                                              functionEffectSummaries.get());
-        CheckBorrowComponents::check(ast.get(), symTable.get(),
+        OwnershipTypeRules::checkBorrowComponents(ast.get(), symTable.get(),
                                      typeResults.get());
         borrowChecked = true;
         interproceduralBorrowChecked = true;

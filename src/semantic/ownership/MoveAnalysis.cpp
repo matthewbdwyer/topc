@@ -117,7 +117,7 @@ MoveAnalysis::StateMap MoveAnalysis::analyzeStmt(ASTStmt *stmt, StateMap state) 
     if (condState != state) {
       std::ostringstream oss;
       oss << "move in while-loop condition on line " << whileStmt->getLine();
-      if (RuleToggles::enabled("loop-condition")) throw SemanticError(oss.str());
+      RuleToggles::reject("loop-condition", oss.str());
     }
     auto bodyState = analyzeStmt(whileStmt->getBody(), state);
     assertLoopInvariant(state, bodyState, whileStmt->getLine());
@@ -257,7 +257,7 @@ MoveAnalysis::StateMap MoveAnalysis::analyzeAssign(ASTAssignStmt *stmt,
       std::ostringstream oss;
       oss << "variable '" << rhsVar->getName()
           << "' moved more than once on line " << stmt->getLine();
-      if (RuleToggles::enabled("use-after-move")) throw SemanticError(oss.str());
+      RuleToggles::reject("use-after-move", oss.str());
     }
     state[rhsDecl] = OwnershipState::Moved;
     trace.push_back({"move", rhsVar->getName(), stmt->getLine(),
@@ -295,7 +295,7 @@ MoveAnalysis::StateMap MoveAnalysis::analyzeAssign(ASTAssignStmt *stmt,
       oss << "variable '" << lhsVar->getName()
           << "' assigned while still owned on line " << stmt->getLine()
           << " — free or move first";
-      if (RuleToggles::enabled("assign-over-live")) throw SemanticError(oss.str());
+      RuleToggles::reject("assign-over-live", oss.str());
     }
     // LHS becomes Owned.
     state[lhsDecl] = OwnershipState::Owned;
@@ -391,7 +391,7 @@ void MoveAnalysis::checkUse(ASTVariableExpr *varExpr,
       std::ostringstream oss;
       oss << "variable '" << varExpr->getName()
           << "' used after move on line " << varExpr->getLine();
-      if (RuleToggles::enabled("use-after-move")) throw SemanticError(oss.str());
+      RuleToggles::reject("use-after-move", oss.str());
     }
   }
 }
@@ -405,7 +405,7 @@ void MoveAnalysis::consumeVar(ASTVariableExpr *varExpr, ASTDeclNode *decl,
         << (movedInStmt.count(decl) > 0 ? "moved more than once"
                                         : "used after move")
         << " on line " << varExpr->getLine();
-    if (RuleToggles::enabled("use-after-move")) throw SemanticError(oss.str());
+    RuleToggles::reject("use-after-move", oss.str());
   }
   for (const auto &[call, owners] : heldBorrows) {
     if (owners.count(decl) > 0) {
@@ -414,7 +414,7 @@ void MoveAnalysis::consumeVar(ASTVariableExpr *varExpr, ASTDeclNode *decl,
           << varExpr->getName() << "' is moved while the call " << *call
           << " borrows it; a borrowed owner must stay alive until the call "
              "returns";
-      if (RuleToggles::enabled("call-held-borrow")) throw SemanticError(oss.str());
+      RuleToggles::reject("call-held-borrow", oss.str());
     }
   }
   state[decl] = OwnershipState::Moved;
@@ -503,7 +503,7 @@ MoveAnalysis::joinStates(const std::vector<StateMap> &branches, bool check) {
             << "' is assigned on one path and not on another; initialize it "
                "on every path";
       }
-      if (RuleToggles::enabled("join-agreement")) throw SemanticError(oss.str());
+      RuleToggles::reject("join-agreement", oss.str());
     }
     if (moved) {
       joined[decl] = OwnershipState::Moved;
@@ -535,6 +535,6 @@ void MoveAnalysis::assertLoopInvariant(const StateMap &preState,
           << "' is still owned at the end of a while-loop iteration on line "
           << line << "; move it on or free it within the iteration";
     }
-    if (RuleToggles::enabled("loop-body-invariant")) throw SemanticError(oss.str());
+    RuleToggles::reject("loop-body-invariant", oss.str());
   }
 }

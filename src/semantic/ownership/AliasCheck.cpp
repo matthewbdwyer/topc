@@ -144,7 +144,7 @@ void AliasCheck::checkExpr(ASTExpr *expr, Ctx ctx) {
           << "' is bound by matching a borrowed value and can only be "
              "reborrowed (&"
           << var->getName() << ").";
-      if (RuleToggles::enabled("alias-binder")) throw SemanticError(oss.str());
+      RuleToggles::reject("alias-binder", oss.str());
     }
     return;
   }
@@ -202,10 +202,9 @@ void AliasCheck::checkDerefTaken(ASTDeRefExpr *deref, const char *what) {
         << "' is an owned value reached through a borrow and cannot be moved "
            "out; reborrow it with & or build a copy.";
   }
-  if (RuleToggles::enabled(std::string(what) == "overwrite" ? "alias-overwrite"
-                                                            : "alias-move-out")) {
-    throw SemanticError(oss.str());
-  }
+  RuleToggles::reject(std::string(what) == "overwrite" ? "alias-overwrite"
+                                                     : "alias-move-out",
+                      oss.str());
 }
 
 void AliasCheck::require(ASTExpr *operand, ASTDeRefExpr *deref,
@@ -236,5 +235,5 @@ void AliasCheck::require(ASTExpr *operand, ASTDeRefExpr *deref,
       << ": cannot tell whether '" << repr(deref)
       << "' is an owned value; dereference a formal parameter directly so the "
          "decision can be made where the function is called.";
-  if (RuleToggles::enabled("alias-undecidable")) throw SemanticError(oss.str());
+  RuleToggles::reject("alias-undecidable", oss.str());
 }

@@ -27,4 +27,10 @@ std::string disableList(const std::string &ids);
 /*! \brief True unless \p id was disabled. */
 bool enabled(const char *id);
 
+/*! \brief Report a violation of rule \p id: throws SemanticError(message)
+ *  unless the rule was disabled for adequacy testing, in which case it
+ *  returns and the caller continues as if the program were valid. Every
+ *  ownership and borrow check reports through here. */
+void reject(const char *id, const std::string &message);
+
 } // namespace RuleToggles

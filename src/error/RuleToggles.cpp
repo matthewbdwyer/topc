@@ -1,4 +1,5 @@
 #include "RuleToggles.h"
+#include "SemanticError.h"
 
 #include <algorithm>
 #include <cstdlib>
@@ -80,6 +81,12 @@ bool enabled(const char *id) {
   }();
   (void)fromEnvironment;
   return disabled().count(id) == 0;
+}
+
+void reject(const char *id, const std::string &message) {
+  if (enabled(id)) {
+    throw SemanticError(message);
+  }
 }
 
 } // namespace RuleToggles

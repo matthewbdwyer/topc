@@ -18,7 +18,7 @@ void CheckBorrowPositions::endVisit(ASTBinaryExpr *element) {
     oss << "Borrow error on line " << element->getLine()
         << ": borrow expression cannot be used in arithmetic or relational "
            "expression\n";
-    if (RuleToggles::enabled("borrow-position")) throw SemanticError(oss.str());
+    RuleToggles::reject("borrow-position", oss.str());
   }
 }
 
@@ -27,7 +27,7 @@ void CheckBorrowPositions::endVisit(ASTOutputStmt *element) {
     std::ostringstream oss;
     oss << "Borrow error on line " << element->getLine()
         << ": borrow expression cannot be the argument of 'output'\n";
-    if (RuleToggles::enabled("borrow-position")) throw SemanticError(oss.str());
+    RuleToggles::reject("borrow-position", oss.str());
   }
 }
 
@@ -36,7 +36,7 @@ void CheckBorrowPositions::endVisit(ASTErrorStmt *element) {
     std::ostringstream oss;
     oss << "Borrow error on line " << element->getLine()
         << ": borrow expression cannot be the argument of 'error'\n";
-    if (RuleToggles::enabled("borrow-position")) throw SemanticError(oss.str());
+    RuleToggles::reject("borrow-position", oss.str());
   }
 }
 
@@ -45,7 +45,7 @@ void CheckBorrowPositions::endVisit(ASTReturnStmt *element) {
     std::ostringstream oss;
     oss << "Borrow error on line " << element->getLine()
         << ": borrow expression cannot appear in a 'return' statement\n";
-    if (RuleToggles::enabled("borrow-position")) throw SemanticError(oss.str());
+    RuleToggles::reject("borrow-position", oss.str());
   }
 }
 

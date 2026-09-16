@@ -18,6 +18,7 @@
 #include "ASTVariableExpr.h"
 #include "ASTWhileStmt.h"
 #include "OwnershipClassifier.h"
+#include "OwnershipTypeRules.h"
 #include "ReferenceType.h"
 #include "SemanticError.h"
 #include "SymbolTable.h"
@@ -78,75 +79,6 @@ joinRequirement(FunctionEffectSummaries::CopyRequirement a,
   if (a == R::None) return b;
   if (b == R::None || a == b) return a;
   return R::Both;
-}
-
-bool containsRecursiveFunctionType(TopType *type) {
-  if (type == nullptr) {
-    return false;
-  }
-
-  struct Finder : public TopTypeVisitor {
-    bool found = false;
-    bool insideRecursiveType = false;
-
-    bool visit(TopMu *) override {
-      insideRecursiveType = true;
-      return true;
-    }
-
-    void endVisit(TopMu *) override { insideRecursiveType = false; }
-
-    bool visit(TopFunction *) override {
-      if (insideRecursiveType) {
-        found = true;
-      }
-      return !found;
-    }
-
-    bool visit(TopType *) {
-      return false;
-    }
-  } finder;
-
-  type->accept(&finder);
-  return finder.found;
-}
-
-void rejectUnsupportedRecursiveType(TopType *type, const std::string &context) {
-  if (containsRecursiveFunctionType(type) &&
-      RuleToggles::enabled("recursive-type")) {
-    throw SemanticError("recursive types are not yet supported in ownership analysis: " +
-                        context);
-  }
-}
-
-bool containsModeVariable(const TopType *type) {
-  if (type == nullptr) {
-    return false;
-  }
-  if (dynamic_cast<const TopModeVar *>(type) != nullptr) {
-    return true;
-  }
-  if (auto mu = dynamic_cast<const TopMu *>(type)) {
-    return containsModeVariable(mu->getT().get());
-  }
-  for (const auto &child : type->getChildTypes()) {
-    if (containsModeVariable(child.get())) {
-      return true;
-    }
-  }
-  return false;
-}
-
-/* A type still depends on how a call instantiates it when it has a free type
- * variable or an unresolved reference mode. TypeVars::collect ignores the
- * bound variable of a recursive (mu) type, so a concrete recursive sum type
- * does not count. */
-bool containsTypeVariable(TopType *type) {
-  if (type == nullptr) {
-    return false;
-  }
-  return !TypeVars::collect(type).empty() || containsModeVariable(type);
 }
 
 /* Collects every call expression in the program with its enclosing function. */
@@ -502,13 +434,13 @@ FunctionEffectSummaries::build(
     summary.functionName = f->getName();
     functionsByDecl[f->getDecl()] = f;
 
-    rejectUnsupportedRecursiveType(types->getInferredType(f->getDecl()).get(),
+    OwnershipTypeRules::rejectUnsupportedRecursiveType(types->getInferredType(f->getDecl()).get(),
                                    "function " + f->getName());
 
     for (auto *formal : f->getFormals()) {
       summary.formalNames.push_back(formal->getName());
       auto inferred = types->getInferredType(formal);
-      rejectUnsupportedRecursiveType(inferred.get(),
+      OwnershipTypeRules::rejectUnsupportedRecursiveType(inferred.get(),
                                      "parameter " + formal->getName() +
                                          " of function " + f->getName());
       // Own: the callee owns (and frees) the value, even when its type still
@@ -517,7 +449,7 @@ FunctionEffectSummaries::build(
       // anything, so what the call does is decided per call site.
       if (classifier->classify(formal) == OwnershipClass::Own) {
         summary.formalModes.push_back(FormalMode::Own);
-      } else if (containsTypeVariable(inferred.get())) {
+      } else if (OwnershipTypeRules::containsTypeVariable(inferred.get())) {
         summary.formalModes.push_back(FormalMode::DependsOnInstantiation);
       } else {
         summary.formalModes.push_back(FormalMode::Copy);
@@ -631,7 +563,7 @@ FunctionEffectSummaries::build(
     if (req == CopyRequirement::Referent) {
       auto *ref = dynamic_cast<const ReferenceType *>(actualType);
       if (ref == nullptr) {
-        return containsTypeVariable(const_cast<TopType *>(actualType))
+        return OwnershipTypeRules::containsTypeVariable(const_cast<TopType *>(actualType))
                    ? Verdict::Undetermined
                    : Verdict::Satisfied;
       }
@@ -640,7 +572,7 @@ FunctionEffectSummaries::build(
     if (OwnershipClassifier::classifyType(subject) == OwnershipClass::Own) {
       return Verdict::Violated;
     }
-    if (containsTypeVariable(const_cast<TopType *>(subject))) {
+    if (OwnershipTypeRules::containsTypeVariable(const_cast<TopType *>(subject))) {
       return Verdict::Undetermined;
     }
     return Verdict::Satisfied;
@@ -725,9 +657,7 @@ FunctionEffectSummaries::build(
                   << s->functionName << "' dereferences formal '"
                   << s->formalNames[i] << "' in a position that takes ownership";
             }
-            if (RuleToggles::enabled("generic-copy-bound")) {
-              throw SemanticError(oss.str());
-            }
+            RuleToggles::reject("generic-copy-bound", oss.str());
             continue;
           }
 
@@ -753,9 +683,7 @@ FunctionEffectSummaries::build(
                 << s->functionName
                 << "' would take; pass the formal parameter itself (or a "
                    "borrow of it) rather than a local copy of it";
-            if (RuleToggles::enabled("generic-untracked-actual")) {
-              throw SemanticError(oss.str());
-            }
+            RuleToggles::reject("generic-untracked-actual", oss.str());
             continue;
           }
           Summary &caller = result->summaries[scope];
@@ -818,9 +746,7 @@ FunctionEffectSummaries::build(
               << (s->returnOrigin == ReturnOrigin::Unknown ? " on every path"
                                                            : "")
               << " nor borrowed nor passed on by the callee";
-          if (RuleToggles::enabled("generic-drop")) {
-            throw SemanticError(oss.str());
-          }
+          RuleToggles::reject("generic-drop", oss.str());
           consumes[i] = true; // unsafe: nobody frees the value
           break;
         }
