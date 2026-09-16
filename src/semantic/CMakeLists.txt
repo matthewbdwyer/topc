@@ -29,8 +29,6 @@ target_sources(
                    ${CMAKE_CURRENT_SOURCE_DIR}/ownership/OwnershipClassifier.cpp
                    ${CMAKE_CURRENT_SOURCE_DIR}/ownership/OwnershipTypeRules.h
                    ${CMAKE_CURRENT_SOURCE_DIR}/ownership/OwnershipTypeRules.cpp
-                   ${CMAKE_CURRENT_SOURCE_DIR}/ownership/AliasCheck.h
-                   ${CMAKE_CURRENT_SOURCE_DIR}/ownership/AliasCheck.cpp
                    ${CMAKE_CURRENT_SOURCE_DIR}/ownership/FunctionEffectSummaries.h
                    ${CMAKE_CURRENT_SOURCE_DIR}/ownership/FunctionEffectSummaries.cpp
                    ${CMAKE_CURRENT_SOURCE_DIR}/ownership/MoveAnalysis.h

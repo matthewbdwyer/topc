@@ -12,7 +12,6 @@
 #include "TypeConstraintCollectVisitor.h"
 #include "SyntaxTree.h"
 #include "OwnershipTypeRules.h"
-#include "AliasCheck.h"
 #include "CheckAssignable.h"
 #include "CheckCaseCompleteness.h"
 #include "CheckPatternTypes.h"
@@ -618,13 +617,13 @@ int main(int argc, char *argv[]) {
         ensureTypeResult();
         ownershipClassifier = std::make_shared<OwnershipClassifier>(
             symTable.get(), typeResults.get());
-        auto aliasRequirements = AliasCheck::run(
-            ast.get(), symTable.get(), typeResults.get(),
-            ownershipClassifier.get());
         functionEffectSummaries = FunctionEffectSummaries::build(
             ast.get(), symTable.get(), typeResults.get(),
             ownershipClassifier.get(), callGraph.get());
-        functionEffectSummaries->resolveRequirements(&aliasRequirements);
+        auto positionRequirements = BorrowChecker::checkPositions(
+            ast.get(), symTable.get(), typeResults.get(),
+            ownershipClassifier.get(), functionEffectSummaries.get());
+        functionEffectSummaries->resolveRequirements(&positionRequirements);
       };
 
       auto ensureInterproceduralBorrowChecker = [&]() {
@@ -632,8 +631,6 @@ int main(int argc, char *argv[]) {
           return;
         }
         ensureFunctionEffects();
-        BorrowChecker::checkInterprocedural(ast.get(), symTable.get(),
-                                             functionEffectSummaries.get());
         OwnershipTypeRules::checkBorrowComponents(ast.get(), symTable.get(),
                                      typeResults.get());
         borrowChecked = true;

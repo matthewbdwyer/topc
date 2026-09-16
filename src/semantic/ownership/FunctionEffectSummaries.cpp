@@ -566,7 +566,7 @@ void FunctionEffectSummaries::resolveRequirements(
   CallCollector collector;
   ast->accept(&collector);
 
-  // A generic body that takes the value behind a borrowed formal (AliasCheck)
+  // A generic body that takes the value behind a borrowed formal (found by BorrowChecker::checkPositions)
   // is sound only for Copy referents. Decide at each call from the actual's
   // type; where that type is itself still generic, the requirement moves to
   // the enclosing function's formal and the loop runs again.
