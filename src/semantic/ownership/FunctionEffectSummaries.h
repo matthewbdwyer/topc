@@ -43,6 +43,7 @@ public:
     OverwritesThroughBorrow = 1u << 1, ///< `*p = v` replaces the referent
     LendsToMoveOut = 1u << 2,    ///< `&x` handed to a callee that takes `*p`
     UsedAfterPassedOn = 1u << 3, ///< formal used again after passing it on
+    NotDisposed = 1u << 4,       ///< formal neither returned nor passed on on every path
   };
 
   /*! \brief A requirement together with the reasons it was recorded. */
@@ -56,7 +57,8 @@ public:
     std::vector<std::string> formalNames;
     std::vector<FormalMode> formalModes;
     /*! For each formal: on every path through the body the value is passed on
-     *  as an argument of some call (so a callee takes responsibility for it). */
+     *  as an argument of some call. Whether the callee disposes of it in turn
+     *  is a requirement on that callee's formal, inherited through the call. */
     std::vector<bool> formalForwarded;
     /*! For each formal: what its actual must be for the body to be sound. */
     std::vector<CopyRequirement> formalRequirement;

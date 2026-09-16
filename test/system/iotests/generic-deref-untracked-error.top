@@ -1,0 +1,18 @@
+// Whether `take(z)` moves an owned value out of a borrow depends on what `z`
+// borrows. Here `z` is the result of a call, not a formal or a copy of one, so
+// no caller can be asked to decide, and the program is rejected where it is
+// written.
+take(p) { return *p; }
+pick(a, b) { return a; }
+
+f(q) {
+  var z;
+  z = pick(q, q);
+  return take(z);
+}
+
+main() {
+  var n;
+  n = 3;
+  return f(&n);
+}

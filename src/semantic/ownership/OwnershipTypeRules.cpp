@@ -129,6 +129,16 @@ bool OwnershipTypeRules::containsTypeVariable(TopType *type) {
   return !TypeVars::collect(type).empty() || containsModeVariable(type);
 }
 
+bool OwnershipTypeRules::classDependsOnInstantiation(const TopType *type) {
+  if (dynamic_cast<const TopVar *>(type) != nullptr) {
+    return true;
+  }
+  if (auto *ref = dynamic_cast<const ReferenceType *>(type)) {
+    return dynamic_cast<const TopModeVar *>(ref->getMode().get()) != nullptr;
+  }
+  return false;
+}
+
 void OwnershipTypeRules::rejectUnsupportedRecursiveType(
     TopType *type, const std::string &context) {
   if (containsRecursiveFunctionType(type)) {

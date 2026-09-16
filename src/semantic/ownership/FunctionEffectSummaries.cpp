@@ -381,20 +381,6 @@ BodyFacts analyzeBody(ASTFunction *f, SymbolTable *sym) {
   return facts;
 }
 
-/* A generic formal that receives an owned value must dispose of it on every
- * path: return it, or pass it on to a call. Otherwise nobody can free it. */
-bool formalDropsOwnedValue(const FunctionEffectSummaries::Summary &s,
-                           std::size_t i) {
-  if (s.formalModes[i] !=
-      FunctionEffectSummaries::FormalMode::DependsOnInstantiation) {
-    return false;
-  }
-  bool returned =
-      s.returnOrigin == FunctionEffectSummaries::ReturnOrigin::FromFormal &&
-      s.returnFormalIndex == static_cast<int>(i);
-  return !returned && !s.formalForwarded[i];
-}
-
 } // namespace
 
 std::shared_ptr<FunctionEffectSummaries>
@@ -478,17 +464,6 @@ FunctionEffectSummaries::build(
         }
       }
     }
-    // A generic formal used again after it may have been passed on is sound
-    // only when its instance is Copy: an owned value passed on was consumed.
-    for (int i : facts.reused) {
-      if (i >= 0 && static_cast<std::size_t>(i) < summary.formalModes.size() &&
-          summary.formalModes[i] == FormalMode::DependsOnInstantiation) {
-        summary.formalRequirement[i] =
-            joinRequirement(summary.formalRequirement[i], CopyRequirement::Self);
-        summary.formalRequirementReasons[i] |= UsedAfterPassedOn;
-      }
-    }
-
     auto stmts = f->getStmts();
     auto *ret =
         stmts.empty() ? nullptr : dynamic_cast<ASTReturnStmt *>(stmts.back());
@@ -511,6 +486,33 @@ FunctionEffectSummaries::build(
       }
     }
 
+    // A generic formal used again after it may have been passed on is sound
+    // only when its instance is Copy: an owned value passed on was consumed.
+    for (int i : facts.reused) {
+      if (i >= 0 && static_cast<std::size_t>(i) < summary.formalModes.size() &&
+          summary.formalModes[i] == FormalMode::DependsOnInstantiation) {
+        summary.formalRequirement[i] =
+            joinRequirement(summary.formalRequirement[i], CopyRequirement::Self);
+        summary.formalRequirementReasons[i] |= UsedAfterPassedOn;
+      }
+    }
+
+    // A generic formal must be disposed of on every path, by returning it or
+    // passing it on: a body compiled once for every instantiation cannot free
+    // a value of variable type. Otherwise its instance must be Copy.
+    for (std::size_t i = 0; i < summary.formalModes.size(); ++i) {
+      bool returned = summary.returnOrigin == ReturnOrigin::FromFormal &&
+                      summary.returnFormalIndex == static_cast<int>(i);
+      auto formalType = types->getInferredType(f->getFormals()[i]);
+      if (summary.formalModes[i] == FormalMode::DependsOnInstantiation &&
+          OwnershipTypeRules::classDependsOnInstantiation(formalType.get()) &&
+          !returned && !summary.formalForwarded[i]) {
+        summary.formalRequirement[i] =
+            joinRequirement(summary.formalRequirement[i], CopyRequirement::Self);
+        summary.formalRequirementReasons[i] |= NotDisposed;
+      }
+    }
+
     SEMANTIC_LOG(2, "function-effects")
         << "function=" << summary.functionName
         << " return-origin=" << returnOriginName(summary.returnOrigin)
@@ -523,28 +525,6 @@ FunctionEffectSummaries::build(
           << " requires=" << requirementName(summary.formalRequirement[i]);
     }
     result->summaries[f->getDecl()] = std::move(summary);
-  }
-
-  // "Passed on" is only a disposal if the receiving formal disposes of the
-  // value in turn. Propagate drops backwards through generic callees until
-  // nothing changes.
-  bool changed = true;
-  while (changed) {
-    changed = false;
-    for (auto &[decl, summary] : result->summaries) {
-      for (const auto &record : forwardLogs[decl]) {
-        if (!summary.formalForwarded[record.formal]) {
-          continue;
-        }
-        for (Summary *target : targetsOf(record.call)) {
-          if (record.position < target->formalModes.size() &&
-              formalDropsOwnedValue(*target, record.position)) {
-            summary.formalForwarded[record.formal] = false;
-            changed = true;
-          }
-        }
-      }
-    }
   }
 
   // Call-site effects: which actuals each call consumes. Named callees use
@@ -572,7 +552,7 @@ FunctionEffectSummaries::build(
     if (OwnershipClassifier::classifyType(subject) == OwnershipClass::Own) {
       return Verdict::Violated;
     }
-    if (OwnershipTypeRules::containsTypeVariable(const_cast<TopType *>(subject))) {
+    if (OwnershipTypeRules::classDependsOnInstantiation(subject)) {
       return Verdict::Undetermined;
     }
     return Verdict::Satisfied;
@@ -604,7 +584,7 @@ FunctionEffectSummaries::build(
     return -1;
   };
 
-  changed = true;
+  bool changed = true;
   while (changed) {
     changed = false;
     for (auto &[call, scope] : collector.calls) {
@@ -638,6 +618,19 @@ FunctionEffectSummaries::build(
                 Verdict::Violated;
             std::ostringstream oss;
             oss << "call " << *call << " on line " << call->getLine();
+            if (selfViolated && (reasons & NotDisposed) &&
+                !(reasons & UsedAfterPassedOn)) {
+              std::ostringstream drop;
+              drop << "owned value passed to generic formal '"
+                   << s->formalNames[i] << "' of '" << s->functionName
+                   << "' on line " << call->getLine() << " is neither returned"
+                   << (s->returnOrigin == ReturnOrigin::Unknown
+                           ? " on every path"
+                           : "")
+                   << " nor borrowed nor passed on by the callee";
+              RuleToggles::reject("generic-drop", drop.str());
+              continue;
+            }
             if (selfViolated && (reasons & UsedAfterPassedOn)) {
               oss << " passes an owned value to generic formal '"
                   << s->formalNames[i] << "' of '" << s->functionName
@@ -674,7 +667,20 @@ FunctionEffectSummaries::build(
               inherited = req;
             }
           }
-          int j = formalIndexOf(source, scope);
+          // Which formal of the enclosing function the actual is: recorded by
+          // the body walk (it follows local copies of a formal); for `&x`, the
+          // borrowed variable itself.
+          int j = -1;
+          if (source == actuals[i]) {
+            for (const auto &record : forwardLogs[scope]) {
+              if (record.call == call && record.position == i) {
+                j = record.formal;
+              }
+            }
+          }
+          if (j < 0) {
+            j = formalIndexOf(source, scope);
+          }
           if (j < 0) {
             std::ostringstream oss;
             oss << "call " << *call << " on line " << call->getLine()
@@ -728,28 +734,11 @@ FunctionEffectSummaries::build(
         case FormalMode::Copy:
           consumes[i] = false;
           break;
-        case FormalMode::DependsOnInstantiation: {
-          if (!actualOwn) {
-            consumes[i] = false;
-            break;
-          }
-          // The callee takes the value, but a generic body cannot free a
-          // value of variable type: it must return it or pass it on.
-          if (!formalDropsOwnedValue(*s, i)) {
-            consumes[i] = true;
-            break;
-          }
-          std::ostringstream oss;
-          oss << "owned value passed to generic formal '" << s->formalNames[i]
-              << "' of '" << s->functionName << "' on line " << call->getLine()
-              << " is neither returned"
-              << (s->returnOrigin == ReturnOrigin::Unknown ? " on every path"
-                                                           : "")
-              << " nor borrowed nor passed on by the callee";
-          RuleToggles::reject("generic-drop", oss.str());
-          consumes[i] = true; // unsafe: nobody frees the value
+        case FormalMode::DependsOnInstantiation:
+          // Consumed when the instance owns. A body that does not dispose of
+          // the value carries a Copy requirement, already judged above.
+          consumes[i] = actualOwn;
           break;
-        }
         }
       }
       if (first) {

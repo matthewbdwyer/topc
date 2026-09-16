@@ -151,6 +151,8 @@ EXPECTED_ERROR_SUBSTRINGS = {
     "borrow-returned-through-value-error.top":
         "function id returns a borrow",
     "generic-deref-local-copy-error.top":
+        "call f(&box) on line 16 moves an owned value out of the borrow",
+    "generic-deref-untracked-error.top":
         "cannot tell whether argument 0 (z) refers to an owned value",
     "generic-double-deref-error.top":
         "cannot tell whether '(*(*r))' is an owned value",

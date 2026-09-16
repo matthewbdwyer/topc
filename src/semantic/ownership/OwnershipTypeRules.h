@@ -51,4 +51,10 @@ public:
    *  variable or an unresolved reference mode (the bound variable of a
    *  recursive type does not count). */
   static bool containsTypeVariable(TopType *type);
+
+  /*! \brief True if whether a value of \p type owns depends on how a call
+   *  instantiates it: \p type is a type variable, or a reference whose mode
+   *  is not yet known. A function, int, sum, or fixed-mode reference type
+   *  classifies the same way whatever variables it contains. */
+  static bool classDependsOnInstantiation(const TopType *type);
 };

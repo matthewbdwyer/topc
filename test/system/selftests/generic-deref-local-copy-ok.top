@@ -1,0 +1,17 @@
+// A generic dereference through a local copy of a formal: the Copy requirement
+// on `take` moves to `f`'s formal, and a borrow of an int satisfies it.
+// Exits 0; clean under ASan/LSan.
+take(p) { return *p; }
+
+f(q) {
+  var z;
+  z = q;
+  return take(z);
+}
+
+main() {
+  var n;
+  n = 3;
+  if (f(&n) != 3) error 1;
+  return 0;
+}
