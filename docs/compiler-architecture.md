@@ -19,15 +19,33 @@ A full compilation processes a program in this order:
 5. Build source-level control-flow graphs.
 6. Build the call graph.
 7. Infer types and generalized function schemes.
-8. Classify inferred types for ownership.
-9. Check that owned values reached through borrows are only reborrowed or read
-   (`AliasCheck`), recording per-formal copy requirements for generic bodies.
-10. Derive function-effect summaries; judge copy requirements at each call.
-11. Validate interprocedural borrow provenance.
-12. Reject borrows stored as components of values or results.
-13. Analyze ownership moves.
-14. Insert automatic destruction.
-15. Generate and optionally optimize LLVM bitcode.
+8. Check that `alloc` payloads are not owned (`OwnershipTypeRules`).
+9. Classify inferred types for ownership (`OwnershipClassifier`).
+10. Build function-effect summaries: formal modes, return origins, and the
+    copy requirements a body imposes (`FunctionEffectSummaries::build`).
+11. Check positions: where borrow-derived values and aliases may appear,
+    recording copy requirements for generic dereferences
+    (`BorrowChecker::checkPositions`).
+12. Resolve copy requirements to a fixed point, judge them at each call, and
+    compute call effects (`FunctionEffectSummaries::resolveRequirements`).
+13. Reject borrows stored as components of values or results
+    (`OwnershipTypeRules`).
+14. Analyze ownership moves and plan destruction (`MoveAnalysis`).
+15. Insert automatic destruction from the plan (`DestructionPass`).
+16. Generate and optionally optimize LLVM bitcode, executing the plan's frees.
+
+The ownership passes are organized by the kind of fact each rule is:
+
+| Kind | Decided by | Module |
+| --- | --- | --- |
+| read-off | a solved type | `OwnershipClassifier`, `OwnershipTypeRules` |
+| position | an expression's parent | `BorrowChecker` |
+| path | the statements before a point | `MoveAnalysis` (checking and planning), `DestructionPass` (rewriting) |
+| instantiation | the types at a call site | `FunctionEffectSummaries` |
+
+Every check reports through `RuleToggles::reject(id, message)`; the rule ids are
+listed in `src/error/RuleToggles.cpp` (see `test/system/soundness/README.md`
+for how they are used to test adequacy).
 
 The source CFG is built before destruction insertion so analysis views continue
 to represent the program the student wrote. Inspection-only driver paths run
@@ -178,22 +196,33 @@ Each return has one origin:
 
 When body provenance yields no origin and the return type classifies as
 `Own`, the summary records `FreshOwn`. That fallback is sound only because the
-alias check (below) excludes every way an *alias* of a caller's value -- the
+position check (below) excludes every way an *alias* of a caller's value -- the
 value behind a borrowed formal, or a payload bound by matching through one --
 could reach a return, an assignment, a payload, or a call argument. With those
 excluded, an owned result of unknown provenance can only be a fresh box or a
 call result whose own summary is sound.
 
-Each formal also carries a **copy requirement**, seeded by `AliasCheck`:
-`Referent` (the value behind a borrowed actual must be `Copy`, because the
-body takes `*p`), `Self` (the actual itself must be `Copy`, because the body
-passes `&p` to a callee with a `Referent` requirement), or both. A generic
-body such as `read(p) { return *p; }` is accepted at its definition; the
-requirement is judged at each call site against the actual's solved type.
-Where the actual's type is still generic, the requirement moves to the
-enclosing function's formal and the loop runs to a fixed point. A concrete
-violation is rejected at the call (`call take(&a) ... moves an owned value out
-of the borrow`).
+Each formal also carries a **copy requirement**: `Referent` (the value behind a
+borrowed actual must be `Copy`), `Self` (the actual itself must be `Copy`), or
+both, with the reasons it was recorded. A generic body is compiled once for
+every instantiation, so every use of a value of variable type that is only
+valid for `Copy` values becomes a requirement:
+
+| Reason | Body | Requirement |
+| --- | --- | --- |
+| moves out of a borrow | `take(p) { return *p; }` | `Referent` (from `BorrowChecker::checkPositions`) |
+| overwrites through a borrow | `set(p, v) { *p = v; }` | `Referent` (same) |
+| lends to a move-out | `lend(x) { return take(&x); }` | `Self` (inherited) |
+| used after passed on | `twice(f, x) { f(x); f(x); }` | `Self` (body walk) |
+| not disposed | `sink(p) { return 0; }` | `Self` (body walk) |
+
+Requirements are recorded only where ownership depends on the instance (a type
+variable, or a reference whose mode is unresolved). A generic body is accepted
+at its definition; the requirement is judged at each call site against the
+actual's solved type. Where the actual's type is still generic, the requirement
+moves to the enclosing function's formal (found through the body walk's
+forwarding log, which follows local copies) and the loop runs to a fixed point.
+A concrete violation is rejected at the call with the reason's message.
 
 For example, the principal type of `identity` remains polymorphic. Its summary
 states that the return comes from formal 0. At an `int` instantiation the call
@@ -217,49 +246,54 @@ effect where it happens. It rejects uses after move (including writes through
 a moved owning pointer), repeated moves, overwriting a live owner, moving an
 owner that an actual of the same call borrows, a move in a `while` condition,
 a loop body that changes which variables are Owned, and a join where a
-variable is Owned on some paths but not all (`MoveAnalysis::joinStates`, which
-`DestructionPass` shares). The Own binders of a by-value `case` are Owned for
-their arm and leave scope at its end.
+variable is Owned on some paths but not all. The Own binders of a by-value
+`case` are Owned for their arm and leave scope at its end; binders are scoped
+by arm, not by name, because uses resolve by name and the symbol table holds
+one declaration per name.
 
-Borrow validation has four responsibilities at different stages:
+The same walk records a **destruction plan**: owners still Owned at each
+function's exit, owned binders still Owned at the end of each arm, owning
+references used without being bound (`*mk()`), consuming (by-value) matches,
+and owned payloads such a match discards with `_`. Checking and destruction
+therefore cannot disagree.
 
-1. The early check enforces the source rule that a direct borrow expression must
-   be an immediate call argument.
-2. `AliasCheck`, after type inference, enforces that an owned value reached
-   through a borrow is never taken. An *alias* is an `Own`-typed dereference
-   of a borrow or an `Own`-typed arm binding of `case *e`. It may appear only
-   under `&` (reborrow), under another `*` (a `Copy` read through it), as a
-   `case *e` scrutinee, or as an assignment target whose slot is `Copy`.
-   Anywhere else -- return, assignment, call argument, constructor payload,
-   by-value `case` -- is rejected. A dereference whose type is still a
-   variable becomes a copy requirement on the formal (see above).
-3. The summary-aware check follows borrow-derived call results and rejects
-   escape into storage, return, constructor payloads, arithmetic, conditions,
-   `output`, or `error`.
-4. `CheckBorrowComponents`, after the summary-aware check, rejects a borrow
-   mode anywhere inside a sum-type payload, an `alloc` payload, or a
-   function's return type. This is a type-level rule: a borrow-typed
-   *variable* stored into a box is invisible to the flow-based checks, but
-   its inferred payload type is not. Formals and locals are not checked;
-   that is where a borrow legitimately lives.
+Position rules live in `BorrowChecker`, in two stages:
+
+1. `BorrowChecker::check`, with the weeding passes, enforces that `&x` is an
+   immediate call argument, naming the position where it can (arithmetic,
+   `output`, `error`, `return`).
+2. `BorrowChecker::checkPositions`, between building and resolving summaries,
+   walks each function with the position of every expression:
+   - an *alias* (an `Own`-typed dereference of a borrow, or an `Own`-typed arm
+     binding of `case *e`) may appear only under `&`, under another `*`, as a
+     `case *e` scrutinee, or as an assignment target whose slot is `Copy`; a
+     dereference whose type is still a variable becomes a copy requirement;
+   - a borrow-derived call result may appear only as a call argument or under
+     `*`; in an assignment, a return, or a constructor payload it escapes.
+
+`OwnershipTypeRules::checkBorrowComponents` then rejects a borrow mode anywhere
+inside a sum-type payload, an `alloc` payload, or a function's return type.
+This is a type-level rule: a borrow-typed *variable* stored into a box is
+invisible to the position walk, but its inferred payload type is not. Formals
+and locals are not checked; that is where a borrow legitimately lives.
 
 A borrow-derived result may continue through an immediate chain of call
 arguments. A function that receives a borrow may independently return
 `FreshOwn`; the caller then owns that result.
 
-`DestructionPass` runs after move analysis. It uses ownership classification and
-function summaries to destroy only values that remain active owners. It does not
-destroy moved-from bindings, Copy values, or borrow-derived aliases. Algebraic
+`DestructionPass` inserts the destroys `MoveAnalysis` planned: before each
+return for variables still Owned at exit, and at the end of an arm for binders
+still Owned there (the arm body is wrapped in a block that ends with the
+destroys, while code generation still has the binders in scope). Algebraic
 values are destroyed structurally, including owned payloads and recursive
-contents. Variables still Owned at function exit are destroyed before the
-return; by-value `case` binders still Owned at the end of their arm are
-destroyed there (the arm body is wrapped in a block that ends with the
-destroys, while code generation still has the binders in scope).
+contents.
 
-Code generation frees two things no destroy statement names: the box of a
-by-value `case` scrutinee after the match, and an owning reference produced
-by a call or `alloc` and dereferenced directly (`*mk()`), after the load or
-store. It also guards every integer division: a zero divisor, or `INT64_MIN`
+Code generation executes the rest of the plan and decides nothing about
+ownership: it frees an unbound owning reference after its load or store, and in
+a consuming match it frees the box after the arm, the boxes of nested
+constructor patterns, and discarded owned payloads. It tests all of an arm's
+patterns before binding or freeing anything, so an arm that fails partway falls
+through to the next with the scrutinee intact; a borrowed match frees nothing. It also guards every integer division: a zero divisor, or `INT64_MIN`
 divided by `-1`, calls `_top_division_error` instead of executing an
 undefined `sdiv`. With `--san`, every generated function is marked
 `sanitize_address` before the AddressSanitizer pass runs (with or without
