@@ -19,7 +19,7 @@ Environment
 -----------
   TOPC      path to topc binary (default: <root>/build/src/topc)
   TOPCLANG  path to clang for linking (required)
-  RTLIB     path to rtlib directory (default: <root>/rtlib)
+  RTLIB     path to rtlib directory (default: <root>/build/rtlib)
 """
 
 import argparse
@@ -47,7 +47,7 @@ ROOT_DIR = Path(
 
 TOPC     = Path(os.environ.get("TOPC",    str(ROOT_DIR / "build/src/topc")))
 TOPCLANG = os.environ.get("TOPCLANG", "")
-RTLIB    = Path(os.environ.get("RTLIB",   str(ROOT_DIR / "rtlib")))
+RTLIB    = Path(os.environ.get("RTLIB",   str(ROOT_DIR / "build" / "rtlib")))
 
 SELFTESTS_DIR = SCRIPT_DIR / "selftests"
 IOTESTS_DIR   = SCRIPT_DIR / "iotests"
