@@ -129,7 +129,7 @@ private:
   /*! \brief Move \p decl: reject if already Moved or borrowed by a call in
    *  progress; record the trace event. */
   void consumeVar(ASTVariableExpr *varExpr, ASTDeclNode *decl, StateMap &state,
-                  const char *reason);
+                  const char *reason, const char *logReason);
 
   /*! \brief Owned binders of \p arm (none for a borrowed scrutinee). */
   std::vector<ASTDeclNode *> ownedBinders(ASTCaseArm *arm, bool byValue) const;

@@ -140,7 +140,7 @@ MoveAnalysis::StateMap MoveAnalysis::analyzeStmt(ASTStmt *stmt, StateMap state) 
     auto *retVar = dynamic_cast<ASTVariableExpr *>(retStmt->getArg());
     ASTDeclNode *decl = retVar ? resolveVar(retVar->getName()) : nullptr;
     if (decl && classifier->classify(decl) == OwnershipClass::Own) {
-      consumeVar(retVar, decl, state, "ownership moved by return");
+      consumeVar(retVar, decl, state, "ownership moved by return", "return");
     } else {
       evalExpr(retStmt->getArg(), state);
     }
@@ -167,7 +167,8 @@ MoveAnalysis::StateMap MoveAnalysis::analyzeStmt(ASTStmt *stmt, StateMap state) 
     ASTDeclNode *scrutDecl =
         scrutVar ? resolveVar(scrutVar->getName()) : nullptr;
     if (scrutDecl && classifier->classify(scrutDecl) == OwnershipClass::Own) {
-      consumeVar(scrutVar, scrutDecl, state, "ownership consumed by case");
+      consumeVar(scrutVar, scrutDecl, state, "ownership consumed by case",
+                 "case-scrutinee");
     } else {
       evalExpr(caseStmt->getCaseExpr(), state);
     }
@@ -390,7 +391,7 @@ void MoveAnalysis::evalExpr(ASTNode *node, StateMap &state) {
       if (consumes && decl != nullptr &&
           classifier->classify(decl) == OwnershipClass::Own) {
         consumeVar(argVar, decl, state,
-                   "ownership moved via function argument");
+                   "ownership moved via function argument", "function-argument");
       } else {
         // A temporary (the callee owns it) or a non-consuming actual.
         evalExpr(actuals[i], state);
@@ -416,7 +417,8 @@ void MoveAnalysis::evalExpr(ASTNode *node, StateMap &state) {
           payloadVar ? resolveVar(payloadVar->getName()) : nullptr;
       if (decl != nullptr && classifier->classify(decl) == OwnershipClass::Own) {
         consumeVar(payloadVar, decl, state,
-                   "ownership moved into constructor payload");
+                   "ownership moved into constructor payload",
+                   "constructor-payload");
       } else {
         evalExpr(payload, state);
       }
@@ -444,7 +446,8 @@ void MoveAnalysis::checkUse(ASTVariableExpr *varExpr,
 }
 
 void MoveAnalysis::consumeVar(ASTVariableExpr *varExpr, ASTDeclNode *decl,
-                              StateMap &state, const char *reason) {
+                              StateMap &state, const char *reason,
+                              const char *logReason) {
   auto it = state.find(decl);
   if (it != state.end() && it->second == OwnershipState::Moved) {
     std::ostringstream oss;
@@ -469,7 +472,7 @@ void MoveAnalysis::consumeVar(ASTVariableExpr *varExpr, ASTDeclNode *decl,
   trace.push_back({"move", varExpr->getName(), varExpr->getLine(), reason});
   SEMANTIC_LOG(2, "move-analysis")
       << "line=" << varExpr->getLine() << " event=move variable="
-      << varExpr->getName() << " reason=" << reason;
+      << varExpr->getName() << " reason=" << logReason;
 }
 
 void MoveAnalysis::noteUnboundReference(ASTDeRefExpr *deref) {
