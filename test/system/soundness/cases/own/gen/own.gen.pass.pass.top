@@ -1,0 +1,14 @@
+// soundness grid case own.gen.pass.pass
+// kind=own context=gen op1=pass op2=pass
+// expect: reject (which uses it again after passing it on)
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+consume(p) { return *p; }
+gen(f, g, z) { var t; t = 0; t = t + f(z); t = t + f(z); return t; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = alloc 5;
+  r = r + gen(consume, consume, x);
+  return 0;
+}

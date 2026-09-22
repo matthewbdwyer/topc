@@ -1,0 +1,15 @@
+// soundness grid case int.gen.lend.pass
+// kind=int context=gen op1=lend op2=pass
+// expect: accept
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+consume(p) { return p + 1; }
+look(q) { return *q; }
+gen(f, g, z) { var t; t = 0; t = t + g(&z); t = t + f(z); return t; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = 5;
+  r = r + gen(consume, look, x);
+  return 0;
+}

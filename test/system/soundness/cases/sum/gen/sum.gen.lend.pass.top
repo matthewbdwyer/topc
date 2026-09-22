@@ -1,0 +1,16 @@
+// soundness grid case sum.gen.lend.pass
+// kind=sum context=gen op1=lend op2=pass
+// expect: accept
+type Cell = Val(n) | Nope;
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+consume(p) { var t; t = 0; case p of { Val(n) -> t = n; Nope -> t = 0; } return t; }
+look(q) { var t; t = 0; case *q of { Val(n) -> t = n; Nope -> t = 0; } return t; }
+gen(f, g, z) { var t; t = 0; t = t + g(&z); t = t + f(z); return t; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = Val(5);
+  r = r + gen(consume, look, x);
+  return 0;
+}

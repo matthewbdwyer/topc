@@ -1,0 +1,15 @@
+// soundness grid case sum.gen.pass.pass
+// kind=sum context=gen op1=pass op2=pass
+// expect: reject (which uses it again after passing it on)
+type Cell = Val(n) | Nope;
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+consume(p) { var t; t = 0; case p of { Val(n) -> t = n; Nope -> t = 0; } return t; }
+gen(f, g, z) { var t; t = 0; t = t + f(z); t = t + f(z); return t; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = Val(5);
+  r = r + gen(consume, consume, x);
+  return 0;
+}

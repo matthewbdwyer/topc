@@ -1,0 +1,16 @@
+// soundness grid case sumown.gen.pass.lend
+// kind=sumown context=gen op1=pass op2=lend
+// expect: reject (which uses it again after passing it on)
+type Box = Full(v) | Empty;
+type Wrapper = Wrap(inner);
+type Sel = On(k) | Off;
+consume(p) { var t; t = 0; case p of { Full(v) -> t = *v; Empty -> t = 0; } return t; }
+look(q) { var t; t = 0; case *q of { Full(v) -> t = *v; Empty -> t = 0; } return t; }
+gen(f, g, z) { var t; t = 0; t = t + f(z); t = t + g(&z); return t; }
+main(c) {
+  var x, y, w, r, i, sel;
+  r = 0;
+  x = Full(alloc 5);
+  r = r + gen(consume, look, x);
+  return 0;
+}

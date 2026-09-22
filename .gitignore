@@ -47,6 +47,9 @@ cmake-build-debug
 
 # Lcov
 gen/
+# ...but the soundness grid has a context named `gen`, whose cases are checked-in
+# test inputs (test/system/soundness/README.md).
+!test/system/soundness/cases/*/gen/
 *.info
 
 # reports
