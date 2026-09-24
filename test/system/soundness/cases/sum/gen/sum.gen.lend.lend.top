@@ -1,6 +1,6 @@
 // soundness grid case sum.gen.lend.lend
 // kind=sum context=gen op1=lend op2=lend
-// expect: reject (neither returned nor borrowed nor passed on)
+// expect: reject (neither returns it nor passes it on)
 type Cell = Val(n) | Nope;
 type Wrapper = Wrap(inner);
 type Sel = On(k) | Off;

@@ -656,11 +656,13 @@ void FunctionEffectSummaries::resolveRequirements(
               std::ostringstream drop;
               drop << "owned value passed to generic formal '"
                    << s->formalNames[i] << "' of '" << s->functionName
-                   << "' on line " << call->getLine() << " is neither returned"
+                   << "' on line " << call->getLine()
+                   << ": the callee neither returns it"
                    << (s->returnOrigin == ReturnOrigin::Unknown
                            ? " on every path"
                            : "")
-                   << " nor borrowed nor passed on by the callee";
+                   << " nor passes it on, and cannot free a value whose type "
+                      "it does not know";
               RuleToggles::reject("generic-drop", drop.str());
               continue;
             }

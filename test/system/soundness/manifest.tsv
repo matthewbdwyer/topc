@@ -604,7 +604,7 @@ own.arm1.temp.none	own	arm1	temp	none	accept	-
 own.gen.pass.pass	own	gen	pass	pass	reject	which uses it again after passing it on
 own.gen.pass.lend	own	gen	pass	lend	reject	which uses it again after passing it on
 own.gen.lend.pass	own	gen	lend	pass	accept	-
-own.gen.lend.lend	own	gen	lend	lend	reject	neither returned nor borrowed nor passed on
+own.gen.lend.lend	own	gen	lend	lend	reject	neither returns it nor passes it on
 sum.seq.assign.assign	sum	seq	assign	assign	reject	used after move | moved more than once | assigned while still owned
 sum.seq.assign.consume	sum	seq	assign	consume	reject	used after move | moved more than once | assigned while still owned
 sum.seq.assign.ident	sum	seq	assign	ident	reject	used after move | moved more than once | assigned while still owned
@@ -1036,7 +1036,7 @@ sum.arm1.borroww.none	sum	arm1	borroww	none	accept	-
 sum.gen.pass.pass	sum	gen	pass	pass	reject	which uses it again after passing it on
 sum.gen.pass.lend	sum	gen	pass	lend	reject	which uses it again after passing it on
 sum.gen.lend.pass	sum	gen	lend	pass	accept	-
-sum.gen.lend.lend	sum	gen	lend	lend	reject	neither returned nor borrowed nor passed on
+sum.gen.lend.lend	sum	gen	lend	lend	reject	neither returns it nor passes it on
 sum.shadow.consume.consume	sum	shadow	consume	consume	reject	used after move | moved more than once | assigned while still owned
 sum.shadow.consume.borrow	sum	shadow	consume	borrow	reject	used after move | moved more than once | assigned while still owned
 sum.shadow.consume.casev	sum	shadow	consume	casev	reject	used after move | moved more than once | assigned while still owned
@@ -1510,7 +1510,7 @@ sumown.arm1.borroww.none	sumown	arm1	borroww	none	accept	-
 sumown.gen.pass.pass	sumown	gen	pass	pass	reject	which uses it again after passing it on
 sumown.gen.pass.lend	sumown	gen	pass	lend	reject	which uses it again after passing it on
 sumown.gen.lend.pass	sumown	gen	lend	pass	accept	-
-sumown.gen.lend.lend	sumown	gen	lend	lend	reject	neither returned nor borrowed nor passed on
+sumown.gen.lend.lend	sumown	gen	lend	lend	reject	neither returns it nor passes it on
 sumown.shadow.consume.consume	sumown	shadow	consume	consume	reject	used after move | moved more than once | assigned while still owned
 sumown.shadow.consume.borrow	sumown	shadow	consume	borrow	reject	used after move | moved more than once | assigned while still owned
 sumown.shadow.consume.casev	sumown	shadow	consume	casev	reject	used after move | moved more than once | assigned while still owned

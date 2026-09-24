@@ -181,8 +181,8 @@ possible callee, a named function or the call graph's targets for a call
 through a function value, formal `i` consumes an owning actual when its mode
 is `Own`, or when it is `DependsOnInstantiation` and the formal is disposed
 of; an owning actual bound to a generic formal that is dropped is rejected
-(`owned value passed to generic formal ... is neither returned nor borrowed
-nor passed on by the callee`). Targets that disagree are rejected. Move
+(`owned value passed to generic formal ...: the callee neither returns it nor
+passes it on, and cannot free a value whose type it does not know`). Targets that disagree are rejected. Move
 analysis and the destruction pass both read this table, so they cannot
 diverge on what a call consumes.
 

@@ -164,7 +164,7 @@ COND = ["move in while-loop condition"]
 HELD = ["borrows it; a borrowed owner must stay alive"]
 OVERWRITE_LIVE = ["assigned while still owned"]
 GENERIC_REUSE = ["which uses it again after passing it on"]
-GENERIC_DROP = ["neither returned nor borrowed nor passed on"]
+GENERIC_DROP = ["neither returns it nor passes it on"]
 
 
 def expect(kind: Kind, context: str, op1: Op, op2: Optional[Op]):

@@ -713,7 +713,7 @@ Two rules govern what a call does with an owned argument:
   function such as `sink(p) { return 0; }` may not receive an owned value:
 
 ```text
-topc: owned value passed to generic formal 'p' of 'sink' on line 7 is neither returned nor borrowed nor passed on by the callee
+topc: owned value passed to generic formal 'p' of 'sink' on line 7: the callee neither returns it nor passes it on, and cannot free a value whose type it does not know
 ```
 
 Pass `&x` instead when the callee only needs to look at the value.

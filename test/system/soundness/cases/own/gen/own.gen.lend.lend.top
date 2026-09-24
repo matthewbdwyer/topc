@@ -1,6 +1,6 @@
 // soundness grid case own.gen.lend.lend
 // kind=own context=gen op1=lend op2=lend
-// expect: reject (neither returned nor borrowed nor passed on)
+// expect: reject (neither returns it nor passes it on)
 type Wrapper = Wrap(inner);
 type Sel = On(k) | Off;
 consume(p) { return *p; }

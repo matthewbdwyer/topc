@@ -1,6 +1,6 @@
 // soundness grid case sumown.gen.lend.lend
 // kind=sumown context=gen op1=lend op2=lend
-// expect: reject (neither returned nor borrowed nor passed on)
+// expect: reject (neither returns it nor passes it on)
 type Box = Full(v) | Empty;
 type Wrapper = Wrap(inner);
 type Sel = On(k) | Off;

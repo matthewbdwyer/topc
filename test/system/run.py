@@ -89,9 +89,9 @@ EXPECTED_ERROR_SUBSTRINGS = {
     "apply-formal-nonfunction-error.top":
         "Cannot unify",
     "generic-sink-error.top":
-        "neither returned nor borrowed",
+        "neither returns it nor passes it on",
     "generic-branch-return-error.top":
-        "neither returned on every path nor borrowed",
+        "neither returns it on every path nor passes it on",
     "borrow-payload-error.top":
         "holds a borrow",
     "borrow-ctor-sink-error.top":

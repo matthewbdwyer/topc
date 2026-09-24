@@ -386,7 +386,7 @@ TEST_CASE("SemanticAnalysis: owned value to a non-returning generic formal is re
 
   REQUIRE_THROWS_WITH(
       SemanticAnalysis::analyze(ast.get()),
-      Catch::Matchers::ContainsSubstring("neither returned nor borrowed"));
+      Catch::Matchers::ContainsSubstring("neither returns it nor passes it on"));
 }
 
 TEST_CASE("SemanticAnalysis: borrowed value to a generic formal is accepted",
