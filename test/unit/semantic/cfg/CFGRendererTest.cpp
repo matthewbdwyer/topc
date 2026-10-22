@@ -129,3 +129,34 @@ TEST_CASE("CFGRenderer: a block that ends in return shows its statements",
   CFGRenderer::renderDot(cfgs->get(mainFunction), dot);
   REQUIRE_THAT(dot.str(), Catch::Matchers::ContainsSubstring("output g(5);"));
 }
+
+TEST_CASE("CFGRenderer: a branching block shows only its condition",
+          "[cfg][CFGRenderer]") {
+  auto ast = parseProgram(R"(
+    main() {
+      var n, f;
+      n = 3;
+      f = 1;
+      while (n > 0) {
+        f = f * n;
+        n = n - 1;
+      }
+      if (f > 5) {
+        output f;
+      }
+      return f;
+    }
+  )");
+
+  auto cfgs = IntraproceduralCFGs::build(ast.get());
+  auto *mainFunction = ast->findFunctionByName("main");
+  REQUIRE(mainFunction != nullptr);
+
+  std::ostringstream ascii;
+  CFGRenderer::renderAscii(cfgs->get(mainFunction), ascii);
+  const auto text = ascii.str();
+  REQUIRE_THAT(text, Catch::Matchers::ContainsSubstring("while (n>0)\n"));
+  REQUIRE_THAT(text, Catch::Matchers::ContainsSubstring("if (f>5)\n"));
+  REQUIRE_THAT(text, !Catch::Matchers::ContainsSubstring("while ((n>0)) {"));
+  REQUIRE_THAT(text, !Catch::Matchers::ContainsSubstring("if ((f>5)) {"));
+}

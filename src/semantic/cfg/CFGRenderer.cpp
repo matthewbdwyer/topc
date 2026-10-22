@@ -1,5 +1,6 @@
 #include "CFGRenderer.h"
 
+#include "ASTExpr.h"
 #include "ASTFunction.h"
 #include "ControlFlowGraph.h"
 
@@ -36,6 +37,22 @@ std::string blockText(const BasicBlock &block) {
     return block.getName();
   }
 
+  // A branching block shows only what it tests; its arms are other blocks.
+  std::ostringstream text;
+  switch (block.getTerminatorKind()) {
+  case CFGTerminatorKind::If:
+    text << "if " << *block.getCondition();
+    return text.str();
+  case CFGTerminatorKind::While:
+    text << "while " << *block.getCondition();
+    return text.str();
+  case CFGTerminatorKind::Case:
+    text << "case " << *block.getCondition();
+    return text.str();
+  default:
+    break;
+  }
+
   // A block's statements run before its terminator; a block that ends in a
   // return has both.
   std::vector<const ASTStmt *> shown(block.getStatements().begin(),
@@ -48,7 +65,6 @@ std::string blockText(const BasicBlock &block) {
     return block.getName();
   }
 
-  std::ostringstream text;
   for (std::size_t i = 0; i < shown.size(); ++i) {
     if (i > 0) {
       text << " | ";
