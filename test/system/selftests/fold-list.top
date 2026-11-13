@@ -1,0 +1,41 @@
+// fold-list.top: classic folds over a list.  foldl threads the accumulator
+// from the left, foldr combines from the right.  Both borrow the list, so it
+// can be folded again; the folded functions see only ints.
+// Exits 0; clean under ASan/LSan.
+type List = Nil | Cons(head, tail);
+
+foldl(f, acc, p) {
+  var r;
+  r = acc;
+  case *p of {
+    Nil -> r = acc;
+    Cons(h, t) -> r = foldl(f, f(acc, h), &t);
+  }
+  return r;
+}
+
+foldr(f, z, p) {
+  var r;
+  r = z;
+  case *p of {
+    Nil -> r = z;
+    Cons(h, t) -> r = f(h, foldr(f, z, &t));
+  }
+  return r;
+}
+
+add(a, b) { return a + b; }
+sub(a, b) { return a - b; }
+mul(a, b) { return a * b; }
+
+main() {
+  var l;
+  l = Cons(1, Cons(2, Cons(3, Cons(4, Nil))));
+  if (foldl(add, 0, &l) != 10) error 1;
+  if (foldl(mul, 1, &l) != 24) error 2;
+  // ((((0 - 1) - 2) - 3) - 4) = -10
+  if (foldl(sub, 0, &l) != 0 - 10) error 3;
+  // 1 - (2 - (3 - (4 - 0))) = -2
+  if (foldr(sub, 0, &l) != 0 - 2) error 4;
+  return 0;
+}
