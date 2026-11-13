@@ -1083,6 +1083,10 @@ private:
         auto *fv = call ? dynamic_cast<ASTVariableExpr *>(call->getFunction()) : nullptr;
         if (!fv || !fns.count(fv->getName()) || !fns[fv->getName()]->isLemma())
           throw Unsupported(where(s) + "use applies only a lemma");
+        // A use is erased, so it may not change anything the code can see.
+        for (size_t k = 0; k < call->getActuals().size(); ++k)
+          if (writes.isWritten(fv->getName(), (int)k))
+            throw Unsupported(where(s) + "a lemma may not write through a borrow");
         std::vector<G> cs;
         callExpr(call, cs, "");
         return gSeq(cs);
@@ -1228,9 +1232,14 @@ private:
       cs.push_back(assertion(ok, line, g->getDecreases() ? "recursive call decreases the measure"
                                                          : "recursive call needs a decreases clause"));
     }
+    // The call as written, with its arguments: a contract is instantiated
+    // at each call, so its obligations are named by the call.
+    std::vector<std::string> shown;
+    for (auto &a : args) shown.push_back(flat(a));
+    std::string site = g->getName() + "(" + join(shown) + ")";
     std::vector<T> req;
     for (auto *e : g->getRequires()) req.push_back(spec(e, &at));
-    cs.push_back(assertion(And(req), line, "precondition of " + g->getName()));
+    cs.push_back(assertion(And(req), line, "precondition of " + site));
 
     // The in-out model needs the written places to be distinct: two borrows
     // of one variable, either of them written, is the case it cannot handle.
@@ -1260,11 +1269,11 @@ private:
     proc_.sorts[r] = TY.fnSort[g->getName()];
     std::vector<std::string> hv{r};
     hv.insert(hv.end(), outVars.begin(), outVars.end());
-    cs.push_back(havoc(hv, line, "result of " + g->getName()));
+    cs.push_back(havoc(hv, line, "result of " + site));
     at["result"] = var(r);
     std::vector<T> ens;
     for (auto *e : g->getEnsures()) ens.push_back(spec(e, &at, &olds));
-    cs.push_back(gAssume(And(ens), line, "postcondition of " + g->getName()));
+    cs.push_back(gAssume(And(ens), line, "postcondition of " + site));
     for (size_t k = 0; k < outs.size(); ++k)
       cs.push_back(gAssign(outs[k], var(outVars[k]), line, "written through the borrow"));
     return var(r);

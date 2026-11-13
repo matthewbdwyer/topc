@@ -458,6 +458,7 @@ FunctionEffectSummaries::build(ASTProgram *ast, SymbolTable *sym,
   auto &functionsByDecl = state.functionsByDecl;
 
   for (auto *f : ast->getFunctions()) {
+    if (f->isErased()) continue; // VERUTOP: specs are pure; no ownership rules
     Summary summary;
     summary.functionName = f->getName();
     functionsByDecl[f->getDecl()] = f;

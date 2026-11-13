@@ -451,6 +451,7 @@ BorrowChecker::checkPositions(ASTProgram *p, SymbolTable *sym,
   SEMANTIC_LOG(1, "borrow-positions") << "start";
   PositionWalk walk(sym, types, effects);
   for (auto *f : p->getFunctions()) {
+    if (f->isErased()) continue; // VERUTOP: specs are pure; no ownership rules
     walk.checkFunction(f);
   }
   publish(std::move(walk.trace), std::move(walk.provenance));

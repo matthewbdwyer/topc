@@ -42,6 +42,7 @@ MoveAnalysis::MoveAnalysis(ASTProgram *ast, SymbolTable *sym,
   : sym(sym), classifier(oc), functionEffects(effects) {
   SEMANTIC_LOG(1, "move-analysis") << "start";
   for (auto *f : ast->getFunctions()) {
+    if (f->isErased()) continue; // VERUTOP: specs are pure; no ownership rules
     analyzeFunction(f);
   }
   lastTrace = trace;

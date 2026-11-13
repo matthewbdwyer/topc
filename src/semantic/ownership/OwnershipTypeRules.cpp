@@ -227,6 +227,7 @@ void OwnershipTypeRules::checkComparisons(ASTProgram *p, SymbolTable *sym,
   (void)sym;
   SEMANTIC_LOG(1, "compare-owned") << "start";
   for (auto *f : p->getFunctions()) {
+    if (f->isErased()) continue; // VERUTOP: specs are pure; no ownership rules
     struct Visitor : public ASTVisitor {
       std::vector<ASTBinaryExpr *> comparisons;
       void endVisit(ASTBinaryExpr *element) override {

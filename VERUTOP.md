@@ -31,7 +31,7 @@ sum:
   proved  line 8: loop invariant is preserved
   proved  line 15: postcondition
 main:
-  proved  line 20: precondition of sum
+  proved  line 20: precondition of sum(10)
   proved  line 21: assertion
   proved  line 22: postcondition
 ```
@@ -76,6 +76,16 @@ not short-circuit.
   only in specifications (`rank` in code is a semantic error); `use`
   is a third kind of `ASTProofStmt`. A lemma, like a spec function, is
   skipped by code generation, and code that mentions one is a semantic error.
+- **Specifications are pure, so the ownership rules do not apply to them.**
+  The ownership passes skip spec functions and lemmas (they never run), and
+  never see contracts or proof statements. A specification may use a value
+  twice (`size(t) + size(t)`), or mention a variable the code has moved: it
+  still denotes the value it held. This is Verus's rule: spec code is not
+  borrow-checked. A lemma may not write through a borrow, because its `use`
+  is erased and the program would never make the change.
+- The code the specifications describe must pass every ownership rule: the
+  verifier's model (a reference is its referent, a borrow an in-out
+  parameter) is sound only for code that does.
 - `--verify` runs the full semantic analysis first, then the VC generator, and
   exits. Without `--verify`, the program compiles and runs as before. The
   verifier reads the inferred types to give each variable its SMT sort.
