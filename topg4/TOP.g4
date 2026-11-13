@@ -7,7 +7,7 @@ grammar TOP;
 program : (typeDecl | function)+
 ;
 
-function : KSPEC? nameDeclaration 
+function : (KSPEC | KLEMMA)? nameDeclaration 
            '(' (nameDeclaration (',' nameDeclaration)*)? ')'
            spec*
            '{' (declaration*) (statement*) returnStmt '}' 
@@ -75,6 +75,8 @@ expr : expr '(' (expr (',' expr)*)? ')' 	#funAppExpr
      | NUMBER					#numExpr
      | KINPUT					#inputExpr
      | KALLOC expr				#allocExpr
+     | KOLD '(' expr ')'			#oldExpr
+     | KRANK '(' expr ')'			#rankExpr
      | '(' expr ')'				#parenExpr
 ;
 
@@ -92,12 +94,15 @@ statement : blockStmt
     | caseStmt
     | assertStmt
     | assumeStmt
+    | useStmt
 ;
 
 // VERUTOP: proof statements.  They are checked by --verify and erased before
 // code generation.
 assertStmt : KASSERT expr ';' ;
 assumeStmt : KASSUME expr ';' ;
+// use L(args); applies lemma L: assert its precondition, assume its postcondition.
+useStmt    : KUSE expr ';' ;
 
 assignStmt : expr '=' expr ';' ;
 
@@ -166,6 +171,10 @@ KASSERT    : 'assert' ;
 KASSUME    : 'assume' ;
 KSPEC      : 'spec' ;
 KDECREASES : 'decreases' ;
+KOLD       : 'old' ;
+KRANK      : 'rank' ;
+KLEMMA     : 'lemma' ;
+KUSE       : 'use' ;
 
 // Excluded keywords: reserved so their use is a clear parse error, not silently
 // treated as an identifier. TOP has no null.

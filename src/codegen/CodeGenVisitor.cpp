@@ -123,7 +123,7 @@ CodeGenVisitor::generate(ASTProgram *program,
   {
     int funIndex = 0;
     for (auto const &fn : program->getFunctions()) {
-      if (fn->isSpec()) continue; // VERUTOP: erased
+      if (fn->isErased()) continue; // VERUTOP: erased
       ctx.functionIndex[fn->getName()] = funIndex++;
 
       auto formalNames = fn->getFormals();
@@ -136,7 +136,7 @@ CodeGenVisitor::generate(ASTProgram *program,
 
     std::vector<llvm::Constant *> programFunctions;
     for (auto const &func : program->getFunctions()) {
-      if (func->isSpec()) continue; // VERUTOP: erased
+      if (func->isErased()) continue; // VERUTOP: erased
       programFunctions.emplace_back(getFunction(func->getName(), ctx));
     }
 
@@ -206,7 +206,7 @@ CodeGenVisitor::generate(ASTProgram *program,
           ctx.callocFun->getContext(), 0, llvm::Attribute::NoAlias));
 
   for (auto const fn : program->getFunctions()) {
-    if (fn->isSpec()) continue; // VERUTOP: erased
+    if (fn->isErased()) continue; // VERUTOP: erased
     generate(fn);
   }
 

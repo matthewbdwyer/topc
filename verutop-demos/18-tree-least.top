@@ -1,0 +1,99 @@
+// The least element of a tree, and why a verifier needs lemmas.
+//
+// least(p, d) returns the smallest of d and every value in *p.  Its proof
+// needs a fact about every subtree: if m is a lower bound of a tree and
+// b <= m, then b is too.  That needs induction, and Z3 does not do
+// induction.  A lemma is a recursive proof: lowerBound's recursion on t is
+// the induction, and each use of it is a call for its contract alone.  Like
+// a spec function, a lemma is checked and then erased.
+//
+// least0 is least without the use: its postcondition cannot be proved.
+type Tree = Leaf | Node(val, left, right);
+
+spec has(t, x)
+  decreases rank(t)
+{
+  var b;
+  b = 0;
+  case t of {
+    Leaf -> b = 0;
+    Node(v, l, r) -> { if (v == x || has(l, x) || has(r, x)) { b = 1; } }
+  }
+  return b;
+}
+
+// Every value in t is at least m.
+spec allGe(t, m)
+  decreases rank(t)
+{
+  var b;
+  b = 1;
+  case t of {
+    Leaf -> b = 1;
+    Node(v, l, r) -> { if (v < m || !allGe(l, m) || !allGe(r, m)) { b = 0; } }
+  }
+  return b;
+}
+
+lemma lowerBound(t, m, b)
+  requires allGe(t, m) && b <= m
+  ensures allGe(t, b)
+  decreases rank(t)
+{
+  var d;
+  case t of {
+    Leaf -> d = 0;
+    Node(v, l, r) -> {
+      use lowerBound(l, m, b);
+      use lowerBound(r, m, b);
+    }
+  }
+  return 0;
+}
+
+least(p, d)
+  ensures result <= d
+  ensures allGe(*p, result)
+  ensures result == d || has(*p, result)
+  decreases rank(*p)
+{
+  var m, a;
+  m = d;
+  case *p of {
+    Leaf -> m = d;
+    Node(v, l, r) -> {
+      if (v < m) { m = v; }
+      a = least(&l, m);
+      m = least(&r, a);
+      use lowerBound(l, a, m);
+    }
+  }
+  return m;
+}
+
+least0(p, d)
+  ensures result <= d
+  ensures allGe(*p, result)
+  ensures result == d || has(*p, result)
+  decreases rank(*p)
+{
+  var m, a;
+  m = d;
+  case *p of {
+    Leaf -> m = d;
+    Node(v, l, r) -> {
+      if (v < m) { m = v; }
+      a = least0(&l, m);
+      m = least0(&r, a);
+    }
+  }
+  return m;
+}
+
+main() {
+  var t, m;
+  t = Node(5, Node(3, Leaf, Node(8, Leaf, Leaf)), Node(2, Leaf, Leaf));
+  m = least(&t, 1000);
+  assert m == 2;
+  return m;
+}

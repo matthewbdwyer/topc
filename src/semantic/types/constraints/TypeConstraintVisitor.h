@@ -45,6 +45,8 @@ public:
   void endVisit(ASTAssignStmt *element) override;
   void endVisit(ASTBinaryExpr *element) override;
   void endVisit(ASTDeRefExpr *element) override;
+  void endVisit(ASTOldExpr *element) override;  // VERUTOP
+  void endVisit(ASTRankExpr *element) override; // VERUTOP
   void endVisit(ASTErrorStmt *element) override;
   void endVisit(ASTFunAppExpr *element) override;
   void endVisit(ASTFunction *element) override;

@@ -2,6 +2,9 @@
 
 #include "AST.h"
 
+class ASTOldExpr;  // VERUTOP: see ASTOldExpr.h
+class ASTRankExpr; // VERUTOP: see ASTRankExpr.h
+
 /*! \brief Base class for AST visitors.
  *
  * The AST visitor class abstracts the traversal of an AST.  It works
@@ -41,6 +44,10 @@ public:
   virtual bool visit(ASTBorrowExpr *element) { return true; }
   virtual void endVisit(ASTBorrowExpr *element) {}
   virtual bool visit(ASTDeRefExpr *element) { return true; }
+  virtual bool visit(ASTOldExpr *element) { return true; }   // VERUTOP
+  virtual void endVisit(ASTOldExpr *element) {}
+  virtual bool visit(ASTRankExpr *element) { return true; }  // VERUTOP
+  virtual void endVisit(ASTRankExpr *element) {}
   virtual void endVisit(ASTDeRefExpr *element) {}
   virtual bool visit(ASTDeclNode *element) { return true; }
   virtual void endVisit(ASTDeclNode *element) {}

@@ -48,6 +48,11 @@ all, and code may not call one. The last column is the run.
 | `11-factorial-variants` | 120, five times |
 | `12-termination` | 0 |
 | `13-factorial-total` | 3628800 |
+| `14-tree-height` | 0 (the selftest's checks pass) |
+| `15-expr-borrow` | 0 (the selftest's checks pass) |
+| `16-swap` | 3 |
+| `17-bst-insert` | the inputs in order, then their count (`5 3 8 1 0` prints 1 3 5 8 and 4) |
+| `18-tree-least` | 2 |
 
 | Program | What it shows | Outcome |
 |---|---|---|
@@ -64,3 +69,8 @@ all, and code may not call one. The last column is the run.
 | `11-factorial-variants.top` | a spec function `factorial` states exactly what is computed; five implementations (recursion, a loop up, a loop down, tail recursion with an accumulator, and a loop that multiplies by repeated addition) are each proved equal to it, with termination | all 34 proved |
 | `12-termination.top` | a recursive call with no measure, a measure that does not decrease, a loop measure that increases; and `bad(n) = bad(n) + 1`, a spec function whose definition is false | each fails with a counterexample; `bad`'s definition is not used, so `liar` fails; with `--trust-specs` the false definition is used and `liar` "proves" `result == 42` |
 | `13-factorial-total.top` | total correctness in one function: `requires n >= 0`, `ensures result == factorial(n)`, `decreases n`; the same body without the precondition | `fact` proved; `factAny` fails termination at `n = -1` |
+| `14-tree-height.top` | the `tree-borrow` selftest with a contract: a borrowed tree is a value, `case` is constructor tests, `decreases rank(*p)` measures the tree; `main`'s `error` checks are proved unreachable | all proved |
+| `15-expr-borrow.top` | the `borrow-tree-reborrow` selftest with contracts: `copy` ensures `result == *e`; `main` lends `f` three times and proves it unchanged with no frame condition | all 47 proved |
+| `16-swap.top` | in-out borrows: `swap` ensures `*p == old(*q)`; `bump` reads `q` without writing it; `swap(&a, &a)` | proved, except "borrowed arguments do not overlap" at `swap(&a, &a)` |
+| `17-bst-insert.top` | the consuming BST `insert` from `iotests/recursive_tree.top`: one more node, and it has `v`; a loop invariant over a tree | all proved |
+| `18-tree-least.top` | the least element; a fact about every subtree needs induction, so a `lemma` supplies it with `use` | `least` proved; `least0`, without the lemma, unknown |

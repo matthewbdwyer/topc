@@ -1,0 +1,53 @@
+// The tree-height selftest (test/system/selftests/tree-borrow.top), with a
+// contract.  height reads the tree through a borrow; to the verifier, *p is
+// just the tree's value: no heap, no aliasing, no frame condition.
+//
+// hgt is the specification.  A measure is an int, and rank(t) is the size
+// of a sum value, so `decreases rank(t)` says each call on a subtree is
+// smaller.  main's error checks become proof
+// obligations: the verifier proves they are unreachable.
+type Tree = Leaf | Node(val, left, right);
+
+spec hgt(t)
+  decreases rank(t)
+{
+  var h, a, b;
+  case t of {
+    Leaf -> h = 0;
+    Node(v, l, r) -> {
+      a = hgt(l);
+      b = hgt(r);
+      if (a > b) { h = 1 + a; } else { h = 1 + b; }
+    }
+  }
+  return h;
+}
+
+height(p)
+  ensures result == hgt(*p)
+  ensures result >= 0
+  decreases rank(*p)
+{
+  var h, lh, rh;
+  case *p of {
+    Leaf -> h = 0;
+    Node(v, l, r) -> {
+      lh = height(&l);
+      rh = height(&r);
+      if (lh > rh) {
+        h = 1 + lh;
+      } else {
+        h = 1 + rh;
+      }
+    }
+  }
+  return h;
+}
+
+main() {
+  var t;
+  t = Node(1, Node(2, Leaf, Node(3, Leaf, Leaf)), Leaf);
+  if (height(&t) != 3) error height(&t);
+  if (height(&t) != 3) error height(&t);
+  return 0;
+}

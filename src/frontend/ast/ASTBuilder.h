@@ -53,11 +53,14 @@ public:
   Any visitImpliesExpr(TOPParser::ImpliesExprContext *ctx) override;
   Any visitAssertStmt(TOPParser::AssertStmtContext *ctx) override;
   Any visitAssumeStmt(TOPParser::AssumeStmtContext *ctx) override;
+  Any visitUseStmt(TOPParser::UseStmtContext *ctx) override;
   Any visitNumExpr(TOPParser::NumExprContext *ctx) override;
   Any visitVarExpr(TOPParser::VarExprContext *ctx) override;
   Any visitInputExpr(TOPParser::InputExprContext *ctx) override;
   Any visitFunAppExpr(TOPParser::FunAppExprContext *ctx) override;
   Any visitAllocExpr(TOPParser::AllocExprContext *ctx) override;
+  Any visitOldExpr(TOPParser::OldExprContext *ctx) override;
+  Any visitRankExpr(TOPParser::RankExprContext *ctx) override;
   Any visitRefExpr(TOPParser::RefExprContext *ctx) override;
   Any visitDeRefExpr(TOPParser::DeRefExprContext *ctx) override;
   Any visitDeclaration(TOPParser::DeclarationContext *ctx) override;

@@ -1,3 +1,5 @@
+#include "ASTOldExpr.h"
+#include "ASTRankExpr.h"
 #include "TypeConstraintVisitor.h"
 #include "ASTCaseStmt.h"
 #include "ASTCtorPattern.h"
@@ -62,6 +64,9 @@ void TypeConstraintVisitor::endVisit(ASTFunction *element) {
     auto ret = dynamic_cast<ASTReturnStmt *>(element->getStmts().back());
     constraintHandler->handle(astToVar(result), astToVar(ret->getArg()));
   }
+  // VERUTOP: a measure is an int; rank(t) makes one from a sum value.
+  if (auto *d = element->getDecreases())
+    constraintHandler->handle(astToVar(d), std::make_shared<TopInt>());
   if (element->getName() == "main") {
     std::vector<std::shared_ptr<TopType>> formals;
     for (auto &f : element->getFormals()) {
@@ -180,6 +185,17 @@ void TypeConstraintVisitor::endVisit(ASTBorrowExpr *element) {
  * Type rule for "*E":
  *   [[E]] = ref&[[*E]]
  */
+// VERUTOP: old(E) has the type of E.
+void TypeConstraintVisitor::endVisit(ASTOldExpr *element) {
+  constraintHandler->handle(astToVar(element), astToVar(element->getExpr()));
+}
+
+// VERUTOP: rank(E) is an int.  (That E is a sum value is checked by the
+// verifier, which knows the sorts.)
+void TypeConstraintVisitor::endVisit(ASTRankExpr *element) {
+  constraintHandler->handle(astToVar(element), std::make_shared<TopInt>());
+}
+
 void TypeConstraintVisitor::endVisit(ASTDeRefExpr *element) {
   constraintHandler->handle(std::make_shared<ReferenceType>(std::make_shared<TopModeVar>(), astToVar(element)),
                             astToVar(element->getPtr()));
@@ -217,6 +233,9 @@ void TypeConstraintVisitor::endVisit(ASTAssignStmt *element) {
 void TypeConstraintVisitor::endVisit(ASTWhileStmt *element) {
   constraintHandler->handle(astToVar(element->getCondition()),
                             std::make_shared<TopInt>());
+  // VERUTOP: a measure is an int.
+  if (auto *d = element->getDecreases())
+    constraintHandler->handle(astToVar(d), std::make_shared<TopInt>());
 }
 
 /*! \brief Type constraints for if statement.

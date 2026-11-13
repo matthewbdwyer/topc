@@ -732,7 +732,8 @@ int main(int argc, char *argv[]) {
       if (verifyOpt || vopt.pgcl || vopt.ppassive || vopt.pwp || vopt.pvc || vopt.pspec ||
           vopt.pcex || vopt.psmt || !vopt.fn.empty()) {
         ensureOwnershipResult();
-        bool ok = VCGen::verify(ast.get(), sourceFile + ".vc.smt2", std::cout, vopt);
+        bool ok = VCGen::verify(ast.get(), typeResults.get(), sourceFile + ".vc.smt2",
+                                std::cout, vopt);
         std::exit(ok ? EXIT_SUCCESS : EXIT_FAILURE);
       }
 

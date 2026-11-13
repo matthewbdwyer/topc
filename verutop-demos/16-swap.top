@@ -1,0 +1,40 @@
+// Writing through borrows.  A borrow lasts only for the call, and only an
+// int can be written through one, so a borrowed parameter is an in-out
+// parameter: *p in ensures is its final value, old(*p) its value on entry.
+//
+// - swap's contract is the whole story; main uses it to prove the swap.
+// - bump writes x but only reads y; main knows y is unchanged with no
+//   frame condition, because bump never writes through q.
+// - swap(&a, &a) is accepted by TOP, but two writable borrows of one
+//   variable break the in-out model: the verifier reports it.
+swap(p, q)
+  ensures *p == old(*q)
+  ensures *q == old(*p)
+{
+  var t;
+  t = *p;
+  *p = *q;
+  *q = t;
+  return 0;
+}
+
+bump(p, q)
+  ensures *p == old(*p) + *q
+{
+  *p = *p + *q;
+  return 0;
+}
+
+main() {
+  var a, b, d;
+  a = 1;
+  b = 2;
+  d = swap(&a, &b);
+  assert a == 2 && b == 1;
+
+  d = bump(&a, &b);
+  assert a == 3 && b == 1;
+
+  d = swap(&a, &a);
+  return a;
+}

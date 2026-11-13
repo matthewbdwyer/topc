@@ -13,18 +13,41 @@
 // the prototype supports lowers to these, so both VC generators (wp by
 // substitution, and passive) work on guarded commands, not on the AST.
 //
-// Supported: int variables; + - * / and comparisons; if, while (with
-// invariants and decreases), blocks, assignment to a variable, output, error,
-// input; calls `x = f(args);` to a function by name, verified modularly
-// against f's contract; assert and assume; spec functions.  Anything that
-// touches the heap (alloc, *, &, sum values, case) is reported as
-// unsupported.
+// Heap data needs no heap model, because of ownership:
+// - An owned box has one owner, so a variable of type own&T is represented
+//   by the value it points to: alloc E, *E, and &E are all the identity, and
+//   *p = E assigns p.
+// - A sum value is an SMT datatype value; case is a chain of constructor
+//   tests, and its binders are selectors.
+// - A borrow exists only for the duration of a call, and only an int can be
+//   written through one.  So a borrowed parameter is an in-out parameter: the
+//   callee's ensures says what *p is at the end (and old(*p) what it was), and
+//   the caller's variable takes that value.  A borrowed parameter the callee
+//   never writes leaves the caller's variable alone, with no frame condition.
+//
+// Supported: ints and sum types; + - * / and comparisons; if, while (with
+// invariants and decreases), case, blocks, assignment, output, error, input;
+// alloc, *, & (as a call argument); calls to functions by name, anywhere in
+// an expression, verified modularly against the callee's contract; assert
+// and assume; spec functions.  Function values are not supported.
 #include "VCGen.h"
 
 #include "AST.h"
+#include "ASTCtorPattern.h"
+#include "ASTOldExpr.h"
 #include "ASTProofStmt.h"
+#include "ASTRankExpr.h"
+#include "ASTVarPattern.h"
 #include "ASTVisitor.h"
+#include "ASTWildcardPattern.h"
+#include "ReferenceMode.h"
+#include "ReferenceType.h"
 #include "SemanticError.h"
+#include "TopFunction.h"
+#include "TopInt.h"
+#include "TopMu.h"
+#include "TopSumType.h"
+#include "TypeInference.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -57,11 +80,14 @@ struct Obligation {
 struct Term;
 using T = std::shared_ptr<const Term>;
 struct Term {
-  enum Kind { Num, Var, Op, Fn, Let, Forall } kind = Num;
+  enum Kind { Num, Var, Op, Fn, Ctor, Is, Sel, Let, Forall } kind = Num;
   long long num = 0;
-  std::string name;               // Var, Op, Fn; Let: the bound variable
+  std::string name;               // Var, Op, Fn, Ctor, Is (tag), Sel (selector);
+                                  // Let: the bound variable
   std::vector<std::string> bound; // Forall
-  std::vector<T> args;            // Op, Fn; Let: value, body; Forall: body
+  std::vector<std::string> sorts; // Forall: the sort of each bound variable
+  std::vector<T> args;            // Op, Fn, Ctor, Is, Sel; Let: value, body;
+                                  // Forall: body
 };
 
 T make(Term t) { return std::make_shared<const Term>(std::move(t)); }
@@ -76,35 +102,33 @@ T var(const std::string &x) {
   t.name = x;
   return make(t);
 }
-T op(const std::string &o, std::vector<T> a = {}) {
+T mk(Term::Kind k, const std::string &n, std::vector<T> a) {
   Term t;
-  t.kind = Term::Op;
-  t.name = o;
+  t.kind = k;
+  t.name = n;
   t.args = std::move(a);
   return make(t);
 }
+T op(const std::string &o, std::vector<T> a = {}) { return mk(Term::Op, o, std::move(a)); }
 // An application of a spec function.
-T app(const std::string &f, std::vector<T> a) {
-  Term t;
-  t.kind = Term::Fn;
-  t.name = f;
-  t.args = std::move(a);
-  return make(t);
-}
-T let(const std::string &x, T v, T body) {
-  Term t;
-  t.kind = Term::Let;
-  t.name = x;
-  t.args = {std::move(v), std::move(body)};
-  return make(t);
-}
-T forall(std::vector<std::string> xs, T body) {
+T app(const std::string &f, std::vector<T> a) { return mk(Term::Fn, f, std::move(a)); }
+T ctor(const std::string &tag, std::vector<T> a) { return mk(Term::Ctor, tag, std::move(a)); }
+T is(const std::string &tag, T x) { return mk(Term::Is, tag, {std::move(x)}); }
+T sel(const std::string &s, T x) { return mk(Term::Sel, s, {std::move(x)}); }
+T let(const std::string &x, T v, T body) { return mk(Term::Let, x, {std::move(v), std::move(body)}); }
+T forall(std::vector<std::string> xs, std::vector<std::string> sorts, T body) {
   if (xs.empty()) return body;
   Term t;
   t.kind = Term::Forall;
   t.bound = std::move(xs);
+  t.sorts = std::move(sorts);
   t.args = {std::move(body)};
   return make(t);
+}
+T rebuild(const T &t, std::vector<T> a) {
+  Term c = *t;
+  c.args = std::move(a);
+  return make(c);
 }
 
 const T TRUE = op("true"), FALSE = op("false");
@@ -127,14 +151,7 @@ T Eq(T a, T b) { return op("=", {std::move(a), std::move(b)}); }
 // ---- SMT-LIB --------------------------------------------------------------
 
 void smt(const T &t, std::string &o) {
-  switch (t->kind) {
-  case Term::Num:
-    o += t->num < 0 ? "(- " + std::to_string(-t->num) + ")" : std::to_string(t->num);
-    return;
-  case Term::Var: o += "|" + t->name + "|"; return;
-  case Term::Op:
-  case Term::Fn: {
-    std::string head = t->kind == Term::Fn ? "|" + t->name + "|" : t->name;
+  auto apply = [&](const std::string &head) {
     if (t->args.empty()) {
       o += head;
       return;
@@ -145,8 +162,17 @@ void smt(const T &t, std::string &o) {
       smt(a, o);
     }
     o += ")";
+  };
+  switch (t->kind) {
+  case Term::Num:
+    o += t->num < 0 ? "(- " + std::to_string(-t->num) + ")" : std::to_string(t->num);
     return;
-  }
+  case Term::Var: o += "|" + t->name + "|"; return;
+  case Term::Op: apply(t->name); return;
+  case Term::Fn:
+  case Term::Ctor:
+  case Term::Sel: apply("|" + t->name + "|"); return;
+  case Term::Is: apply("(_ is |" + t->name + "|)"); return;
   case Term::Let:
     o += "(let ((|" + t->name + "| ";
     smt(t->args[0], o);
@@ -156,7 +182,8 @@ void smt(const T &t, std::string &o) {
     return;
   case Term::Forall:
     o += "(forall (";
-    for (auto &x : t->bound) o += "(|" + x + "| Int)";
+    for (size_t i = 0; i < t->bound.size(); ++i)
+      o += "(|" + t->bound[i] + "| " + (i < t->sorts.size() ? t->sorts[i] : "Int") + ")";
     o += ") ";
     smt(t->args[0], o);
     o += ")";
@@ -176,6 +203,7 @@ bool isCmp(const std::string &o) {
 }
 int prec(const T &t) {
   if (t->kind == Term::Let || t->kind == Term::Forall) return 0;
+  if (t->kind == Term::Is) return 5;
   if (t->kind != Term::Op || t->args.empty()) return 9;
   auto &o = t->name;
   if (o == "=>") return 1;
@@ -201,15 +229,20 @@ std::string paren(const T &c, bool need) {
   auto s = flat(c);
   return need ? "(" + s + ")" : s;
 }
+std::string args(const T &t) {
+  std::string s = "(";
+  for (size_t i = 0; i < t->args.size(); ++i) s += (i ? ", " : "") + flat(t->args[i]);
+  return s + ")";
+}
 std::string flat(const T &t) {
   switch (t->kind) {
   case Term::Num: return std::to_string(t->num);
   case Term::Var: return t->name;
-  case Term::Fn: {
-    std::string s = t->name + "(";
-    for (size_t i = 0; i < t->args.size(); ++i) s += (i ? ", " : "") + flat(t->args[i]);
-    return s + ")";
-  }
+  case Term::Fn: return (t->name.rfind("rank#", 0) == 0 ? "rank" : t->name) + args(t);
+  case Term::Ctor: return t->args.empty() ? t->name : t->name + args(t);
+  case Term::Is: return paren(t->args[0], prec(t->args[0]) <= 5) + " is " + t->name;
+  case Term::Sel:
+    return paren(t->args[0], prec(t->args[0]) < 9) + "." + t->name.substr(t->name.find('.') + 1);
   case Term::Let:
     return "let " + t->name + " = " + flat(t->args[0]) + " in " + flat(t->args[1]);
   case Term::Forall: {
@@ -308,7 +341,7 @@ T subst(const T &t, const Sub &m) {
   case Term::Forall: {
     auto inner = m;
     for (auto &x : t->bound) inner.erase(x);
-    return forall(t->bound, subst(t->args[0], inner));
+    return forall(t->bound, t->sorts, subst(t->args[0], inner));
   }
   default: break;
   }
@@ -318,8 +351,7 @@ T subst(const T &t, const Sub &m) {
     a.push_back(subst(x, m));
     changed = changed || a.back() != x;
   }
-  if (!changed) return t;
-  return t->kind == Term::Fn ? app(t->name, a) : op(t->name, a);
+  return changed ? rebuild(t, a) : t;
 }
 
 void freeVars(const T &t, std::set<std::string> &out, const std::set<std::string> &bound = {}) {
@@ -354,15 +386,24 @@ T simp(const T &t) {
     auto b = simp(t->args[0]);
     std::set<std::string> fv;
     freeVars(b, fv);
-    std::vector<std::string> keep;
-    for (auto &x : t->bound)
-      if (fv.count(x)) keep.push_back(x);
-    return forall(keep, b);
+    std::vector<std::string> keep, sorts;
+    for (size_t i = 0; i < t->bound.size(); ++i)
+      if (fv.count(t->bound[i])) {
+        keep.push_back(t->bound[i]);
+        sorts.push_back(i < t->sorts.size() ? t->sorts[i] : "Int");
+      }
+    return forall(keep, sorts, b);
   }
   if (t->kind == Term::Let) return simp(subst(t->args[1], {{t->name, t->args[0]}}));
   std::vector<T> a;
   for (auto &x : t->args) a.push_back(simp(x));
-  if (t->kind == Term::Fn) return app(t->name, a);
+  if (t->kind == Term::Is && a[0]->kind == Term::Ctor) return a[0]->name == t->name ? TRUE : FALSE;
+  if (t->kind == Term::Sel && a[0]->kind == Term::Ctor) {
+    // Node.left of Node(v, l, r) is l: the field's position in the selector
+    // is not recorded here, so this only folds when the name says which.
+    return rebuild(t, a);
+  }
+  if (t->kind != Term::Op) return rebuild(t, a);
   auto &o = t->name;
   auto isNum = [](const T &x) { return x->kind == Term::Num; };
   auto isNumV = [&](const T &x, long long v) { return isNum(x) && x->num == v; };
@@ -385,6 +426,9 @@ T simp(const T &t) {
   if (o == "*" && isNumV(a[0], 1)) return a[1];
   if (o == "*" && (isNumV(a[0], 0) || isNumV(a[1], 0))) return num(0);
   if ((o == "=" || o == "<=" || o == ">=") && smt(a[0]) == smt(a[1])) return TRUE;
+  if (o == "=" && a[0]->kind == Term::Ctor && a[1]->kind == Term::Ctor &&
+      a[0]->name != a[1]->name)
+    return FALSE;
   if (o == "not") {
     if (isTrue(a[0])) return FALSE;
     if (isFalse(a[0])) return TRUE;
@@ -424,19 +468,134 @@ T simp(const T &t) {
 }
 
 // ===========================================================================
+// Sorts.  int is Int; a sum type is an SMT datatype; a reference (owned or
+// borrowed) has the sort of what it refers to.
+// ===========================================================================
+
+struct Types {
+  TypeInference *ti = nullptr;
+  std::map<std::string, std::string> ctorSort;                             // tag -> sort
+  std::map<std::string, std::vector<std::pair<std::string, std::string>>> fields; // tag -> (selector, sort)
+  std::map<std::string, std::string> selSort;                              // selector -> sort
+  std::map<std::string, std::string> fnSort;                               // function -> result sort
+  std::map<std::string, std::string> rankAxioms;                           // rank#D -> axiom
+  std::string decls;                                                       // datatypes and rank functions
+
+  static bool isDatatype(const std::string &s) { return s != "Int" && s != "Bool"; }
+
+  std::string sortOf(const std::shared_ptr<TopType> &t) const {
+    if (!t || dynamic_cast<TopInt *>(t.get())) return "Int";
+    if (auto *r = dynamic_cast<ReferenceType *>(t.get())) return sortOf(r->getReferencedType());
+    if (auto *s = dynamic_cast<TopSumType *>(t.get())) return "|" + s->getTypeName() + "|";
+    if (auto *m = dynamic_cast<TopMu *>(t.get())) return sortOf(m->getT());
+    if (dynamic_cast<TopFunction *>(t.get())) throw Unsupported("function values are not supported");
+    return "Int"; // an unconstrained type variable
+  }
+  static bool isBorrow(const std::shared_ptr<TopType> &t) {
+    auto *r = dynamic_cast<ReferenceType *>(t.get());
+    if (!r) return false;
+    auto m = std::dynamic_pointer_cast<ReferenceMode>(r->getMode());
+    return m && m->getMode() == ReferenceMode::Mode::Borrow;
+  }
+  std::string sortOf(ASTDeclNode *d) const { return sortOf(ti->getInferredType(d)); }
+  bool isBorrow(ASTDeclNode *d) const { return isBorrow(ti->getInferredType(d)); }
+
+  void build(ASTProgram *p, TypeInference *types) {
+    ti = types;
+    std::string dts, ctors;
+    for (auto *td : p->getTypedecls()) {
+      std::string s = "|" + td->getName() + "|";
+      dts += " (" + s + " 0)";
+      ctors += " (";
+      for (auto *v : td->getVariants()) {
+        ctorSort[v->getTag()] = s;
+        ctors += "(|" + v->getTag() + "|";
+        for (auto *f : v->getParams()) {
+          std::string sl = v->getTag() + "." + f->getName(), so = sortOf(f);
+          fields[v->getTag()].push_back({sl, so});
+          selSort[sl] = so;
+          ctors += " (|" + sl + "| " + so + ")";
+        }
+        ctors += ")";
+      }
+      ctors += ")";
+    }
+    if (!dts.empty()) decls += "(declare-datatypes (" + dts + ") (" + ctors + "))\n";
+    for (auto *f : p->getFunctions()) {
+      auto ft = std::dynamic_pointer_cast<TopFunction>(ti->getInferredType(f->getDecl()));
+      try {
+        fnSort[f->getName()] = ft ? sortOf(ft->getReturnType()) : "Int";
+      } catch (Unsupported &) {
+        fnSort[f->getName()] = "Int";
+      }
+    }
+    // rank#D measures the size of a D value, for `decreases` on a datatype:
+    // rank(C(x1, ..., xn)) = 1 + the ranks of the fields that are datatypes.
+    // That a rank is at least 1 is true but needs induction, so it is
+    // stated as part of the (trusted) axiom.
+    for (auto *td : p->getTypedecls()) {
+      std::string s = "|" + td->getName() + "|", r = "rank#" + td->getName();
+      decls += "(declare-fun |" + r + "| (" + s + ") Int)\n";
+      T x = var("x");
+      T body = num(1);
+      auto vs = td->getVariants();
+      for (int i = (int)vs.size() - 1; i >= 0; --i) {
+        std::vector<T> sum{num(1)};
+        for (auto &[sl, so] : fields[vs[i]->getTag()])
+          if (isDatatype(so)) sum.push_back(rank(sel(sl, x), so));
+        T e = sum[0];
+        for (size_t k = 1; k < sum.size(); ++k) e = op("+", {e, sum[k]});
+        body = i + 1 == (int)vs.size() ? e : op("ite", {is(vs[i]->getTag(), x), e, body});
+      }
+      T call = app(r, {x});
+      rankAxioms[r] = "(assert (forall ((|x| " + s + ")) (! (and (>= " + smt(call) + " 1) " +
+                      smt(Eq(call, body)) + ") :pattern (" + smt(call) + "))))\n";
+    }
+  }
+
+  static T rank(T t, const std::string &sort) {
+    return app("rank#" + sort.substr(1, sort.size() - 2), {std::move(t)});
+  }
+};
+Types TY;
+
+// The sort of a term; `lookup` gives the sort of a variable.
+std::string sortOfTerm(const T &t, const std::function<std::string(const std::string &)> &lookup) {
+  switch (t->kind) {
+  case Term::Num: return "Int";
+  case Term::Var: return lookup(t->name);
+  case Term::Fn: {
+    auto it = TY.fnSort.find(t->name);
+    return it == TY.fnSort.end() ? "Int" : it->second;
+  }
+  case Term::Ctor: return TY.ctorSort.count(t->name) ? TY.ctorSort[t->name] : "Int";
+  case Term::Sel: return TY.selSort.count(t->name) ? TY.selSort[t->name] : "Int";
+  case Term::Is:
+  case Term::Forall: return "Bool";
+  case Term::Let: return sortOfTerm(t->args[1], lookup);
+  case Term::Op:
+    if (t->name == "ite") return sortOfTerm(t->args[1], lookup);
+    if (t->name == "+" || t->name == "-" || t->name == "*" || t->name == "tdiv") return "Int";
+    return "Bool";
+  }
+  return "Int";
+}
+
+// ===========================================================================
 // Guarded commands.
 // ===========================================================================
 
 struct G {
   enum Kind { Assume, Assert, Assign, Havoc, Seq, Choice } kind = Seq;
-  T p;                           // Assume, Assert: the formula; Assign: the value
-  std::string x;                 // Assign: the variable
-  std::vector<std::string> vars; // Havoc
-  std::vector<G> kids;           // Seq, Choice
-  int id = -1;                   // Assert: obligation number
+  T p;                            // Assume, Assert: the formula; Assign: the value
+  std::string x;                  // Assign: the variable
+  std::vector<std::string> vars;  // Havoc
+  std::vector<std::string> sorts; // Havoc: the sort of each variable
+  std::vector<G> kids;            // Seq, Choice
+  int id = -1;                    // Assert: obligation number
   int line = 0;
-  std::string note;              // shown as a comment
-  bool guard = false;            // Assume: the condition that picks a branch
+  std::string note;               // shown as a comment
+  bool guard = false;             // Assume: the condition that picks a branch
   T src; // a guard: the source condition; a passive assignment: the value
 };
 
@@ -454,14 +613,6 @@ G gAssign(std::string x, T e, int line, std::string note = "") {
   g.kind = G::Assign;
   g.x = std::move(x);
   g.p = std::move(e);
-  g.line = line;
-  g.note = std::move(note);
-  return g;
-}
-G gHavoc(std::vector<std::string> xs, int line, std::string note) {
-  G g;
-  g.kind = G::Havoc;
-  g.vars = std::move(xs);
   g.line = line;
   g.note = std::move(note);
   return g;
@@ -551,20 +702,12 @@ struct Proc {
   ASTFunction *fn = nullptr;
   G body;
   std::vector<Obligation> obs;
-};
-
-void collectAssigned(ASTStmt *s, std::set<std::string> &out) {
-  if (auto *a = dynamic_cast<ASTAssignStmt *>(s)) {
-    if (auto *x = dynamic_cast<ASTVariableExpr *>(a->getLHS())) out.insert(x->getName());
-  } else if (auto *b = dynamic_cast<ASTBlockStmt *>(s)) {
-    for (auto *t : b->getStmts()) collectAssigned(t, out);
-  } else if (auto *i = dynamic_cast<ASTIfStmt *>(s)) {
-    collectAssigned(i->getThen(), out);
-    if (i->getElse()) collectAssigned(i->getElse(), out);
-  } else if (auto *w = dynamic_cast<ASTWhileStmt *>(s)) {
-    collectAssigned(w->getBody(), out);
+  std::map<std::string, std::string> sorts; // every variable's sort
+  std::string sortOf(const std::string &x) const {
+    auto it = sorts.find(x);
+    return it == sorts.end() ? "Int" : it->second;
   }
-}
+};
 
 std::string where(ASTNode *n) { return "line " + std::to_string(n->getLine()) + ": "; }
 std::string text(ASTNode *n) {
@@ -573,37 +716,184 @@ std::string text(ASTNode *n) {
   return o.str();
 }
 
+// The variable an lvalue or a borrowed argument names: x, *x, **x, &x.
+std::string rootOf(ASTExpr *e, int *derefs = nullptr) {
+  int d = 0;
+  while (true) {
+    if (auto *r = dynamic_cast<ASTDeRefExpr *>(e)) {
+      e = r->getPtr();
+      ++d;
+    } else if (auto *b = dynamic_cast<ASTBorrowExpr *>(e)) {
+      e = b->getVar();
+    } else {
+      break;
+    }
+  }
+  if (derefs) *derefs = d;
+  auto *v = dynamic_cast<ASTVariableExpr *>(e);
+  return v ? v->getName() : "";
+}
+
+// Which borrowed parameters a function may write: through *p = E, or by
+// passing p on to a parameter that is written.  (Only an int can be written
+// through a borrow; TOP rejects overwriting an owned value.)
+class Writes {
+public:
+  std::set<std::pair<std::string, int>> written; // (function, parameter index)
+
+  explicit Writes(ASTProgram *p) {
+    for (auto *f : p->getFunctions()) fns[f->getName()] = f;
+    struct Scan : ASTVisitor {
+      std::set<std::string> stores;                              // roots of *... = E
+      std::vector<std::tuple<std::string, int, std::string>> passes; // (callee, k, root)
+      void endVisit(ASTAssignStmt *a) override {
+        int d = 0;
+        auto r = rootOf(a->getLHS(), &d);
+        if (d > 0) stores.insert(r);
+      }
+      void endVisit(ASTFunAppExpr *c) override {
+        auto *fv = dynamic_cast<ASTVariableExpr *>(c->getFunction());
+        if (!fv) return;
+        auto as = c->getActuals();
+        for (size_t k = 0; k < as.size(); ++k) passes.push_back({fv->getName(), (int)k, rootOf(as[k])});
+      }
+    };
+    std::map<std::string, Scan> scans;
+    for (auto *f : p->getFunctions()) f->accept(&scans[f->getName()]);
+    bool changed = true;
+    while (changed) {
+      changed = false;
+      for (auto *f : p->getFunctions()) {
+        auto formals = f->getFormals();
+        auto &sc = scans[f->getName()];
+        for (size_t k = 0; k < formals.size(); ++k) {
+          if (!TY.isBorrow(formals[k]) || written.count({f->getName(), (int)k})) continue;
+          auto x = formals[k]->getName();
+          bool w = sc.stores.count(x);
+          for (auto &[g, j, r] : sc.passes)
+            if (r == x && written.count({g, j})) w = true;
+          if (w) {
+            written.insert({f->getName(), (int)k});
+            changed = true;
+          }
+        }
+      }
+    }
+  }
+  bool isWritten(const std::string &f, int k) const { return written.count({f, k}); }
+
+  // The variables a statement may change: assignment targets, and variables
+  // lent to a parameter that is written.
+  std::set<std::string> assigned(ASTNode *s) const {
+    struct Scan : ASTVisitor {
+      const Writes *w;
+      std::set<std::string> out;
+      void endVisit(ASTAssignStmt *a) override { out.insert(rootOf(a->getLHS())); }
+      void endVisit(ASTFunAppExpr *c) override {
+        auto *fv = dynamic_cast<ASTVariableExpr *>(c->getFunction());
+        if (!fv) return;
+        auto as = c->getActuals();
+        for (size_t k = 0; k < as.size(); ++k)
+          if (w->isWritten(fv->getName(), (int)k)) out.insert(rootOf(as[k]));
+      }
+    } scan;
+    scan.w = this;
+    s->accept(&scan);
+    scan.out.erase("");
+    return scan.out;
+  }
+
+private:
+  std::map<std::string, ASTFunction *> fns;
+};
+
+// A case arm as a condition on the scrutinee t, and the binder values.
+T matchPattern(ASTPattern *p, const T &t, std::vector<std::pair<ASTDeclNode *, T>> &binds);
+T matchCtor(const std::string &tag, const std::vector<ASTPattern *> &subs, const T &t,
+            std::vector<std::pair<ASTDeclNode *, T>> &binds) {
+  std::vector<T> cs{is(tag, t)};
+  auto &fs = TY.fields[tag];
+  for (size_t i = 0; i < subs.size() && i < fs.size(); ++i)
+    cs.push_back(matchPattern(subs[i], sel(fs[i].first, t), binds));
+  return And(cs);
+}
+T matchPattern(ASTPattern *p, const T &t, std::vector<std::pair<ASTDeclNode *, T>> &binds) {
+  if (auto *c = dynamic_cast<ASTCtorPattern *>(p)) return matchCtor(c->getTag(), c->getSubPatterns(), t, binds);
+  if (auto *v = dynamic_cast<ASTVarPattern *>(p)) binds.push_back({v->getDecl(), t});
+  return TRUE;
+}
+std::string showArm(ASTCaseArm *a) {
+  std::string s = a->getTag();
+  auto ps = a->getPatterns();
+  if (ps.empty()) return s;
+  s += "(";
+  for (size_t i = 0; i < ps.size(); ++i) {
+    std::ostringstream o;
+    o << *ps[i];
+    s += (i ? ", " : "") + o.str();
+  }
+  return s + ")";
+}
+
 class Lower {
 public:
-  explicit Lower(ASTProgram *p) {
+  Lower(ASTProgram *p, const Writes &w) : writes(w) {
     for (auto *f : p->getFunctions()) fns[f->getName()] = f;
   }
 
   std::map<std::string, ASTFunction *> fns;
   // Called on each spec-function call in a specification (for termination).
   std::function<void(ASTFunction *, const std::vector<T> &, int)> onSpecCall;
+  // The sort of a variable, for measures.
+  std::function<std::string(const std::string &)> sortLookup;
 
   // A function: assume the precondition; locals start at 0; the body;
-  // result := the returned value; assert the postcondition.  In ensures, a
-  // formal the body assigns means its value on entry, old(x).
+  // result := the returned value; assert the postcondition.
+  //
+  // In ensures, a value formal the body assigns means its entry value,
+  // old(x): the caller cannot see the change.  A borrowed formal is shared
+  // with the caller, so *p means its final contents and old(*p) its entry
+  // contents.
   Proc proc(ASTFunction *f) {
     obs.clear();
     fresh = 0;
     current = f;
+    renames.clear();
+    proc_ = Proc{};
+    proc_.fn = f;
+    auto &sorts = proc_.sorts;
+    sortLookup = [this](const std::string &x) { return proc_.sortOf(x); };
+    for (auto *p : f->getFormals()) sorts[p->getName()] = TY.sortOf(p);
+    for (auto *d : f->getDeclarations())
+      for (auto *v : d->getVars()) sorts[v->getName()] = TY.sortOf(v);
+    sorts["result"] = TY.fnSort[f->getName()];
+
     std::set<std::string> assigned;
-    for (auto *s : f->getStmts()) collectAssigned(s, assigned);
+    for (auto *s : f->getStmts()) {
+      auto a = writes.assigned(s);
+      assigned.insert(a.begin(), a.end());
+    }
     old.clear();
-    for (auto *p : f->getFormals())
-      if (assigned.count(p->getName()))
-        old[p->getName()] = var("old(" + p->getName() + ")");
+    oldAll.clear();
+    for (auto *p : f->getFormals()) {
+      auto x = p->getName();
+      sorts["old(" + x + ")"] = sorts[x];
+      if (!assigned.count(x)) continue;
+      oldAll[x] = var("old(" + x + ")");
+      if (!TY.isBorrow(p)) old[x] = oldAll[x];
+    }
 
     std::vector<G> cs;
     std::vector<T> req;
     for (auto *e : f->getRequires()) req.push_back(spec(e));
     if (!req.empty()) cs.push_back(gAssume(And(req), f->getRequires()[0]->getLine(), "requires"));
     for (auto *d : f->getDeclarations())
-      for (auto *v : d->getVars())
-        cs.push_back(gAssign(v->getName(), num(0), d->getLine(), "locals start at 0"));
+      for (auto *v : d->getVars()) {
+        if (sorts[v->getName()] == "Int")
+          cs.push_back(gAssign(v->getName(), num(0), d->getLine(), "locals start at 0"));
+        else
+          cs.push_back(havoc({v->getName()}, d->getLine(), "no initial value"));
+      }
     auto stmts = f->getStmts();
     for (size_t i = 0; i + 1 < stmts.size(); ++i) cs.push_back(stmt(stmts[i]));
     auto *ret = dynamic_cast<ASTReturnStmt *>(stmts.back());
@@ -612,15 +902,18 @@ public:
     cs.insert(cs.end(), pre.begin(), pre.end());
     cs.push_back(gAssign("result", r, ret->getLine(), "return"));
     std::vector<T> ens;
-    for (auto *e : f->getEnsures()) ens.push_back(spec(e, &old));
+    for (auto *e : f->getEnsures()) ens.push_back(spec(e, &old, &oldAll));
     cs.push_back(assertion(And(ens), ret->getLine(), "postcondition"));
-    return {f, gSeq(cs), obs};
+    proc_.body = gSeq(cs);
+    proc_.obs = obs;
+    return proc_;
   }
 
   // ---- expressions --------------------------------------------------------
   // `pre` collects the commands an expression needs first: an assert for
-  // each division, a havoc for each input.  A null `pre` means a
-  // specification, which has neither.  `sub` renames variables.
+  // each division, a havoc for each input, a call's contract.  A null `pre`
+  // means a specification, which has none of these.  `sub` renames
+  // variables; inside old(E), `oldSub` does.
 
   T I(ASTExpr *e, std::vector<G> *pre, const Sub *sub) {
     if (auto *n = dynamic_cast<ASTNumberExpr *>(e)) return num(n->getValue());
@@ -629,12 +922,31 @@ public:
         auto it = sub->find(v->getName());
         if (it != sub->end()) return it->second;
       }
-      return var(v->getName());
+      return var(name(v->getName()));
+    }
+    // Ownership makes a reference its referent: one owner, no aliases.
+    if (auto *a = dynamic_cast<ASTAllocExpr *>(e)) return I(a->getInitializer(), pre, sub);
+    if (auto *d = dynamic_cast<ASTDeRefExpr *>(e)) return I(d->getPtr(), pre, sub);
+    if (auto *b = dynamic_cast<ASTBorrowExpr *>(e)) return I(b->getVar(), pre, sub);
+    if (auto *c = dynamic_cast<ASTSumCtorExpr *>(e)) {
+      std::vector<T> as;
+      for (auto *a : c->getArgs()) as.push_back(I(a, pre, sub));
+      return ctor(c->getTag(), as);
+    }
+    if (auto *rk = dynamic_cast<ASTRankExpr *>(e)) {
+      T t = I(rk->getExpr(), pre, sub);
+      auto s = sortOfTerm(t, sortLookup);
+      if (!Types::isDatatype(s)) throw Unsupported(where(e) + "rank applies only to a sum value");
+      return Types::rank(t, s);
+    }
+    if (auto *o = dynamic_cast<ASTOldExpr *>(e)) {
+      if (!oldSub) throw Unsupported(where(e) + "old(...) is allowed only in ensures");
+      return I(o->getExpr(), pre, oldSub);
     }
     if (dynamic_cast<ASTInputExpr *>(e)) {
       if (!pre) throw Unsupported(where(e) + "input in a specification");
       std::string v = "input#" + std::to_string(fresh++);
-      pre->push_back(gHavoc({v}, e->getLine(), "input"));
+      pre->push_back(havoc({v}, e->getLine(), "input"));
       return var(v);
     }
     if (auto *b = dynamic_cast<ASTBinaryExpr *>(e)) {
@@ -658,14 +970,20 @@ public:
       default: return op("ite", {B(e, pre, sub), num(1), num(0)});
       }
     }
-    if (auto *call = dynamic_cast<ASTFunAppExpr *>(e); call && !pre) {
+    if (auto *call = dynamic_cast<ASTFunAppExpr *>(e)) {
       auto *fv = dynamic_cast<ASTVariableExpr *>(call->getFunction());
-      if (!fv || !fns.count(fv->getName()) || !fns[fv->getName()]->isSpec())
+      if (!fv || !fns.count(fv->getName()))
+        throw Unsupported(where(call) + "a call through a function value");
+      auto *g = fns[fv->getName()];
+      if (pre && g->isLemma())
+        throw Unsupported(where(call) + "a lemma is applied only with use");
+      if (pre) return callExpr(call, *pre, "");
+      if (!g->isSpec())
         throw Unsupported(where(call) + "a specification may call only spec functions");
-      std::vector<T> args;
-      for (auto *a : call->getActuals()) args.push_back(I(a, nullptr, sub));
-      if (onSpecCall) onSpecCall(fns[fv->getName()], args, call->getLine());
-      return app(fv->getName(), args);
+      std::vector<T> as;
+      for (auto *a : call->getActuals()) as.push_back(I(a, nullptr, sub));
+      if (onSpecCall) onSpecCall(g, as, call->getLine());
+      return app(g->getName(), as);
     }
     throw Unsupported(where(e) + "unsupported expression in verification: " + text(e));
   }
@@ -700,14 +1018,41 @@ public:
     return Not(Eq(I(e, pre, sub), num(0)));
   }
 
-  T spec(ASTExpr *e, const Sub *sub = nullptr) { return B(e, nullptr, sub); }
+  T spec(ASTExpr *e, const Sub *sub = nullptr, const Sub *olds = nullptr) {
+    auto saved = oldSub;
+    oldSub = olds;
+    auto t = B(e, nullptr, sub);
+    oldSub = saved;
+    return t;
+  }
+  // A measure is an int (the type checker sees to it); rank(t) makes one
+  // from a sum value.
   T measure(ASTExpr *e, const Sub *sub = nullptr) { return I(e, nullptr, sub); }
 
 private:
+  const Writes &writes;
   ASTFunction *current = nullptr;
+  Proc proc_;
   std::vector<Obligation> obs;
-  Sub old;
+  Sub old, oldAll;
+  const Sub *oldSub = nullptr;
+  std::map<std::string, std::string> renames; // case binders that shadow
   int fresh = 0;
+
+  std::string name(const std::string &x) const {
+    auto it = renames.find(x);
+    return it == renames.end() ? x : it->second;
+  }
+
+  G havoc(std::vector<std::string> xs, int line, std::string note) {
+    G g;
+    g.kind = G::Havoc;
+    for (auto &x : xs) g.sorts.push_back(proc_.sortOf(x));
+    g.vars = std::move(xs);
+    g.line = line;
+    g.note = std::move(note);
+    return g;
+  }
 
   // The assume that starts a branch; `cond` is the source condition.
   static G guard(T p, T cond, int line, std::string note) {
@@ -732,6 +1077,16 @@ private:
   G stmt(ASTStmt *s) {
     int line = s->getLine();
     if (auto *proof = dynamic_cast<ASTProofStmt *>(s)) {
+      // use L(args): a call of lemma L, for its contract alone.
+      if (proof->getKind() == ASTProofStmt::Kind::Use) {
+        auto *call = dynamic_cast<ASTFunAppExpr *>(proof->getExpr());
+        auto *fv = call ? dynamic_cast<ASTVariableExpr *>(call->getFunction()) : nullptr;
+        if (!fv || !fns.count(fv->getName()) || !fns[fv->getName()]->isLemma())
+          throw Unsupported(where(s) + "use applies only a lemma");
+        std::vector<G> cs;
+        callExpr(call, cs, "");
+        return gSeq(cs);
+      }
       auto P = spec(proof->getExpr());
       if (proof->getKind() == ASTProofStmt::Kind::Assume) return gAssume(P, line, "assume");
       return assertion(P, line, "assertion");
@@ -741,14 +1096,21 @@ private:
       for (auto *t : blk->getStmts()) cs.push_back(stmt(t));
       return gSeq(cs);
     }
+    // Destruction frees memory; to the verifier, values are not memory.
+    if (dynamic_cast<ASTDestroyStmt *>(s) || dynamic_cast<ASTDeclStmt *>(s)) return gSeq({});
+    // x = E, *x = E, **x = E: all assign x's value.
     if (auto *a = dynamic_cast<ASTAssignStmt *>(s)) {
-      auto *x = dynamic_cast<ASTVariableExpr *>(a->getLHS());
-      if (!x) throw Unsupported(where(s) + "assignment through a pointer");
-      if (auto *call = dynamic_cast<ASTFunAppExpr *>(a->getRHS()))
-        return callStmt(x->getName(), call, line);
+      auto root = rootOf(a->getLHS());
+      if (root.empty()) throw Unsupported(where(s) + "unsupported assignment target");
+      auto x = name(root);
       std::vector<G> cs;
+      if (auto *call = dynamic_cast<ASTFunAppExpr *>(a->getRHS())) {
+        T r = callExpr(call, cs, x);
+        if (!(r->kind == Term::Var && r->name == x)) cs.push_back(gAssign(x, r, line));
+        return gSeq(cs);
+      }
       auto e = I(a->getRHS(), &cs, nullptr);
-      cs.push_back(gAssign(x->getName(), e, line));
+      cs.push_back(gAssign(x, e, line));
       return gSeq(cs);
     }
     // if (c) S1 else S2  ==>  { assume c; S1 } [] { assume !c; S2 }
@@ -762,20 +1124,51 @@ private:
       cs.push_back(gChoice(gSeq(t), gSeq(f), line));
       return gSeq(cs);
     }
+    // case E of { A1 -> S1; A2 -> S2; ... }  ==>
+    //   { assume E matches A1; binders := parts of E; S1 }
+    //   [] { assume !(E matches A1); { assume E matches A2; ... } [] ... }
+    // If no arm matches, nothing happens.
+    if (auto *c = dynamic_cast<ASTCaseStmt *>(s)) {
+      std::vector<G> cs;
+      T t = I(c->getCaseExpr(), &cs, nullptr);
+      auto arms = c->getArms();
+      G rest = gSeq({});
+      for (int k = (int)arms.size() - 1; k >= 0; --k) {
+        auto *arm = arms[k];
+        std::vector<std::pair<ASTDeclNode *, T>> binds;
+        T m = matchCtor(arm->getTag(), arm->getPatterns(), t, binds);
+        auto saved = renames;
+        std::vector<G> body{guard(m, m, arm->getLine(), "case " + showArm(arm))};
+        for (auto &[d, v] : binds) {
+          auto b = d->getName();
+          auto bs = sortOfTerm(v, sortLookup);
+          std::string target = b;
+          if (proc_.sorts.count(b) && proc_.sorts[b] != bs) target = b + "#" + std::to_string(fresh++);
+          proc_.sorts[target] = bs;
+          renames[b] = target;
+          body.push_back(gAssign(target, v, arm->getLine(), "bind " + b));
+        }
+        body.push_back(stmt(arm->getBody()));
+        renames = saved;
+        rest = gChoice(gSeq(body), gSeq({guard(Not(m), m, arm->getLine(), "not " + showArm(arm)), rest}),
+                       arm->getLine());
+      }
+      cs.push_back(rest);
+      return gSeq(cs);
+    }
     // while (c) invariant J decreases D S  ==>
     //   assert J; havoc x...; assume J;
     //   { assume c; m := D; S; assert J; assert 0 <= m && D < m; assume false }
     //   [] { assume !c }
-    // where x... are the variables S assigns.
+    // where x... are the variables S may change.
     if (auto *w = dynamic_cast<ASTWhileStmt *>(s)) {
       std::vector<T> inv;
       for (auto *e : w->getInvariants()) inv.push_back(spec(e));
       T J = And(inv);
       std::vector<G> cs{assertion(J, line, "loop invariant holds on entry")};
-      std::set<std::string> mods;
-      collectAssigned(w->getBody(), mods);
-      if (!mods.empty())
-        cs.push_back(gHavoc({mods.begin(), mods.end()}, line, "an arbitrary iteration"));
+      std::vector<std::string> mods;
+      for (auto &x : writes.assigned(w->getBody())) mods.push_back(name(x));
+      if (!mods.empty()) cs.push_back(havoc(mods, line, "an arbitrary iteration"));
       cs.push_back(gAssume(J, line, "loop invariant"));
       auto c = B(w->getCondition(), &cs, nullptr);
       std::vector<G> once{guard(c, c, line, "loop body")};
@@ -804,25 +1197,32 @@ private:
     throw Unsupported(where(s) + "unsupported statement in verification");
   }
 
-  // x = g(args), against g's contract, not its body:
-  //   assert pre_g[args]; havoc x; assume post_g[args, x]
-  // A recursive call must also decrease g's measure.
-  G callStmt(const std::string &x, ASTFunAppExpr *call, int line) {
+  // A call g(args), against g's contract, not its body:
+  //   assert pre_g[args]; havoc r; assume post_g[args, r]
+  // and the call's value is r.  A recursive call must also decrease g's
+  // measure.  For each borrowed parameter g writes, the caller's variable x
+  // gets a new value x' that post_g describes.  `target` is the variable the
+  // value is assigned to, if any, so it can receive r directly.
+  T callExpr(ASTFunAppExpr *call, std::vector<G> &cs, const std::string &target) {
+    int line = call->getLine();
     auto *fv = dynamic_cast<ASTVariableExpr *>(call->getFunction());
-    if (!fv || !fns.count(fv->getName()))
-      throw Unsupported(where(call) + "a call through a function value");
     auto *g = fns[fv->getName()];
-    std::vector<G> cs;
-    std::vector<T> args;
-    for (auto *a : call->getActuals()) args.push_back(I(a, &cs, nullptr));
-    Sub at;
     auto formals = g->getFormals();
-    for (size_t k = 0; k < formals.size(); ++k) at[formals[k]->getName()] = args[k];
+    auto actuals = call->getActuals();
+    std::vector<T> args;
+    std::vector<std::string> roots;
+    for (size_t k = 0; k < actuals.size(); ++k) {
+      args.push_back(I(actuals[k], &cs, nullptr));
+      roots.push_back(k < formals.size() && TY.isBorrow(formals[k]) ? name(rootOf(actuals[k])) : "");
+    }
+    Sub at, olds;
+    for (size_t k = 0; k < formals.size() && k < args.size(); ++k)
+      at[formals[k]->getName()] = olds[formals[k]->getName()] = args[k];
 
     if (g == current) {
       T ok = FALSE;
       if (auto *D = g->getDecreases()) {
-        auto now = measure(D, &at), before = measure(D, &old);
+        auto now = measure(D, &at), before = measure(D, &oldAll);
         ok = And({op("<=", {num(0), now}), op("<", {now, before})});
       }
       cs.push_back(assertion(ok, line, g->getDecreases() ? "recursive call decreases the measure"
@@ -832,23 +1232,48 @@ private:
     for (auto *e : g->getRequires()) req.push_back(spec(e, &at));
     cs.push_back(assertion(And(req), line, "precondition of " + g->getName()));
 
-    // If x is also an argument, the result goes to a temporary first.
+    // The in-out model needs the written places to be distinct: two borrows
+    // of one variable, either of them written, is the case it cannot handle.
+    std::vector<std::string> outs, outVars;
+    bool overlap = false;
+    for (size_t k = 0; k < roots.size(); ++k) {
+      if (!writes.isWritten(g->getName(), (int)k)) continue;
+      if (roots[k].empty())
+        throw Unsupported(where(call) + "a written borrow must name a variable");
+      for (size_t j = 0; j < roots.size(); ++j)
+        overlap = overlap || (j != k && roots[j] == roots[k]);
+      if (std::count(outs.begin(), outs.end(), roots[k])) continue;
+      auto after = roots[k] + "'";
+      proc_.sorts[after] = proc_.sortOf(roots[k]);
+      at[formals[k]->getName()] = var(after);
+      outs.push_back(roots[k]);
+      outVars.push_back(after);
+    }
+
+    if (overlap) cs.push_back(assertion(FALSE, line, "borrowed arguments do not overlap"));
+
     std::set<std::string> fv2;
     for (auto &a : args) freeVars(a, fv2);
-    std::string r = fv2.count(x) ? g->getName() + ".result" : x;
-    cs.push_back(gHavoc({r}, line, "result of " + g->getName()));
+    std::string r = target;
+    if (r.empty() || fv2.count(r) || std::count(outs.begin(), outs.end(), r))
+      r = g->getName() + "#" + std::to_string(fresh++);
+    proc_.sorts[r] = TY.fnSort[g->getName()];
+    std::vector<std::string> hv{r};
+    hv.insert(hv.end(), outVars.begin(), outVars.end());
+    cs.push_back(havoc(hv, line, "result of " + g->getName()));
     at["result"] = var(r);
     std::vector<T> ens;
-    for (auto *e : g->getEnsures()) ens.push_back(spec(e, &at));
+    for (auto *e : g->getEnsures()) ens.push_back(spec(e, &at, &olds));
     cs.push_back(gAssume(And(ens), line, "postcondition of " + g->getName()));
-    if (r != x) cs.push_back(gAssign(x, var(r), line));
-    return gSeq(cs);
+    for (size_t k = 0; k < outs.size(); ++k)
+      cs.push_back(gAssign(outs[k], var(outVars[k]), line, "written through the borrow"));
+    return var(r);
   }
 };
 
 // ===========================================================================
 // Spec functions.  A spec function is pure: no loops, input, output, error,
-// heap, or calls to ordinary functions.  With each if merged into an ite,
+// or calls to ordinary functions.  With each if and case merged into an ite,
 // its body is one term; it becomes an uninterpreted function and a defining
 // axiom, triggered on each application.  A recursive call must decrease the
 // function's measure: a definition that does not terminate, like
@@ -872,22 +1297,33 @@ public:
     low.onSpecCall = [this](ASTFunction *g, const std::vector<T> &args, int line) {
       if (g == current && !inMeasure) termination(g, args, line);
     };
+    low.sortLookup = [this](const std::string &x) {
+      auto it = sorts.find(x);
+      return it == sorts.end() ? std::string("Int") : it->second;
+    };
     for (auto *f : p->getFunctions()) {
       if (!f->isSpec()) continue;
       try {
         current = f;
         env.clear();
         path.clear();
-        std::string params, ints;
+        sorts.clear();
+        std::string params, sig;
         std::vector<T> xs;
         for (auto *x : f->getFormals()) {
+          auto s = TY.sortOf(x);
+          sorts[x->getName()] = s;
           env[x->getName()] = var(x->getName());
-          params += "(|" + x->getName() + "| Int)";
-          ints += " Int";
+          params += "(|" + x->getName() + "| " + s + ")";
+          sig += " " + s;
           xs.push_back(var(x->getName()));
         }
         for (auto *d : f->getDeclarations())
-          for (auto *v : d->getVars()) env[v->getName()] = num(0);
+          for (auto *v : d->getVars()) {
+            auto s = TY.sortOf(v);
+            sorts[v->getName()] = s;
+            env[v->getName()] = s == "Int" ? num(0) : var("unset!" + f->getName() + "." + v->getName());
+          }
         params0 = env;
         auto stmts = f->getStmts();
         for (size_t i = 0; i + 1 < stmts.size(); ++i) stmt(stmts[i]);
@@ -896,7 +1332,13 @@ public:
         T call = app(f->getName(), xs);
         lhs[f->getName()] = call;
         rhs[f->getName()] = body;
-        decls += "(declare-fun |" + f->getName() + "| (" + ints + ") Int)\n";
+        decls += "(declare-fun |" + f->getName() + "| (" + sig + ") " + TY.fnSort[f->getName()] + ")\n";
+        // A local of a datatype sort that some path leaves unset.
+        std::set<std::string> fv;
+        freeVars(body, fv);
+        for (auto &u : fv)
+          if (u.rfind("unset!", 0) == 0)
+            decls += "(declare-const |" + u + "| " + sorts[u.substr(u.rfind('.') + 1)] + ")\n";
         // The trigger tells Z3 to instantiate the axiom once for each
         // application it sees, which unfolds the definition exactly where a
         // proof needs it.
@@ -916,20 +1358,22 @@ private:
   Lower &low;
   ASTFunction *current = nullptr;
   Sub env, params0;
-  std::vector<T> path; // the conditions of the enclosing ifs
+  std::map<std::string, std::string> sorts;
+  std::vector<T> path; // the conditions of the enclosing ifs and arms
   bool inMeasure = false;
 
   void stmt(ASTStmt *s) {
     if (dynamic_cast<ASTProofStmt *>(s))
       throw Unsupported(where(s) + "assert or assume in a spec function");
+    if (dynamic_cast<ASTDestroyStmt *>(s) || dynamic_cast<ASTDeclStmt *>(s)) return;
     if (auto *b = dynamic_cast<ASTBlockStmt *>(s)) {
       for (auto *t : b->getStmts()) stmt(t);
       return;
     }
     if (auto *a = dynamic_cast<ASTAssignStmt *>(s)) {
-      auto *x = dynamic_cast<ASTVariableExpr *>(a->getLHS());
-      if (!x) throw Unsupported(where(s) + "assignment through a pointer");
-      env[x->getName()] = low.I(a->getRHS(), nullptr, &env);
+      auto x = rootOf(a->getLHS());
+      if (x.empty()) throw Unsupported(where(s) + "unsupported assignment target");
+      env[x] = low.I(a->getRHS(), nullptr, &env);
       return;
     }
     if (auto *i = dynamic_cast<ASTIfStmt *>(s)) {
@@ -943,8 +1387,39 @@ private:
       if (i->getElse()) stmt(i->getElse());
       path.pop_back();
       Sub e2 = env;
-      for (auto &[x, v1] : e1)
-        if (smt(v1) != smt(e2[x])) env[x] = op("ite", {c, v1, e2[x]});
+      env = before;
+      for (auto &[x, v0] : before)
+        if (smt(e1[x]) != smt(e2[x])) env[x] = op("ite", {c, e1[x], e2[x]});
+        else env[x] = e1[x];
+      return;
+    }
+    if (auto *c = dynamic_cast<ASTCaseStmt *>(s)) {
+      T t = low.I(c->getCaseExpr(), nullptr, &env);
+      Sub before = env;
+      std::vector<T> conds, earlier;
+      std::vector<Sub> outs;
+      for (auto *arm : c->getArms()) {
+        std::vector<std::pair<ASTDeclNode *, T>> binds;
+        T m = matchCtor(arm->getTag(), arm->getPatterns(), t, binds);
+        env = before;
+        for (auto &[d, v] : binds) {
+          env[d->getName()] = v;
+          sorts[d->getName()] = sortOfTerm(v, low.sortLookup);
+        }
+        auto here = earlier;
+        here.push_back(m);
+        path.push_back(And(here));
+        stmt(arm->getBody());
+        path.pop_back();
+        outs.push_back(env);
+        conds.push_back(m);
+        earlier.push_back(Not(m));
+      }
+      Sub res = before;
+      for (int k = (int)outs.size() - 1; k >= 0; --k)
+        for (auto &[x, v0] : before)
+          if (smt(outs[k][x]) != smt(res[x])) res[x] = op("ite", {conds[k], outs[k][x], res[x]});
+      env = res;
       return;
     }
     throw Unsupported(where(s) + "a spec function may not contain this statement");
@@ -960,14 +1435,15 @@ private:
       auto formals = g->getFormals();
       for (size_t k = 0; k < formals.size(); ++k) atCall[formals[k]->getName()] = args[k];
       inMeasure = true;
-      auto now = low.I(D, nullptr, &atCall), before = low.I(D, nullptr, &atEntry);
+      auto now = low.measure(D, &atCall), before = low.measure(D, &atEntry);
       inMeasure = false;
       P = And({op("<=", {num(0), now}), op("<", {now, before})});
       what = "recursive call decreases the measure";
     }
     T F = path.empty() ? P : Implies(And(path), P);
     std::string q;
-    for (auto *x : g->getFormals()) q += "(declare-const |" + x->getName() + "| Int)\n";
+    for (auto *x : g->getFormals())
+      q += "(declare-const |" + x->getName() + "| " + sorts[x->getName()] + ")\n";
     q += "(assert (not " + smt(F) + "))\n";
     checks.push_back({g->getName(), {line, what}, q, F});
   }
@@ -986,13 +1462,15 @@ private:
 struct Passive {
   G prog;
   std::vector<std::string> versions; // declared constants
-  std::vector<std::string> entry;    // the formals' entry versions
+  std::map<std::string, std::string> sorts;
+  std::vector<std::string> entry; // the formals' entry versions
 };
 
 class Passivize {
 public:
   Passive run(const Proc &p) {
     out = Passive{};
+    proc = &p;
     count.clear();
     dead = false;
     Sub env;
@@ -1008,19 +1486,21 @@ public:
 
 private:
   Passive out;
+  const Proc *proc = nullptr;
   std::map<std::string, int> count;
   bool dead = false; // the path so far ends in assume false
 
   std::string version(const std::string &x) {
     auto v = x + "@" + std::to_string(count[x]++);
     out.versions.push_back(v);
+    out.sorts[v] = proc->sortOf(x);
     return v;
   }
   T at(const T &t, Sub &env) {
     std::set<std::string> fv;
     freeVars(t, fv);
     for (auto &x : fv)
-      if (!env.count(x)) env[x] = var(version(x));
+      if (!env.count(x) && x.rfind("unset!", 0) != 0) env[x] = var(version(x));
     return subst(t, env);
   }
 
@@ -1114,7 +1594,7 @@ T wp(const G &c, const T &Q, int target) {
   case G::Assume: return isTrue(c.p) ? Q : Implies(c.p, Q);
   case G::Assert: return checked(c, target) ? And({c.p, Q}) : Implies(c.p, Q);
   case G::Assign: return let(c.x, c.p, Q);
-  case G::Havoc: return forall(c.vars, Q);
+  case G::Havoc: return forall(c.vars, c.sorts, Q);
   case G::Seq: {
     T R = Q;
     for (auto it = c.kids.rbegin(); it != c.kids.rend(); ++it) R = wp(*it, R, target);
@@ -1202,7 +1682,7 @@ private:
 
 std::string passiveQuery(const Passive &pv, const PassiveVC &vc) {
   std::string q;
-  for (auto &v : pv.versions) q += "(declare-const |" + v + "| Int)\n";
+  for (auto &v : pv.versions) q += "(declare-const |" + v + "| " + pv.sorts.at(v) + ")\n";
   for (auto &[n, t] : vc.defs) q += "(define-fun |" + n + "| () Bool " + smt(t) + ")\n";
   q += "(assert (not " + smt(vc.ok) + "))\n";
   return q;
@@ -1259,7 +1739,7 @@ Outline outline(const G &c, const T &Q, int ind = 0) {
   case G::Assume: return prim(simp(Implies(c.p, Q)));
   case G::Assert: return prim(simp(And({c.p, Q})));
   case G::Assign: return prim(simp(subst(Q, {{c.x, c.p}})));
-  case G::Havoc: return prim(simp(forall(c.vars, Q)));
+  case G::Havoc: return prim(simp(forall(c.vars, c.sorts, Q)));
   case G::Seq: {
     std::vector<std::vector<std::string>> parts;
     T q = Q;
@@ -1325,11 +1805,18 @@ SX parseSX(const std::string &s, size_t &i) {
   i = j;
   return x;
 }
+// A model value as text: (- 1) is -1, (|Node| 1 |Leaf| |Leaf|) is
+// Node(1, Leaf, Leaf).
 std::string valueOf(const SX &x) {
-  if (!x.list) return x.atom;
+  if (!x.list) {
+    auto a = x.atom;
+    if (a.size() > 1 && a.front() == '|') a = a.substr(1, a.size() - 2);
+    return a;
+  }
   if (x.kids.size() == 2 && x.kids[0].atom == "-") return "-" + valueOf(x.kids[1]);
-  std::string s = "(";
-  for (size_t i = 0; i < x.kids.size(); ++i) s += (i ? " " : "") + valueOf(x.kids[i]);
+  if (x.kids.empty()) return "()";
+  std::string s = valueOf(x.kids[0]) + "(";
+  for (size_t i = 1; i < x.kids.size(); ++i) s += (i > 1 ? ", " : "") + valueOf(x.kids[i]);
   return s + ")";
 }
 
@@ -1345,10 +1832,7 @@ public:
   Trace(const std::map<std::string, std::string> &val, int target) : val(val), target(target) {
     for (auto &[k, v] : val) {
       if (k.size() < 3 || k.front() != '|') continue;
-      try {
-        nums[k.substr(1, k.size() - 2)] = num(std::stoll(v));
-      } catch (...) {
-      }
+      vals[k.substr(1, k.size() - 2)] = var(v);
     }
   }
   std::vector<std::string> lines;
@@ -1367,12 +1851,12 @@ public:
     case G::Assert:
       if (c.id != target) return false;
       emit(c.line, "FAILS: " + c.note, "");
-      lines.push_back(pad(14) + flat(subst(c.p, nums)));
+      lines.push_back(pad(14) + flat(subst(c.p, vals)));
       return true;
     case G::Havoc: {
       std::vector<std::string> vs;
       for (auto &v : c.vars) vs.push_back(baseName(v) + " = " + get("|" + v + "|"));
-      emit(c.line, c.note + " (" + note(c) + ")", join(vs));
+      emit(c.line, c.note, join(vs));
       return false;
     }
     case G::Seq:
@@ -1396,12 +1880,9 @@ public:
 
 private:
   std::map<std::string, std::string> val;
-  Sub nums;
+  Sub vals;
   int target;
 
-  static std::string note(const G &c) {
-    return c.vars.size() == 1 && c.note.rfind("havoc input", 0) == 0 ? "input" : "arbitrary";
-  }
   static const G *first(const G &c) {
     if (c.kind == G::Seq) return c.kids.empty() ? nullptr : first(c.kids[0]);
     return &c;
@@ -1410,14 +1891,14 @@ private:
     auto it = val.find(k);
     return it == val.end() ? "?" : it->second;
   }
-  void emit(int line, const std::string &what, const std::string &vals) {
+  void emit(int line, const std::string &what, const std::string &vs) {
     std::string s = "line " + std::to_string(line);
     s.resize(10, ' ');
     s += what;
-    if (!vals.empty()) {
+    if (!vs.empty()) {
       if (s.size() < 44) s.resize(44, ' ');
       else s += "   ";
-      s += vals;
+      s += vs;
     }
     lines.push_back("    " + s);
   }
@@ -1432,23 +1913,34 @@ const char *PRELUDE =
 // A spec function exists only in specifications: code may not mention it.
 // The visitor does not enter specifications, so only code is checked.
 class SpecUse : public ASTVisitor {
-  std::set<std::string> specs;
+  std::set<std::string> specs, lemmas;
   bool inSpecFn = false;
 
 public:
   explicit SpecUse(ASTProgram *p) {
-    for (auto *f : p->getFunctions())
+    for (auto *f : p->getFunctions()) {
       if (f->isSpec()) specs.insert(f->getName());
+      if (f->isLemma()) lemmas.insert(f->getName());
+    }
   }
   bool visit(ASTFunction *f) override {
     inSpecFn = f->isSpec();
     return true;
+  }
+  void endVisit(ASTRankExpr *r) override {
+    if (!inSpecFn)
+      throw SemanticError("rank used in code on line " + std::to_string(r->getLine()) +
+                        "; rank exists only in specifications");
   }
   void endVisit(ASTVariableExpr *v) override {
     if (!inSpecFn && specs.count(v->getName()))
       throw SemanticError("spec function " + v->getName() + " used in code on line " +
                           std::to_string(v->getLine()) +
                           "; spec functions are erased and exist only in specifications");
+    if (lemmas.count(v->getName()))
+      throw SemanticError("lemma " + v->getName() + " used on line " +
+                          std::to_string(v->getLine()) +
+                          "; a lemma is erased and is applied only with use");
   }
 };
 
@@ -1462,9 +1954,12 @@ void VCGen::checkSpecUse(ASTProgram *program) {
   program->accept(&check);
 }
 
-bool VCGen::verify(ASTProgram *program, const std::string &smtFile, std::ostream &out,
-                   const Options &opt) {
-  Lower low(program);
+bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string &smtFile,
+                   std::ostream &out, const Options &opt) {
+  TY = Types{};
+  TY.build(program, types);
+  Writes writes(program);
+  Lower low(program, writes);
   SpecFns specs(program, low);
   Passivize passivize;
   PassiveVCGen passiveVC;
@@ -1507,7 +2002,7 @@ bool VCGen::verify(ASTProgram *program, const std::string &smtFile, std::ostream
   };
   auto wanted = [&](const std::string &fn) { return opt.fn.empty() || opt.fn == fn; };
 
-  std::string base = std::string(PRELUDE) + "(set-option :timeout 10000)\n" + specs.decls;
+  std::string base = std::string(PRELUDE) + "(set-option :timeout 10000)\n" + TY.decls + specs.decls;
 
   // ---- spec functions -----------------------------------------------------
   if (opt.pspec) {
@@ -1531,30 +2026,9 @@ bool VCGen::verify(ASTProgram *program, const std::string &smtFile, std::ostream
     }
   }
 
-  // 1. Termination of spec functions, using no definitions at all.
-  std::vector<Query> queries;
-  std::set<std::string> unsound;
-  for (auto &c : specs.checks) {
-    Query q{"spec " + c.fn, c.ob, c.query + "(check-sat)\n"};
-    auto [v, rest] = run(base + q.text);
-    q.verdict = v;
-    if (v != "unsat") unsound.insert(c.fn);
-    queries.push_back(q);
-  }
-
-  // 2. A spec function's definition is used only if it terminates.
-  std::map<std::string, std::string> usable;
-  std::string defs;
-  for (auto &[fn, ax] : specs.axioms) {
-    if (unsound.count(fn) && !opt.trustSpecs) {
-      out << "spec " << fn << ": does not terminate; its definition is not used\n";
-      continue;
-    }
-    if (unsound.count(fn))
-      out << "spec " << fn << ": does not terminate, but --trust-specs uses its definition\n";
-    usable[fn] = ax;
-    defs += ax;
-  }
+  // Definitions a query may need: rank functions always, spec functions
+  // only if they terminate (step 2).
+  std::map<std::string, std::string> usable = TY.rankAxioms;
   // A query gets only the definitions it mentions (and those they mention).
   // An unneeded quantified definition can keep Z3 from finding a
   // counterexample, so it answers unknown instead of sat.
@@ -1575,17 +2049,42 @@ bool VCGen::verify(ASTProgram *program, const std::string &smtFile, std::ostream
     return p;
   };
 
+  // 1. Termination of spec functions, using no spec definitions at all.
+  std::vector<Query> queries;
+  std::set<std::string> unsound;
+  for (auto &c : specs.checks) {
+    Query q{"spec " + c.fn, c.ob, c.query + "(check-sat)\n"};
+    auto [v, rest] = run(preludeFor(q.text) + q.text);
+    q.verdict = v;
+    if (v != "unsat") unsound.insert(c.fn);
+    queries.push_back(q);
+  }
+
+  // 2. A spec function's definition is used only if it terminates.
+  std::string defs;
+  for (auto &[fn, ax] : specs.axioms) {
+    if (unsound.count(fn) && !opt.trustSpecs) {
+      out << "spec " << fn << ": does not terminate; its definition is not used\n";
+      continue;
+    }
+    if (unsound.count(fn))
+      out << "spec " << fn << ": does not terminate, but --trust-specs uses its definition\n";
+    usable[fn] = ax;
+    defs += ax;
+  }
+
   // 3. Every obligation of every function, one query each.
   for (auto *f : program->getFunctions()) {
     if (f->isSpec() || !wanted(f->getName())) continue;
     Proc proc;
+    Passive pv;
     try {
       proc = low.proc(f);
+      pv = passivize.run(proc);
     } catch (Unsupported &u) {
       out << f->getName() << ": skipped (" << u.what() << ")\n";
       continue;
     }
-    Passive pv = passivize.run(proc);
 
     std::string sig = f->getName() + "(";
     for (size_t i = 0; i < f->getFormals().size(); ++i)
@@ -1634,7 +2133,7 @@ bool VCGen::verify(ASTProgram *program, const std::string &smtFile, std::ostream
       } else {
         model.clear();
         for (auto *p : f->getFormals()) {
-          t += "(declare-const |" + p->getName() + "| Int)\n";
+          t += "(declare-const |" + p->getName() + "| " + proc.sortOf(p->getName()) + ")\n";
           model.push_back(p->getName());
         }
         t += "(assert (not " + smt(wpFunction(proc, (int)k)) + "))\n";
@@ -1653,7 +2152,15 @@ bool VCGen::verify(ASTProgram *program, const std::string &smtFile, std::ostream
             << full << "\n";
       auto [v, rest] = run(full);
       q.verdict = v;
-      if (v != "unsat") q.model = oneLine(rest);
+      if (v != "unsat") {
+        size_t i = 0;
+        SX vals = parseSX(rest, i);
+        std::vector<std::string> shown;
+        for (size_t j = 0; j < vals.kids.size() && j < model.size(); ++j)
+          if (vals.kids[j].kids.size() == 2)
+            shown.push_back(baseName(model[j]) + " = " + valueOf(vals.kids[j].kids[1]));
+        q.model = shown.empty() ? oneLine(rest) : join(shown);
+      }
 
       // A trace for a failure comes from the passive query (the obligations
       // are the same in both modes), asked for every version and every
@@ -1676,7 +2183,7 @@ bool VCGen::verify(ASTProgram *program, const std::string &smtFile, std::ostream
           Trace tr(val, (int)k);
           std::vector<std::string> vs;
           for (auto &e : pv.entry) vs.push_back(baseName(e) + " = " + val["|" + e + "|"]);
-          tr.lines.push_back("    entry     " + join(vs));
+          if (!vs.empty()) tr.lines.push_back("    entry     " + join(vs));
           tr.walk(pv.prog);
           q.trace = tr.lines;
         }
@@ -1688,6 +2195,7 @@ bool VCGen::verify(ASTProgram *program, const std::string &smtFile, std::ostream
   // The same queries as one readable SMT-LIB file.
   std::ofstream smtOut(smtFile);
   smtOut << base;
+  for (auto &[r, ax] : TY.rankAxioms) smtOut << ax;
   for (auto &q : queries)
     if (q.fn.rfind("spec ", 0) == 0)
       smtOut << "\n; " << q.fn << ", line " << q.ob.line << ": " << q.ob.what << "\n(push)\n"
@@ -1718,6 +2226,8 @@ bool VCGen::verify(ASTProgram *program, const std::string &smtFile, std::ostream
         << r.ob.line << ": " << r.ob.what;
     if (!ok && r.trace.empty() && !r.model.empty() && r.model.find("error") == std::string::npos)
       out << "   when " << r.model;
+    if (r.verdict != "sat" && r.verdict != "unsat" && r.verdict != "unknown")
+      out << "   (z3: " << r.verdict << ")";
     out << "\n";
     for (auto &l : r.trace) out << l << "\n";
   }

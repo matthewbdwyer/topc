@@ -21,6 +21,7 @@ class ASTFunction : public ASTNode {
   // VERUTOP: a spec function exists only for specifications; DECREASES is
   // the termination measure of a recursive function.
   bool ISSPEC = false;
+  bool ISLEMMA = false;
   std::shared_ptr<ASTExpr> DECREASES;
 
 public:
@@ -57,6 +58,10 @@ public:
   ASTDeclNode *getResultDecl() const { return RESULT.get(); }
   void setSpecFunction(bool isSpec) { ISSPEC = isSpec; }
   bool isSpec() const { return ISSPEC; }
+  //! VERUTOP: a lemma is verified like code, used only by `use`, and erased.
+  void setLemma(bool isLemma) { ISLEMMA = isLemma; }
+  bool isLemma() const { return ISLEMMA; }
+  bool isErased() const { return ISSPEC || ISLEMMA; }
   void setDecreases(std::shared_ptr<ASTExpr> d) { DECREASES = std::move(d); }
   ASTExpr *getDecreases() const { return DECREASES.get(); }
   std::vector<ASTDeclNode *> getFormals() const;

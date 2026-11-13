@@ -4,7 +4,7 @@
 #include "ASTExpr.h"
 #include "ASTVisitor.h"
 
-/*! \brief VERUTOP: an assert or assume statement.
+/*! \brief VERUTOP: an assert, assume, or use (of a lemma) statement.
  *
  * To every pass that does not walk specifications it is an empty block, so
  * ownership, the CFG, and code generation need no change: the statement is
@@ -12,7 +12,7 @@
  */
 class ASTProofStmt : public ASTBlockStmt {
 public:
-  enum class Kind { Assert, Assume };
+  enum class Kind { Assert, Assume, Use };
 
 private:
   Kind KIND;
@@ -33,7 +33,8 @@ public:
 
 protected:
   std::ostream &print(std::ostream &out) const override {
-    out << (KIND == Kind::Assert ? "assert " : "assume ") << *EXPR << ";";
+    out << (KIND == Kind::Assert ? "assert " : KIND == Kind::Assume ? "assume " : "use ")
+        << *EXPR << ";";
     return out;
   }
 };

@@ -1,4 +1,6 @@
 #include "ASTBuilder.h"
+#include "ASTOldExpr.h"
+#include "ASTRankExpr.h"
 #include "ASTProofStmt.h"
 
 #include "ASTCtorPattern.h"
@@ -171,6 +173,7 @@ Any ASTBuilder::visitFunction(TOPParser::FunctionContext *ctx) {
     }
   }
   visitedFunction->setSpecFunction(ctx->KSPEC() != nullptr);
+  visitedFunction->setLemma(ctx->KLEMMA() != nullptr);
   visitedFunction->setDecreases(dec);
   std::shared_ptr<ASTDeclNode> resultDecl;
   if (!ens.empty()) {
@@ -325,6 +328,15 @@ Any ASTBuilder::visitAssumeStmt(TOPParser::AssumeStmtContext *ctx) {
   return "";
 }
 
+Any ASTBuilder::visitUseStmt(TOPParser::UseStmtContext *ctx) {
+  visit(ctx->expr());
+  visitedStmt =
+      std::make_shared<ASTProofStmt>(ASTProofStmt::Kind::Use, visitedExpr);
+  visitedStmt->setLocation(ctx->getStart()->getLine(),
+                           ctx->getStart()->getCharPositionInLine());
+  return "";
+}
+
 Any ASTBuilder::visitParenExpr(TOPParser::ParenExprContext *ctx) {
   visit(ctx->expr());
   // leave visitedExpr from expr unchanged
@@ -388,6 +400,24 @@ Any ASTBuilder::visitFunAppExpr(TOPParser::FunAppExprContext *ctx) {
   LOG_S(1) << "Built AST node " << *visitedExpr;
 
   // Set source location
+  visitedExpr->setLocation(ctx->getStart()->getLine(),
+                           ctx->getStart()->getCharPositionInLine());
+  return "";
+}
+
+// VERUTOP: old(E), only meaningful in an ensures clause.
+Any ASTBuilder::visitOldExpr(TOPParser::OldExprContext *ctx) {
+  visit(ctx->expr());
+  visitedExpr = std::make_shared<ASTOldExpr>(visitedExpr);
+  visitedExpr->setLocation(ctx->getStart()->getLine(),
+                           ctx->getStart()->getCharPositionInLine());
+  return "";
+}
+
+// VERUTOP: rank(E), the size of a sum value; only in specifications.
+Any ASTBuilder::visitRankExpr(TOPParser::RankExprContext *ctx) {
+  visit(ctx->expr());
+  visitedExpr = std::make_shared<ASTRankExpr>(visitedExpr);
   visitedExpr->setLocation(ctx->getStart()->getLine(),
                            ctx->getStart()->getCharPositionInLine());
   return "";

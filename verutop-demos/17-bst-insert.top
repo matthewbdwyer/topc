@@ -1,0 +1,87 @@
+// Insertion into a binary search tree (test/system/iotests/recursive_tree.top),
+// with a contract.  insert takes the tree by value: case moves the subtrees
+// out of the old node, and a new node is built around the recursive call.
+// To the verifier the tree is a value, so the contract speaks of values:
+// the new tree has one more node, and it has v.
+//
+// main's loop invariant ties the tree to the count of inputs read.
+type Tree = Leaf | Node(val, left, right);
+
+spec size(t)
+  decreases rank(t)
+{
+  var n;
+  case t of {
+    Leaf -> n = 0;
+    Node(x, l, r) -> n = 1 + size(l) + size(r);
+  }
+  return n;
+}
+
+spec has(t, v)
+  decreases rank(t)
+{
+  var b;
+  b = 0;
+  case t of {
+    Leaf -> b = 0;
+    Node(x, l, r) -> { if (x == v || has(l, v) || has(r, v)) { b = 1; } }
+  }
+  return b;
+}
+
+insert(t, v)
+  ensures size(result) == size(t) + 1
+  ensures has(result, v)
+  decreases rank(t)
+{
+  var res;
+  case t of {
+    Leaf -> res = Node(v, Leaf, Leaf);
+    Node(x, l, r) -> {
+      if (v > x) {
+        res = Node(x, l, insert(r, v));
+      } else {
+        if (x > v) {
+          res = Node(x, insert(l, v), r);
+        } else {
+          res = Node(x, l, insert(r, v));
+        }
+      }
+    }
+  }
+  return res;
+}
+
+// Consuming inorder traversal frees the tree as it goes.
+inorder(t)
+  decreases rank(t)
+{
+  var dummy;
+  case t of {
+    Leaf -> { dummy = 0; }
+    Node(v, l, r) -> {
+      dummy = inorder(l);
+      output v;
+      dummy = inorder(r);
+    }
+  }
+  return 0;
+}
+
+main() {
+  var t, n, count, dummy;
+  t = Leaf;
+  count = 0;
+  n = input;
+  while (n != 0)
+    invariant size(t) == count
+  {
+    t = insert(t, n);
+    count = count + 1;
+    n = input;
+  }
+  assert size(t) == count;
+  dummy = inorder(t);
+  return count;
+}

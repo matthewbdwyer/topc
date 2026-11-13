@@ -1,0 +1,128 @@
+// The borrow selftest (test/system/selftests/borrow-tree-reborrow.top), with
+// contracts.  size, sum, and copy read a tree through a borrow; consume takes
+// it by value; peek reads through a borrow of an owned box; setVal writes an
+// int through a borrow.
+//
+// What ownership buys the verifier:
+// - A borrowed tree is just a value, so copy can promise result == *e: the
+//   copy equals the original, with no talk of addresses.
+// - main lends f to size, sum, and copy, and needs no frame condition to know
+//   f is unchanged: none of them writes through its borrow, so f keeps its
+//   value.  Only setVal writes, and its contract says what it writes.
+type Expr = Num(n) | X | Add(l, r);
+
+spec count(e)
+  decreases rank(e)
+{
+  var r;
+  case e of {
+    Num(n)    -> r = 1;
+    X         -> r = 1;
+    Add(a, b) -> r = 1 + count(a) + count(b);
+  }
+  return r;
+}
+
+spec eval(e, x)
+  decreases rank(e)
+{
+  var r;
+  case e of {
+    Num(n)    -> r = n;
+    X         -> r = x;
+    Add(a, b) -> r = eval(a, x) + eval(b, x);
+  }
+  return r;
+}
+
+size(e)
+  ensures result == count(*e)
+  ensures result >= 1
+  decreases rank(*e)
+{
+  var r;
+  case *e of {
+    Num(n)    -> r = 1;
+    X         -> r = 1;
+    Add(a, b) -> r = 1 + size(&a) + size(&b);
+  }
+  return r;
+}
+
+sum(e, x)
+  ensures result == eval(*e, x)
+  decreases rank(*e)
+{
+  var r;
+  case *e of {
+    Num(n)    -> r = n;
+    X         -> r = x;
+    Add(a, b) -> r = sum(&a, x) + sum(&b, x);
+  }
+  return r;
+}
+
+copy(e)
+  ensures result == *e
+  decreases rank(*e)
+{
+  var r;
+  case *e of {
+    Num(n)    -> r = Num(n);
+    X         -> r = X;
+    Add(a, b) -> r = Add(copy(&a), copy(&b));
+  }
+  return r;
+}
+
+// Consumes its argument: by-value case moves the payloads out of the box.
+consume(e)
+  ensures result == eval(e, 0)
+  decreases rank(e)
+{
+  var r;
+  case e of {
+    Num(n)    -> r = n;
+    X         -> r = 0;
+    Add(a, b) -> r = consume(a) + consume(b);
+  }
+  return r;
+}
+
+peek(p)
+  ensures result == **p
+{
+  return **p;
+}
+
+setVal(p, v)
+  ensures *p == v
+{
+  *p = v;
+  return 0;
+}
+
+main() {
+  var f, g, n, k, d;
+
+  f = Add(Num(1), Add(X, Num(2)));   // 1 + (x + 2): 5 nodes
+  if (size(&f) != 5) error size(&f);
+  if (sum(&f, 10) != 13) error sum(&f, 10);
+
+  g = copy(&f);                      // fresh tree, f still owned and usable
+  if (size(&g) != 5) error size(&g);
+  if (sum(&f, 1) != sum(&g, 1)) error 1;
+
+  if (consume(g) != 3) error 2;      // g moved into consume and freed there
+  if (size(&f) != 5) error 3;        // f untouched by consuming its copy
+
+  n = alloc 42;
+  if (peek(&n) != 42) error peek(&n);
+  if (peek(&n) != 42) error 4;       // borrowing twice does not move n
+
+  k = 1;
+  d = setVal(&k, 9);
+  if (k != 9) error k;
+
+  return 0;                          // f and n destroyed here, once each
+}

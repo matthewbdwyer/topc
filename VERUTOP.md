@@ -48,7 +48,10 @@ written to `prog.top.vc.smt2`, which is readable SMT-LIB.
 | Proof statements | `assert E;` `assume E;` |
 | Specification operators | `!` `&&` `\|\|` `==>` `<` `<=` `>=` |
 | Spec function | `spec f(x) decreases E { ... return E; }` |
-| Termination | `decreases E` on a function or a loop |
+| Termination | `decreases E` on a function or a loop; `E` is an int |
+| Size of a sum value | `rank(E)`, an int, in specifications only: `decreases rank(t)` |
+| Entry value | `old(E)` in `ensures`: `*p == old(*q)` |
+| Lemma | `lemma f(x) requires ... ensures ... decreases ... { ... }`, applied with `use f(args);` |
 
 `!E` is built as `E == 0`. The other operators are new binary operators.
 `<`, `<=`, `>=`, `&&`, and `\|\|` also work in code, where the connectives do
@@ -69,13 +72,18 @@ not short-circuit.
   release, the CFG, and code generation, an `assert` is an empty block. This
   is erasure, as in Verus, and it is also why a mention of an owned variable
   in a contract is not a move.
+- `old(E)` and `rank(E)` are `ASTOldExpr` and `ASTRankExpr`, which appear
+  only in specifications (`rank` in code is a semantic error); `use`
+  is a third kind of `ASTProofStmt`. A lemma, like a spec function, is
+  skipped by code generation, and code that mentions one is a semantic error.
 - `--verify` runs the full semantic analysis first, then the VC generator, and
-  exits. Without `--verify`, the program compiles and runs as before.
+  exits. Without `--verify`, the program compiles and runs as before. The
+  verifier reads the inferred types to give each variable its SMT sort.
 
-Size: about 300 changed lines in existing files, plus `src/verify/VCGen.cpp`
-(about 1,700 lines: terms and their two printers, lowering, both VC modes,
-spec functions, termination, the proof outline, and counterexample traces) and
-`ASTProofStmt.h` (40).
+Size: about 350 changed lines in existing files, plus `src/verify/VCGen.cpp`
+(about 2,200 lines: terms and their two printers, sorts, lowering, both VC
+modes, spec functions, termination, the proof outline, and counterexample
+traces), `ASTProofStmt.h`, and `ASTOldExpr.h`.
 
 ## The pipeline (`src/verify/VCGen.cpp`), and a view of each stage
 
@@ -113,8 +121,13 @@ them, and both VC generators work on them, not on the AST.
 | `input` | `havoc input#k`, a fresh value |
 | `if (C) S1 else S2` | `{ assume C; S1 } [] { assume !C; S2 }` |
 | `while (C) invariant J decreases D S` | `assert J; havoc x...; assume J; { assume C; m := D; S; assert J; assert 0 <= m && D < m; assume false } [] { assume !C }`, where `x...` are the variables `S` assigns |
-| `x = f(A);` | `assert pre_f[A]; havoc x; assume post_f[A, x]` (and, if recursive, `assert` the measure decreases) |
+| `x = f(A);` | `assert pre_f[A]; havoc x; assume post_f[A, x]` (and, if recursive, `assert` the measure decreases); a call inside an expression gets a fresh result variable `f#k` |
+| `f(&x)`, where `f` writes its parameter | also `havoc x'; ...; x := x'`, with `post_f` relating `x'` (the final `*p`) to `x` (`old(*p)`) |
+| `alloc E`, `*E`, `&E` | `E`: a reference is represented by its referent |
+| `*x = E;` | `x := E` |
+| `case E of { C(a, b) -> S; ... }` | `{ assume E is C; a := E.f1; b := E.f2; S } [] { assume !(E is C); ... }`; nested patterns add tests |
 | `assert P;` `assume P;` | the same |
+| `use L(A);` | the call's contract alone: `assert pre_L[A]; assume post_L[A]` |
 | `error E;` | `assert false; assume false` |
 
 In `ensures`, a formal that the body assigns means its entry value, `old(x)`.
@@ -267,33 +280,58 @@ Substitution copies the rest of the function into both branches of every
 440 bytes per `if`. (The first passive measurements, before removing
 `(and true ...)` noise, were about twice these sizes.)
 
-## What is not there yet, and what ownership buys
+## Heap data: what ownership buys
 
-- **The heap.** The prototype reports `alloc`, `*`, `&`, sum values, and
-  `case` as unsupported and skips the function. TOP's ownership is what makes
-  the next step cheap, because no heap model or separation logic is needed:
-  - an owned box has exactly one owner, so its contents can be a ghost scalar
-    of the owning variable (`*a` reads `a*`; `*a = e` and `a = alloc e` set
-    it; a move `b = a` copies it);
-  - a borrow lives only for the call, so a borrowed parameter is an in-out
-    parameter: the callee's contract speaks of `*p` on entry and on exit, and
-    the caller sets the owner's ghost to the exit value.
-  - **One gap: TOP lets two borrows of one location reach a call.**
-    `two(&x, &x)` is accepted, and both parameters may write. The in-out model
-    is unsound there. Either reject a call whose borrowed arguments name the
-    same place, which is Verus's `&mut` exclusivity rule, or fall back to a
-    heap model.
-  - This needs types in the VC generator, to tell a box from an int; the
-    type results are already computed when `--verify` runs.
-- **Sum types** map to SMT `declare-datatypes`; `case` becomes
-  constructor tests and selectors. Recursive types need recursive
-  specification functions (Verus's `spec fn`) to say anything interesting.
+Dafny and Frama-C model memory as a map from addresses to values. Every
+write updates the map, every pair of pointers might be equal, and every call
+needs a frame condition (`modifies`) to say what it leaves alone. TOP's
+ownership rules remove all three, so VERUTOP has no heap model:
+
+- **A reference is its referent.** An owned box has one owner, so a variable
+  of type `own&T` is represented by the `T` value it holds: `alloc E`, `*E`,
+  and `&E` translate to `E`, and `*p = E` assigns `p`. No two variables share
+  a box, so there is no aliasing to consider.
+- **A sum value is an SMT datatype value.** Each `type` becomes a
+  `declare-datatypes`; `case` becomes constructor tests (`t is Node`) and
+  selectors (`t.left`). `copy` can promise `result == *e`: equality of
+  values, not of addresses.
+- **A borrow is an in-out parameter.** A borrow is only ever a call argument,
+  and TOP forbids writing an owned value through one, so only an int can be
+  written. The callee's `ensures` gives `*p` (the final value) in terms of
+  `old(*p)`; the caller's variable takes that final value.
+- **No frame conditions.** A function that never writes through a borrow
+  leaves the caller's variable alone, and the verifier knows this from the
+  program, not from an annotation: `15-expr-borrow` lends `f` to three
+  functions and proves it unchanged.
+- **One gap: TOP lets two borrows of one variable reach a call.**
+  `swap(&a, &a)` is accepted, and the in-out model is wrong for it. The
+  verifier reports a failed obligation, "borrowed arguments do not overlap",
+  which is Verus's `&mut` exclusivity rule.
+- **Structural termination.** A measure is an int, so recursion on a sum
+  value is measured by `rank`: `decreases rank(t)`. For every `type`, the
+  verifier defines `rank` by an axiom: a value's rank is one more than the
+  sum of the ranks of its fields that are sum values (an int field adds
+  nothing; a boxed field counts as what it holds). So any part is smaller
+  than the whole, for lists, trees, or a pair of lists alike. That a rank is
+  at least 1 needs induction, so the axiom states it; it is true, and
+  trusted.
+- **Induction is the programmer's job.** Z3 does not do induction, so a fact
+  about every subtree needs a lemma: a recursive function, verified like any
+  other, whose recursion is the induction. `18-tree-least` needs one; without
+  it Z3 answers unknown.
+
+## What is not there yet
+
+- **Quantifiers in specifications.** `insert` can promise that the new tree
+  has `v`, but not that it keeps every old value: that needs
+  `forall x :: has(t, x) ==> has(result, x)`.
+- **Polymorphic sum types.** A sum type gets one SMT datatype, so one used
+  at two payload types is not supported.
 - **Overflow.** Mathematical integers are unsound for 64-bit TOP. Verus adds
   an obligation that each `+ - *` stays in range; that is a few lines here.
 - **Calls through function values** need contracts on function types; only
   direct calls by name are supported.
-- **`result` is not reserved.** A program can use it as a variable name, which
-  would confuse the verifier.
+- **Mutual recursion** is not checked for termination.
 
 ## A teaching sequence this supports
 
@@ -306,5 +344,7 @@ Substitution copies the rest of the function into both branches of every
 5. Runtime checks become obligations: `D ≠ 0`, and `error` as unreachable.
 6. Size: `10-many-ifs` with `--pwp` and `--pvc` in both modes; passive form
    (`--ppassive`) keeps it linear.
-7. Why ownership matters: owned boxes as ghost scalars, borrows as in-out
-   parameters, and the `two(&x, &x)` counterexample to that model.
+7. Why ownership matters: `14-tree-height` and `15-expr-borrow` (a borrowed
+   tree is a value; no frame conditions), `16-swap` (in-out borrows, `old`,
+   and the overlap the model cannot handle).
+8. Induction: `18-tree-least`, with and without its lemma.

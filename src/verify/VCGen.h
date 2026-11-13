@@ -4,6 +4,7 @@
 #include <string>
 
 class ASTProgram;
+class TypeInference;
 
 /*! \brief VERUTOP: verification-condition generation for TOP.
  *
@@ -30,6 +31,6 @@ struct Options {
 
 //! Reject a spec function used in code (both with and without --verify).
 void checkSpecUse(ASTProgram *program);
-bool verify(ASTProgram *program, const std::string &smtFile, std::ostream &out,
-            const Options &opt);
+bool verify(ASTProgram *program, TypeInference *types, const std::string &smtFile,
+            std::ostream &out, const Options &opt);
 } // namespace VCGen
