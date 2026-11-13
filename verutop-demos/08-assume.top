@@ -1,0 +1,14 @@
+// assume is trusted, not checked.  assume false makes every later obligation
+// hold, including a postcondition that is plainly wrong.
+answer(x)
+  ensures result == 42
+{
+  assume x > x;
+  return x;
+}
+
+main() {
+  var a;
+  a = answer(5);
+  return a;
+}

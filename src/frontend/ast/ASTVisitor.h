@@ -81,4 +81,9 @@ public:
   virtual void endVisit(ASTWildcardPattern *element) {}
   virtual bool visit(ASTCtorPattern *element) { return true; }
   virtual void endVisit(ASTCtorPattern *element) {}
+
+  /*! VERUTOP: whether this visitor also walks specifications (contracts,
+   * invariants, assert and assume).  Only the symbol and type passes do;
+   * ownership, borrows, release, and code generation never see them. */
+  virtual bool visitSpecs() const { return false; }
 };

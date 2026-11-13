@@ -1,0 +1,20 @@
+// Run-time checks become proof obligations.  average is safe because its
+// precondition rules out a zero divisor; half's postcondition fails because
+// TOP's division truncates toward zero, so half(-1) is 0, not -1.
+average(total, count)
+  requires count > 0
+{
+  return total / count;
+}
+
+half(x)
+  ensures 2 * result <= x
+{
+  return x / 2;
+}
+
+main(k) {
+  var a;
+  a = average(10, k);
+  return a;
+}

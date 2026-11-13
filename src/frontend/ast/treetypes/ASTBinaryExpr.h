@@ -7,7 +7,9 @@
  */
 class ASTBinaryExpr : public ASTExpr {
 public:
-  enum class BinaryOp { Add, Sub, Mul, Div, Gt, Eq, Neq };
+  enum class BinaryOp { Add, Sub, Mul, Div, Gt, Eq, Neq,
+                        // VERUTOP: specification-only operators
+                        Lt, Ge, Le, And, Or, Implies };
 
 private:
   std::string OP;

@@ -26,6 +26,12 @@ void ASTFunction::accept(ASTVisitor *visitor) {
     for (auto d : getDeclarations()) {
       d->accept(visitor);
     }
+    if (visitor->visitSpecs()) {
+      if (RESULT) RESULT->accept(visitor);
+      for (auto &e : REQUIRES) e->accept(visitor);
+      for (auto &e : ENSURES) e->accept(visitor);
+      if (DECREASES) DECREASES->accept(visitor);
+    }
     for (auto s : getStmts()) {
       s->accept(visitor);
     }

@@ -1,0 +1,24 @@
+// The same loop with the invariant i <= x left out.  The invariant is still
+// preserved, but on exit all we know is !(i < x), so i could be past x and
+// the postcondition fails.  Z3 gives a counterexample.
+mult(x, y)
+  requires x >= 0
+  ensures result == x * y
+{
+  var i, r;
+  i = 0;
+  r = 0;
+  while (i < x)
+    invariant r == i * y
+  {
+    r = r + y;
+    i = i + 1;
+  }
+  return r;
+}
+
+main() {
+  var m;
+  m = mult(6, 7);
+  return m;
+}

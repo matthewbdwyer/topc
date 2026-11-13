@@ -1,6 +1,7 @@
 # compiler binary target
 add_executable(topc)
-target_sources(topc PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/topc.cpp)
+target_sources(topc PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/topc.cpp
+                            ${CMAKE_CURRENT_SOURCE_DIR}/verify/VCGen.cpp)
 
 # Build the phase specific libraries
 add_subdirectory(error)
@@ -39,6 +40,7 @@ target_include_directories(
           ${CMAKE_CURRENT_SOURCE_DIR}/semantic/solver/term
           ${CMAKE_CURRENT_SOURCE_DIR}/semantic/weeding
           ${CMAKE_CURRENT_SOURCE_DIR}/codegen
+          ${CMAKE_CURRENT_SOURCE_DIR}/verify
           ${CMAKE_CURRENT_SOURCE_DIR}/optimizer)
 
 

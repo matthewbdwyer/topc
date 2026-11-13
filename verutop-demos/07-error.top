@@ -1,0 +1,28 @@
+// An error statement is an obligation: prove it can never run.
+// lookup's precondition makes the error unreachable; main calls it with a
+// value from the command line and fails the precondition.
+lookup(i)
+  requires i >= 0 && i < 3
+{
+  var v;
+  if (i == 0) {
+    v = 10;
+  } else {
+    if (i == 1) {
+      v = 20;
+    } else {
+      if (i == 2) {
+        v = 30;
+      } else {
+        error 1;
+      }
+    }
+  }
+  return v;
+}
+
+main(i) {
+  var v;
+  v = lookup(i);
+  return v;
+}

@@ -10,6 +10,12 @@ ASTBinaryExpr::BinaryOp ASTBinaryExpr::parseOp(const std::string &op) {
   if (op == ">")  return BinaryOp::Gt;
   if (op == "==") return BinaryOp::Eq;
   if (op == "!=") return BinaryOp::Neq;
+  if (op == "<")  return BinaryOp::Lt;
+  if (op == ">=") return BinaryOp::Ge;
+  if (op == "<=") return BinaryOp::Le;
+  if (op == "&&") return BinaryOp::And;
+  if (op == "||") return BinaryOp::Or;
+  if (op == "==>") return BinaryOp::Implies;
   throw InternalError("Unknown binary operator: " + op);
 }
 

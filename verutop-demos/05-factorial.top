@@ -1,0 +1,27 @@
+// Calls are verified against contracts, not bodies, so recursion works:
+// fact's postcondition is proved assuming the recursive call meets it.  The
+// recursive call must decrease n, or the proof would only be partial.
+// The contract is weak: 11-factorial-variants.top says exactly what fact
+// computes.
+fact(n)
+  requires n >= 0
+  ensures result >= 1
+  ensures result >= n
+  decreases n
+{
+  var r, m;
+  if (n == 0) {
+    r = 1;
+  } else {
+    m = fact(n - 1);
+    r = n * m;
+  }
+  return r;
+}
+
+main() {
+  var f;
+  f = fact(5);
+  assert f >= 5;
+  return f;
+}

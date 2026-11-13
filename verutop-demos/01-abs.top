@@ -1,0 +1,21 @@
+// Weakest precondition of an if: both branches must establish the
+// postcondition.  One query; Z3 proves it.
+abs(x)
+  ensures result >= 0
+  ensures result == x || result == 0 - x
+{
+  var r;
+  if (x > 0) {
+    r = x;
+  } else {
+    r = 0 - x;
+  }
+  return r;
+}
+
+main() {
+  var a;
+  a = abs(0 - 7);
+  assert a == 7;
+  return a;
+}

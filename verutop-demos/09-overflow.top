@@ -1,0 +1,16 @@
+// Verified, and wrong.  The verifier uses mathematical integers, but TOP's
+// are 64-bit and wrap.  Compile and run with 9223372036854775807: the
+// result is not greater than the argument.  Verus adds an obligation that
+// every + - * stays in range.
+next(x)
+  ensures result > x
+{
+  return x + 1;
+}
+
+main(x) {
+  var y;
+  y = next(x);
+  output y > x;
+  return y;
+}

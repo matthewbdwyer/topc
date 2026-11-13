@@ -57,6 +57,11 @@ bool TypeConstraintVisitor::visit(ASTFunction *element) {
  *   [[X]] = ([[X1]], ..., [[Xn]]) -> [[E]]
  */
 void TypeConstraintVisitor::endVisit(ASTFunction *element) {
+  // VERUTOP: in an ensures clause, `result` has the type of the returned value.
+  if (auto *result = element->getResultDecl()) {
+    auto ret = dynamic_cast<ASTReturnStmt *>(element->getStmts().back());
+    constraintHandler->handle(astToVar(result), astToVar(ret->getArg()));
+  }
   if (element->getName() == "main") {
     std::vector<std::shared_ptr<TopType>> formals;
     for (auto &f : element->getFormals()) {

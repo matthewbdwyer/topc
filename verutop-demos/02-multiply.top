@@ -1,0 +1,27 @@
+// A loop needs an invariant.  The invariant r == i * y, with i <= x, is what
+// connects the loop to the postcondition.  decreases x - i proves the loop
+// terminates.
+mult(x, y)
+  requires x >= 0
+  ensures result == x * y
+{
+  var i, r;
+  i = 0;
+  r = 0;
+  while (i < x)
+    invariant i <= x
+    invariant r == i * y
+    decreases x - i
+  {
+    r = r + y;
+    i = i + 1;
+  }
+  return r;
+}
+
+main() {
+  var m;
+  m = mult(6, 7);
+  assert m == 42;
+  return m;
+}

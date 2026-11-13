@@ -1,4 +1,5 @@
 #include "CodeGenerator.h"
+#include "VCGen.h"
 #include "FrontEnd.h"
 #include "InternalError.h"
 #include "Optimizer.h"
@@ -49,6 +50,37 @@ using namespace std;
 static cl::OptionCategory
     TOPcat("topc Options",
            "Options for controlling the TOP compilation process.");
+static cl::opt<bool> verifyOpt("verify",
+                               cl::desc("VERUTOP: verify contracts with Z3"),
+                               cl::cat(TOPcat));
+static cl::opt<std::string>
+    vcMode("vcmode", cl::desc("VERUTOP: wp (substitution) or passive (versioned)"),
+           cl::init("passive"), cl::cat(TOPcat));
+static cl::opt<bool> trustSpecs(
+    "trust-specs",
+    cl::desc("VERUTOP: use spec-function definitions even if they do not terminate"),
+    cl::cat(TOPcat));
+static cl::opt<bool> pgclOpt("pgcl", cl::desc("VERUTOP: print guarded commands"),
+                             cl::cat(TOPcat));
+static cl::opt<bool> ppassiveOpt("ppassive",
+                                 cl::desc("VERUTOP: print passive (versioned) commands"),
+                                 cl::cat(TOPcat));
+static cl::opt<bool> pwpOpt("pwp", cl::desc("VERUTOP: print a proof outline (wp at each point)"),
+                            cl::cat(TOPcat));
+static cl::opt<bool> pvcOpt("pvc", cl::desc("VERUTOP: print each function's VC"),
+                            cl::cat(TOPcat));
+static cl::opt<bool> pspecOpt("pspec",
+                              cl::desc("VERUTOP: print spec-function definitions and termination"),
+                              cl::cat(TOPcat));
+static cl::opt<bool> pcexOpt("pcex", cl::desc("VERUTOP: print a trace for each failure"),
+                             cl::cat(TOPcat));
+static cl::opt<std::string>
+    psmtOpt("psmt", cl::value_desc("line"), cl::ValueOptional,
+            cl::desc("VERUTOP: print the SMT-LIB queries (or only those for one line)"),
+            cl::init(""), cl::cat(TOPcat));
+static cl::opt<std::string> vfnOpt("vfn", cl::value_desc("function"),
+                                   cl::desc("VERUTOP: verify only this function"),
+                                   cl::init(""), cl::cat(TOPcat));
 static cl::opt<bool> psource("psource", cl::desc("print normalized source"),
                cl::cat(TOPcat));
 static cl::opt<std::string>
@@ -569,6 +601,7 @@ int main(int argc, char *argv[]) {
   try {
     std::shared_ptr<ASTProgram> ast = FrontEnd::parse(stream);
 
+
     try {
       std::shared_ptr<SymbolTable> symTable;
       std::shared_ptr<IntraproceduralCFGs> cfgs;
@@ -678,6 +711,30 @@ int main(int argc, char *argv[]) {
             std::make_shared<MoveAnalysis::DestructionPlan>(moves.destructionPlan());
         ownershipChecked = true;
       };
+
+      VCGen::checkSpecUse(ast.get()); // VERUTOP: code may not use spec functions
+
+      // VERUTOP: the program, contracts included, must pass every semantic
+      // check first; then the verifier reads the checked AST.
+      // Any VERUTOP view implies --verify.
+      VCGen::Options vopt;
+      vopt.passive = vcMode == "passive";
+      vopt.trustSpecs = trustSpecs;
+      vopt.pgcl = pgclOpt;
+      vopt.ppassive = ppassiveOpt;
+      vopt.pwp = pwpOpt;
+      vopt.pvc = pvcOpt;
+      vopt.pspec = pspecOpt;
+      vopt.pcex = pcexOpt;
+      vopt.psmt = psmtOpt.getNumOccurrences() > 0;
+      vopt.psmtLine = psmtOpt.empty() ? 0 : std::atoi(psmtOpt.c_str());
+      vopt.fn = vfnOpt;
+      if (verifyOpt || vopt.pgcl || vopt.ppassive || vopt.pwp || vopt.pvc || vopt.pspec ||
+          vopt.pcex || vopt.psmt || !vopt.fn.empty()) {
+        ensureOwnershipResult();
+        bool ok = VCGen::verify(ast.get(), sourceFile + ".vc.smt2", std::cout, vopt);
+        std::exit(ok ? EXIT_SUCCESS : EXIT_FAILURE);
+      }
 
       if (wantsSource) {
         FrontEnd::prettyprint(ast.get(), std::cout);

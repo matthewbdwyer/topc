@@ -123,6 +123,7 @@ CodeGenVisitor::generate(ASTProgram *program,
   {
     int funIndex = 0;
     for (auto const &fn : program->getFunctions()) {
+      if (fn->isSpec()) continue; // VERUTOP: erased
       ctx.functionIndex[fn->getName()] = funIndex++;
 
       auto formalNames = fn->getFormals();
@@ -135,6 +136,7 @@ CodeGenVisitor::generate(ASTProgram *program,
 
     std::vector<llvm::Constant *> programFunctions;
     for (auto const &func : program->getFunctions()) {
+      if (func->isSpec()) continue; // VERUTOP: erased
       programFunctions.emplace_back(getFunction(func->getName(), ctx));
     }
 
@@ -204,6 +206,7 @@ CodeGenVisitor::generate(ASTProgram *program,
           ctx.callocFun->getContext(), 0, llvm::Attribute::NoAlias));
 
   for (auto const fn : program->getFunctions()) {
+    if (fn->isSpec()) continue; // VERUTOP: erased
     generate(fn);
   }
 
@@ -516,6 +519,34 @@ llvm::Value *CodeGenVisitor::generate(ASTBinaryExpr *node) {
     return ctx.irBuilder.CreateIntCast(
         cmp, llvm::IntegerType::getInt64Ty(ctx.llvmContext), false,
         "compare.ne.value");
+  }
+  // VERUTOP: the new comparisons and connectives are also usable in code.
+  // The connectives evaluate both operands (no short circuit).
+  case ASTBinaryExpr::BinaryOp::Lt:
+  case ASTBinaryExpr::BinaryOp::Le:
+  case ASTBinaryExpr::BinaryOp::Ge:
+  case ASTBinaryExpr::BinaryOp::And:
+  case ASTBinaryExpr::BinaryOp::Or:
+  case ASTBinaryExpr::BinaryOp::Implies: {
+    auto &b = ctx.irBuilder;
+    auto *zero = llvm::ConstantInt::get(L->getType(), 0);
+    llvm::Value *v = nullptr;
+    switch (node->getOpKind()) {
+    case ASTBinaryExpr::BinaryOp::Lt: v = b.CreateICmpSLT(L, R); break;
+    case ASTBinaryExpr::BinaryOp::Le: v = b.CreateICmpSLE(L, R); break;
+    case ASTBinaryExpr::BinaryOp::Ge: v = b.CreateICmpSGE(L, R); break;
+    case ASTBinaryExpr::BinaryOp::And:
+      v = b.CreateAnd(b.CreateICmpNE(L, zero), b.CreateICmpNE(R, zero));
+      break;
+    case ASTBinaryExpr::BinaryOp::Or:
+      v = b.CreateOr(b.CreateICmpNE(L, zero), b.CreateICmpNE(R, zero));
+      break;
+    default:
+      v = b.CreateOr(b.CreateICmpEQ(L, zero), b.CreateICmpNE(R, zero));
+      break;
+    }
+    return b.CreateIntCast(v, llvm::IntegerType::getInt64Ty(ctx.llvmContext),
+                           false);
   }
   }
   // LCOV_EXCL_START

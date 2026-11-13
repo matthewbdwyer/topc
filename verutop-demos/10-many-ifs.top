@@ -1,0 +1,31 @@
+// Compare --vcmode=wp with --vcmode=passive.  Substitution copies the rest of
+// the function into both branches of every if; versioning names each path
+// condition once.
+clamp(y)
+  requires y >= 0
+  ensures result >= 0
+{
+  if (y > 1) { y = y - 1; } else { y = y + 1; }
+  if (y > 2) { y = y - 1; } else { y = y + 1; }
+  if (y > 3) { y = y - 1; } else { y = y + 1; }
+  if (y > 4) { y = y - 1; } else { y = y + 1; }
+  if (y > 5) { y = y - 1; } else { y = y + 1; }
+  if (y > 6) { y = y - 1; } else { y = y + 1; }
+  if (y > 7) { y = y - 1; } else { y = y + 1; }
+  if (y > 8) { y = y - 1; } else { y = y + 1; }
+  if (y > 9) { y = y - 1; } else { y = y + 1; }
+  if (y > 10) { y = y - 1; } else { y = y + 1; }
+  if (y > 11) { y = y - 1; } else { y = y + 1; }
+  if (y > 12) { y = y - 1; } else { y = y + 1; }
+  if (y > 13) { y = y - 1; } else { y = y + 1; }
+  if (y > 14) { y = y - 1; } else { y = y + 1; }
+  if (y > 15) { y = y - 1; } else { y = y + 1; }
+  if (y > 16) { y = y - 1; } else { y = y + 1; }
+  return y;
+}
+
+main() {
+  var c;
+  c = clamp(3);
+  return c;
+}

@@ -1,0 +1,150 @@
+// Five implementations of factorial, each proved equal to one mathematical
+// definition.  The spec function is erased: it generates no code and code
+// may not call it.  Every recursive call and loop has a decreases measure,
+// so these are total-correctness proofs.
+
+spec factorial(n)
+  decreases n
+{
+  var r;
+  if (n <= 0) {
+    r = 1;
+  } else {
+    r = n * factorial(n - 1);
+  }
+  return r;
+}
+
+// 1. Recursion, mirroring the definition.
+factRec(n)
+  requires n >= 0
+  ensures result == factorial(n)
+  decreases n
+{
+  var r, m;
+  if (n == 0) {
+    r = 1;
+  } else {
+    m = factRec(n - 1);
+    r = n * m;
+  }
+  return r;
+}
+
+// 2. A loop counting up: r is the factorial of how far we have come.
+factUp(n)
+  requires n >= 0
+  ensures result == factorial(n)
+{
+  var i, r;
+  i = 0;
+  r = 1;
+  while (i < n)
+    invariant 0 <= i && i <= n
+    invariant r == factorial(i)
+    decreases n - i
+  {
+    i = i + 1;
+    r = r * i;
+  }
+  return r;
+}
+
+// 3. A loop counting down: what is accumulated, times what is left,
+//    is the answer.
+factDown(n)
+  requires n >= 0
+  ensures result == factorial(n)
+{
+  var k, acc;
+  k = n;
+  acc = 1;
+  while (k > 0)
+    invariant 0 <= k && k <= n
+    invariant acc * factorial(k) == factorial(n)
+    decreases k
+  {
+    acc = acc * k;
+    k = k - 1;
+  }
+  return acc;
+}
+
+// 4. Tail recursion with an accumulator: the helper's contract says what
+//    the accumulator means.
+factHelp(k, acc)
+  requires k >= 0
+  ensures result == acc * factorial(k)
+  decreases k
+{
+  var r;
+  if (k == 0) {
+    r = acc;
+  } else {
+    r = factHelp(k - 1, acc * k);
+  }
+  return r;
+}
+
+factTail(n)
+  requires n >= 0
+  ensures result == factorial(n)
+{
+  var r;
+  r = factHelp(n, 1);
+  return r;
+}
+
+// 5. Multiplication by repeated addition, reused through its contract.
+mult(x, y)
+  requires x >= 0
+  ensures result == x * y
+{
+  var i, r;
+  i = 0;
+  r = 0;
+  while (i < x)
+    invariant i <= x
+    invariant r == i * y
+    decreases x - i
+  {
+    r = r + y;
+    i = i + 1;
+  }
+  return r;
+}
+
+factAdd(n)
+  requires n >= 0
+  ensures result == factorial(n)
+{
+  var i, r;
+  i = 0;
+  r = 1;
+  while (i < n)
+    invariant 0 <= i && i <= n
+    invariant r == factorial(i)
+    decreases n - i
+  {
+    i = i + 1;
+    r = mult(i, r);
+  }
+  return r;
+}
+
+main() {
+  var a, b, c, d, e;
+  a = factRec(5);
+  b = factUp(5);
+  c = factDown(5);
+  d = factTail(5);
+  e = factAdd(5);
+  assert a == 120;
+  assert a == b && b == c && c == d && d == e;
+  output a;
+  output b;
+  output c;
+  output d;
+  output e;
+  return 0;
+}

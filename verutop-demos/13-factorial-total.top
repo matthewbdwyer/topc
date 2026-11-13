@@ -1,0 +1,61 @@
+// Total correctness: fact returns exactly factorial(n), and it terminates.
+//
+//   requires n >= 0          what callers must guarantee
+//   ensures  result == ...   what fact computes, stated with a spec function
+//   decreases n              why it terminates: each call has a smaller n,
+//                            and n never goes below 0
+//
+// factorial is a spec function: a mathematical definition used only in
+// specifications.  It is checked to terminate before its definition is used,
+// and it is erased: it generates no code.
+
+spec factorial(n)
+  decreases n
+{
+  var r;
+  if (n <= 0) {
+    r = 1;
+  } else {
+    r = n * factorial(n - 1);
+  }
+  return r;
+}
+
+fact(n)
+  requires n >= 0
+  ensures result == factorial(n)
+  decreases n
+{
+  var r, m;
+  if (n == 0) {
+    r = 1;
+  } else {
+    m = fact(n - 1);
+    r = n * m;
+  }
+  return r;
+}
+
+// The same body without the precondition.  Nothing stops n from being
+// negative, and then n - 1 is negative too: the measure is no longer
+// bounded below, and factAny(-1) recurses forever.  The verifier finds
+// this, with n = -1 as the counterexample.
+factAny(n)
+  decreases n
+{
+  var r, m;
+  if (n == 0) {
+    r = 1;
+  } else {
+    m = factAny(n - 1);
+    r = n * m;
+  }
+  return r;
+}
+
+main() {
+  var f;
+  f = fact(10);
+  assert f == 3628800;
+  return f;
+}

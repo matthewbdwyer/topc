@@ -1,4 +1,5 @@
 #include "ASTBuilder.h"
+#include "ASTProofStmt.h"
 
 #include "ASTCtorPattern.h"
 #include "ASTVarPattern.h"
@@ -40,6 +41,15 @@ std::string ASTBuilder::opString(int op) {
     break;
   case TOPParser::NE:
     opStr = "!=";
+    break;
+  case TOPParser::LT:
+    opStr = "<";
+    break;
+  case TOPParser::GE:
+    opStr = ">=";
+    break;
+  case TOPParser::LE:
+    opStr = "<=";
     break;
   default:
     throw std::runtime_error(
@@ -145,6 +155,31 @@ Any ASTBuilder::visitFunction(TOPParser::FunctionContext *ctx) {
   visitedFunction =
       std::make_shared<ASTFunction>(fName, fParams, fDecls, fBody, false);
 
+  // VERUTOP: the contract.  `result` is declared for the ensures clauses.
+  std::vector<std::shared_ptr<ASTExpr>> req, ens;
+  std::shared_ptr<ASTExpr> dec;
+  for (auto spec : ctx->spec()) {
+    if (auto *r = dynamic_cast<TOPParser::RequiresSpecContext *>(spec)) {
+      visit(r->expr());
+      req.push_back(visitedExpr);
+    } else if (auto *e = dynamic_cast<TOPParser::EnsuresSpecContext *>(spec)) {
+      visit(e->expr());
+      ens.push_back(visitedExpr);
+    } else if (auto *d = dynamic_cast<TOPParser::DecreasesSpecContext *>(spec)) {
+      visit(d->expr());
+      dec = visitedExpr;
+    }
+  }
+  visitedFunction->setSpecFunction(ctx->KSPEC() != nullptr);
+  visitedFunction->setDecreases(dec);
+  std::shared_ptr<ASTDeclNode> resultDecl;
+  if (!ens.empty()) {
+    resultDecl = std::make_shared<ASTDeclNode>("result");
+    resultDecl->setLocation(ctx->getStart()->getLine(),
+                            ctx->getStart()->getCharPositionInLine());
+  }
+  visitedFunction->setContract(req, ens, resultDecl);
+
   LOG_S(1) << "Built AST node for function " << *visitedFunction;
 
   // Set source location
@@ -243,6 +278,52 @@ Any ASTBuilder::visitEqualityExpr(TOPParser::EqualityExprContext *ctx) {
   visitBinaryExpr(ctx, opString(ctx->op->getType()));
   return "";
 } // LCOV_EXCL_LINE
+
+// VERUTOP: specification operators.  `!e` is built as `e == 0`; the logical
+// connectives are binary expressions that only --verify interprets.
+Any ASTBuilder::visitNotExpr(TOPParser::NotExprContext *ctx) {
+  visit(ctx->expr());
+  auto zero = std::make_shared<ASTNumberExpr>(0);
+  visitedExpr = std::make_shared<ASTBinaryExpr>("==", visitedExpr, zero);
+  visitedExpr->setLocation(ctx->getStart()->getLine(),
+                           ctx->getStart()->getCharPositionInLine());
+  return "";
+}
+
+Any ASTBuilder::visitAndExpr(TOPParser::AndExprContext *ctx) {
+  visitBinaryExpr(ctx, "&&");
+  return "";
+}
+
+Any ASTBuilder::visitOrExpr(TOPParser::OrExprContext *ctx) {
+  visitBinaryExpr(ctx, "||");
+  return "";
+}
+
+Any ASTBuilder::visitImpliesExpr(TOPParser::ImpliesExprContext *ctx) {
+  visitBinaryExpr(ctx, "==>");
+  return "";
+}
+
+// VERUTOP: an assert or assume.  Passes that skip specifications see an
+// empty block.
+Any ASTBuilder::visitAssertStmt(TOPParser::AssertStmtContext *ctx) {
+  visit(ctx->expr());
+  visitedStmt =
+      std::make_shared<ASTProofStmt>(ASTProofStmt::Kind::Assert, visitedExpr);
+  visitedStmt->setLocation(ctx->getStart()->getLine(),
+                           ctx->getStart()->getCharPositionInLine());
+  return "";
+}
+
+Any ASTBuilder::visitAssumeStmt(TOPParser::AssumeStmtContext *ctx) {
+  visit(ctx->expr());
+  visitedStmt =
+      std::make_shared<ASTProofStmt>(ASTProofStmt::Kind::Assume, visitedExpr);
+  visitedStmt->setLocation(ctx->getStart()->getLine(),
+                           ctx->getStart()->getCharPositionInLine());
+  return "";
+}
 
 Any ASTBuilder::visitParenExpr(TOPParser::ParenExprContext *ctx) {
   visit(ctx->expr());
@@ -395,9 +476,23 @@ Any ASTBuilder::visitBlockStmt(TOPParser::BlockStmtContext *ctx) {
 Any ASTBuilder::visitWhileStmt(TOPParser::WhileStmtContext *ctx) {
   visit(ctx->expr());
   auto cond = visitedExpr;
+  std::vector<std::shared_ptr<ASTExpr>> invariants;
+  std::shared_ptr<ASTExpr> dec;
+  for (auto spec : ctx->loopSpec()) {
+    if (auto *i = dynamic_cast<TOPParser::InvariantSpecContext *>(spec)) {
+      visit(i->expr());
+      invariants.push_back(visitedExpr);
+    } else if (auto *d = dynamic_cast<TOPParser::LoopDecreasesSpecContext *>(spec)) {
+      visit(d->expr());
+      dec = visitedExpr;
+    }
+  }
   visit(ctx->statement());
   auto body = visitedStmt;
-  visitedStmt = std::make_shared<ASTWhileStmt>(cond, body);
+  auto loop = std::make_shared<ASTWhileStmt>(cond, body);
+  loop->setInvariants(invariants);
+  loop->setDecreases(dec);
+  visitedStmt = loop;
 
   LOG_S(1) << "Built AST node " << *visitedStmt;
 

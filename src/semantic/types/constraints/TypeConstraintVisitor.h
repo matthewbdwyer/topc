@@ -21,6 +21,8 @@
  */
 class TypeConstraintVisitor : public ASTVisitor {
 public:
+  bool visitSpecs() const override { return true; } // VERUTOP
+
   TypeConstraintVisitor() = delete;
 
   /**

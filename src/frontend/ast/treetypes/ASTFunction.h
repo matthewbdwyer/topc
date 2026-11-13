@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ASTDeclNode.h"
+#include "ASTExpr.h"
 #include "ASTDeclStmt.h"
 #include "ASTNode.h"
 #include "ASTStmt.h"
@@ -14,6 +15,13 @@ class ASTFunction : public ASTNode {
   std::vector<std::shared_ptr<ASTDeclStmt>> DECLS;
   std::vector<std::shared_ptr<ASTStmt>> BODY;
   bool ISPOLY;
+  // VERUTOP: the contract.  RESULT declares `result` for the ensures clauses.
+  std::vector<std::shared_ptr<ASTExpr>> REQUIRES, ENSURES;
+  std::shared_ptr<ASTDeclNode> RESULT;
+  // VERUTOP: a spec function exists only for specifications; DECREASES is
+  // the termination measure of a recursive function.
+  bool ISSPEC = false;
+  std::shared_ptr<ASTExpr> DECREASES;
 
 public:
   std::vector<std::shared_ptr<ASTNode>> getChildren() override;
@@ -29,6 +37,28 @@ public:
   //! Append a synthetic local declaration (used by for-loop desugaring).
   void addDecl(std::shared_ptr<ASTDeclStmt> d) { DECLS.push_back(std::move(d)); }
   bool isPoly() const { return ISPOLY; };
+  void setContract(std::vector<std::shared_ptr<ASTExpr>> req,
+                   std::vector<std::shared_ptr<ASTExpr>> ens,
+                   std::shared_ptr<ASTDeclNode> result) {
+    REQUIRES = std::move(req);
+    ENSURES = std::move(ens);
+    RESULT = std::move(result);
+  }
+  std::vector<ASTExpr *> getRequires() const {
+    std::vector<ASTExpr *> v;
+    for (auto &e : REQUIRES) v.push_back(e.get());
+    return v;
+  }
+  std::vector<ASTExpr *> getEnsures() const {
+    std::vector<ASTExpr *> v;
+    for (auto &e : ENSURES) v.push_back(e.get());
+    return v;
+  }
+  ASTDeclNode *getResultDecl() const { return RESULT.get(); }
+  void setSpecFunction(bool isSpec) { ISSPEC = isSpec; }
+  bool isSpec() const { return ISSPEC; }
+  void setDecreases(std::shared_ptr<ASTExpr> d) { DECREASES = std::move(d); }
+  ASTExpr *getDecreases() const { return DECREASES.get(); }
   std::vector<ASTDeclNode *> getFormals() const;
   std::vector<ASTDeclStmt *> getDeclarations() const;
   std::vector<ASTStmt *> getStmts() const;

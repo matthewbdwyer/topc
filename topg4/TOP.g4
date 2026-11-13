@@ -7,9 +7,22 @@ grammar TOP;
 program : (typeDecl | function)+
 ;
 
-function : nameDeclaration 
+function : KSPEC? nameDeclaration 
            '(' (nameDeclaration (',' nameDeclaration)*)? ')'
+           spec*
            '{' (declaration*) (statement*) returnStmt '}' 
+;
+
+// VERUTOP: a function's contract.  `result` names the returned value in an
+// ensures clause; a formal in an ensures clause means its value on entry.
+spec : KREQUIRES expr      #requiresSpec
+     | KENSURES expr       #ensuresSpec
+     | KDECREASES expr     #decreasesSpec
+;
+
+// VERUTOP: what a loop promises.
+loopSpec : KINVARIANT expr  #invariantSpec
+         | KDECREASES expr  #loopDecreasesSpec
 ;
 
 ////////////////////// TOP Type Declarations ////////////////////////// 
@@ -46,12 +59,16 @@ nameDeclaration : IDENTIFIER ;
 //
 expr : expr '(' (expr (',' expr)*)? ')' 	#funAppExpr
      | '*' expr 				#deRefExpr
+     | NOT expr					#notExpr
      | SUB NUMBER				#negNumber
      | '&' expr					#refExpr
      | expr op=(MUL | DIV) expr 		#multiplicativeExpr
      | expr op=(ADD | SUB) expr 		#additiveExpr
-     | expr op=GT expr 				#relationalExpr
+     | expr op=(GT | LT | GE | LE) expr 		#relationalExpr
      | expr op=(EQ | NE) expr 			#equalityExpr
+     | expr AND expr				#andExpr
+     | expr OR expr				#orExpr
+     | <assoc=right> expr IMPLIES expr		#impliesExpr
      | CONID '(' expr (',' expr)* ')'		#sumCtorExprWithArgs
      | CONID					#sumCtorExprNoArgs
      | IDENTIFIER				#varExpr
@@ -73,13 +90,20 @@ statement : blockStmt
     | outputStmt
     | errorStmt
     | caseStmt
+    | assertStmt
+    | assumeStmt
 ;
+
+// VERUTOP: proof statements.  They are checked by --verify and erased before
+// code generation.
+assertStmt : KASSERT expr ';' ;
+assumeStmt : KASSUME expr ';' ;
 
 assignStmt : expr '=' expr ';' ;
 
 blockStmt : '{' (statement*) '}' ;
 
-whileStmt : KWHILE '(' expr ')' statement ;
+whileStmt : KWHILE '(' expr ')' loopSpec* statement ;
 
 ifStmt : KIF '(' expr ')' statement (KELSE statement)? ;
 
@@ -109,9 +133,16 @@ MUL : '*' ;
 DIV : '/' ;
 ADD : '+' ;
 SUB : '-' ;
+GE  : '>=' ;
+LE  : '<=' ;
 GT  : '>' ;
+LT  : '<' ;
+IMPLIES : '==>' ;
 EQ  : '==' ;
 NE  : '!=' ;
+AND : '&&' ;
+OR  : '||' ;
+NOT : '!' ;
 
 NUMBER : [0-9]+ ;
 
@@ -128,6 +159,13 @@ KERROR  : 'error' ;
 KTYPE   : 'type' ;
 KCASE   : 'case' ;
 KOF     : 'of' ;
+KREQUIRES  : 'requires' ;
+KENSURES   : 'ensures' ;
+KINVARIANT : 'invariant' ;
+KASSERT    : 'assert' ;
+KASSUME    : 'assume' ;
+KSPEC      : 'spec' ;
+KDECREASES : 'decreases' ;
 
 // Excluded keywords: reserved so their use is a clear parse error, not silently
 // treated as an identifier. TOP has no null.

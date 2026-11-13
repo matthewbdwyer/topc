@@ -37,6 +37,7 @@ public:
         std::map<std::string, std::pair<ASTDeclNode *, bool>> fMap);
 
   virtual bool visit(ASTFunction *element) override;
+  bool visitSpecs() const override { return true; } // VERUTOP
   virtual void endVisit(ASTFunction *element) override;
   virtual void endVisit(ASTDeclNode *element) override;
   virtual void endVisit(ASTVariableExpr *element) override;

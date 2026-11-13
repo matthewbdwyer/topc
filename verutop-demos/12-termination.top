@@ -1,0 +1,63 @@
+// Termination.  A recursive call or a loop without a decreasing measure is
+// rejected, and so is a measure that does not decrease.
+//
+// For a spec function termination is also about soundness.  bad(n) is
+// defined as bad(n) + 1, which no integer satisfies: the definition is false.
+// Its termination check fails; if we ignored that, the false definition
+// would let Z3 prove anything, as liar shows.
+
+count(n)
+  requires n >= 0
+{
+  var m;
+  m = 0;
+  if (n > 0) {
+    m = count(n - 1);
+  }
+  return m;
+}
+
+spin(n)
+  requires n >= 0
+  decreases n
+{
+  var m;
+  m = 0;
+  if (n > 0) {
+    m = spin(n);
+  }
+  return m;
+}
+
+loopUp(n)
+  requires n >= 0
+{
+  var i;
+  i = 0;
+  while (i < n)
+    invariant i <= n
+    decreases i
+  {
+    i = i + 1;
+  }
+  return i;
+}
+
+spec bad(n)
+  decreases n
+{
+  return bad(n) + 1;
+}
+
+liar(x)
+  ensures result == 42
+{
+  assert bad(0) == bad(0);
+  return x;
+}
+
+main() {
+  var a;
+  a = count(3);
+  return a;
+}

@@ -47,6 +47,12 @@ public:
       TOPParser::MultiplicativeExprContext *ctx) override;
   Any visitEqualityExpr(TOPParser::EqualityExprContext *ctx) override;
   Any visitParenExpr(TOPParser::ParenExprContext *ctx) override;
+  Any visitNotExpr(TOPParser::NotExprContext *ctx) override;
+  Any visitAndExpr(TOPParser::AndExprContext *ctx) override;
+  Any visitOrExpr(TOPParser::OrExprContext *ctx) override;
+  Any visitImpliesExpr(TOPParser::ImpliesExprContext *ctx) override;
+  Any visitAssertStmt(TOPParser::AssertStmtContext *ctx) override;
+  Any visitAssumeStmt(TOPParser::AssumeStmtContext *ctx) override;
   Any visitNumExpr(TOPParser::NumExprContext *ctx) override;
   Any visitVarExpr(TOPParser::VarExprContext *ctx) override;
   Any visitInputExpr(TOPParser::InputExprContext *ctx) override;
