@@ -62,7 +62,6 @@
   result := 0;                                // return
   assert true;                                // #4 line 52: postcondition
 
-VC (passive): 12 queries, 11289 bytes in 14-tree-height.top.vc.smt2
 spec hgt:
   proved  line 18: recursive call decreases the measure
   proved  line 19: recursive call decreases the measure

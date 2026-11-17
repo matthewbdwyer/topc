@@ -60,6 +60,10 @@ static cl::opt<bool> trustSpecs(
     "trust-specs",
     cl::desc("VERUTOP: use spec-function definitions even if they do not terminate"),
     cl::cat(TOPcat));
+static cl::opt<long long> vrlimitOpt(
+    "vrlimit", cl::value_desc("n"),
+    cl::desc("VERUTOP: Z3's resource limit for each query (default 20000000)"),
+    cl::init(20000000), cl::cat(TOPcat));
 static cl::opt<bool> pgclOpt("pgcl", cl::desc("VERUTOP: print guarded commands"),
                              cl::cat(TOPcat));
 static cl::opt<bool> ppassiveOpt("ppassive",
@@ -720,6 +724,7 @@ int main(int argc, char *argv[]) {
       VCGen::Options vopt;
       vopt.passive = vcMode == "passive";
       vopt.trustSpecs = trustSpecs;
+      vopt.rlimit = vrlimitOpt;
       vopt.pgcl = pgclOpt;
       vopt.ppassive = ppassiveOpt;
       vopt.pwp = pwpOpt;

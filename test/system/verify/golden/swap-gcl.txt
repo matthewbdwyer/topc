@@ -24,7 +24,6 @@
   result := a;                                // return
   assert true;                                // #6 line 39: postcondition
 
-VC (passive): 7 queries, 5796 bytes in 16-swap.top.vc.smt2
 main:
   proved  line 32: precondition of swap(a, b)
   proved  line 33: assertion

@@ -2011,7 +2011,10 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
   };
   auto wanted = [&](const std::string &fn) { return opt.fn.empty() || opt.fn == fn; };
 
-  std::string base = std::string(PRELUDE) + "(set-option :timeout 10000)\n" + TY.decls + specs.decls;
+  // A limit on Z3's work for one query.  It counts Z3's own steps, not
+  // seconds, so a verdict does not depend on how busy the machine is.
+  std::string base = std::string(PRELUDE) + "(set-option :rlimit " + std::to_string(opt.rlimit) +
+                     ")\n" + TY.decls + specs.decls;
 
   // ---- spec functions -----------------------------------------------------
   if (opt.pspec) {

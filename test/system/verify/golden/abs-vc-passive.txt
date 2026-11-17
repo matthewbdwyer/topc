@@ -9,6 +9,5 @@
   N!6 := N!5 && result@0 == r@3
   VC: N!6 ==> result@0 >= 0 && (result@0 == x@0 || result@0 == 0 - x@0)
 
-VC (passive): 1 queries, 1049 bytes in 01-abs.top.vc.smt2
 abs:
   proved  line 13: postcondition

@@ -18,6 +18,7 @@ namespace VCGen {
 struct Options {
   bool passive = true;    // --vcmode=passive (default) or wp
   bool trustSpecs = false;
+  long long rlimit = 20000000; // --vrlimit: Z3's resource limit for each query
   bool pgcl = false;      // guarded commands
   bool ppassive = false;  // passive (versioned) commands
   bool pwp = false;       // proof outline: wp before each command

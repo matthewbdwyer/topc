@@ -177,7 +177,10 @@ def golden_tests(update):
 
     def one(name, src, flags):
         out = topc(src, flags)
-        out = "\n".join(l for l in out.splitlines() if not l.startswith("profiling:")) + "\n"
+        # The size line counts bytes of SMT-LIB, which any change to the
+        # prelude moves.
+        out = "\n".join(l for l in out.splitlines()
+                        if not l.startswith(("profiling:", "VC ("))) + "\n"
         # Counterexample values vary between Z3 versions.
         out = re.sub(r"\s{3}when .*$", "", out, flags=re.M)
         exp = GOLDEN / (name + ".txt")

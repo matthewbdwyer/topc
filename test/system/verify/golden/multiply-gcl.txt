@@ -22,7 +22,6 @@
   result := r;                                // return
   assert result == x * y;                     // #3 line 19: postcondition
 
-VC (passive): 4 queries, 4795 bytes in 02-multiply.top.vc.smt2
 mult:
   proved  line 11: loop invariant holds on entry
   proved  line 11: loop invariant is preserved

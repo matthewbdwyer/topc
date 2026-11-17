@@ -4,7 +4,6 @@
   result := x / 2;                            // return
   assert 2 * result <= x;                     // #1 line 13: postcondition
 
-VC (passive): 2 queries, 745 bytes in 06-division.top.vc.smt2
 half:
   proved  line 13: divisor is not zero
   FAILED  line 13: postcondition

@@ -11,6 +11,5 @@
   result := r;                                // return
   assert result >= 0 && (result == x || result == 0 - x);  // #0 line 13: postcondition
 
-VC (passive): 1 queries, 1049 bytes in 01-abs.top.vc.smt2
 abs:
   proved  line 13: postcondition
