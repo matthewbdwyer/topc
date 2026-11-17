@@ -1,0 +1,7 @@
+mult	11	proved	loop invariant holds on entry
+mult	11	proved	loop invariant is preserved
+mult	11	proved	loop measure decreases
+mult	19	proved	postcondition
+main	24	proved	precondition of mult(6, 7)
+main	25	proved	assertion
+main	26	proved	postcondition

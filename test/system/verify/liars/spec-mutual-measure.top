@@ -1,0 +1,23 @@
+// A cycle of spec functions with measures that do not decrease across it.
+spec f(n)
+  decreases n
+{
+  return g(n) + 1;
+}
+
+spec g(n)
+  decreases n
+{
+  return f(n);
+}
+
+liar(x)
+  ensures result == 42
+{
+  assert f(0) == g(0) + 1;
+  return 0;
+}
+
+main() {
+  return liar(1);
+}

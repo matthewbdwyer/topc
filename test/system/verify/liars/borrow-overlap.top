@@ -1,0 +1,23 @@
+// Two writable borrows of one variable: the in-out model would give a == 1;
+// the program computes 2.
+bumpBoth(p, q)
+  ensures *p == old(*p) + 1
+  ensures *q == old(*q) + 1
+{
+  *p = *p + 1;
+  *q = *q + 1;
+  return 0;
+}
+
+liar()
+  ensures result == 1
+{
+  var a, d;
+  a = 0;
+  d = bumpBoth(&a, &a);
+  return a;
+}
+
+main() {
+  return liar();
+}

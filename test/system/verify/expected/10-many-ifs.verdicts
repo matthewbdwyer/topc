@@ -1,0 +1,3 @@
+clamp	24	proved	postcondition
+main	29	proved	precondition of clamp(3)
+main	30	proved	postcondition

@@ -1,0 +1,13 @@
+== abs(x)
+-- VC (wp), every obligation checked: it must be valid
+  let r = 0 in
+  (x > 0 ==>
+     (let r = x in
+      let result = r in result >= 0 && (result == x || result == 0 - x))) &&
+  (!(x > 0) ==>
+     (let r = 0 - x in
+      let result = r in result >= 0 && (result == x || result == 0 - x)))
+
+VC (wp): 1 queries, 703 bytes in 01-abs.top.vc.smt2
+abs:
+  proved  line 13: postcondition

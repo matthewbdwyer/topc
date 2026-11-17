@@ -1,0 +1,13 @@
+// The callee's contract is false and its own proof fails; the failure must
+// be reported even though the caller's proof goes through.
+liarSeven()
+  ensures result == 8
+{
+  return 7;
+}
+
+main()
+  ensures result == 8
+{
+  return liarSeven();
+}

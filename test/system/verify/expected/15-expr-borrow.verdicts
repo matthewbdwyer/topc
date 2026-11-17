@@ -1,0 +1,47 @@
+spec count	21	proved	recursive call decreases the measure
+spec count	21	proved	recursive call decreases the measure
+spec eval	33	proved	recursive call decreases the measure
+spec eval	33	proved	recursive call decreases the measure
+size	47	proved	recursive call decreases the measure
+size	47	proved	precondition of size(a)
+size	47	proved	recursive call decreases the measure
+size	47	proved	precondition of size(b)
+size	49	proved	postcondition
+sum	60	proved	recursive call decreases the measure
+sum	60	proved	precondition of sum(a, x)
+sum	60	proved	recursive call decreases the measure
+sum	60	proved	precondition of sum(b, x)
+sum	62	proved	postcondition
+copy	73	proved	recursive call decreases the measure
+copy	73	proved	precondition of copy(a)
+copy	73	proved	recursive call decreases the measure
+copy	73	proved	precondition of copy(b)
+copy	75	proved	postcondition
+consume	87	proved	recursive call decreases the measure
+consume	87	proved	precondition of consume(a)
+consume	87	proved	recursive call decreases the measure
+consume	87	proved	precondition of consume(b)
+consume	89	proved	postcondition
+peek	95	proved	postcondition
+setVal	102	proved	postcondition
+main	109	proved	precondition of size(f)
+main	109	proved	error statement is unreachable
+main	110	proved	precondition of sum(f, 10)
+main	110	proved	error statement is unreachable
+main	112	proved	precondition of copy(f)
+main	113	proved	precondition of size(g)
+main	113	proved	error statement is unreachable
+main	114	proved	precondition of sum(f, 1)
+main	114	proved	precondition of sum(g, 1)
+main	114	proved	error statement is unreachable
+main	116	proved	precondition of consume(g)
+main	116	proved	error statement is unreachable
+main	117	proved	precondition of size(f)
+main	117	proved	error statement is unreachable
+main	120	proved	precondition of peek(n)
+main	120	proved	error statement is unreachable
+main	121	proved	precondition of peek(n)
+main	121	proved	error statement is unreachable
+main	124	proved	precondition of setVal(k, 9)
+main	125	proved	error statement is unreachable
+main	127	proved	postcondition

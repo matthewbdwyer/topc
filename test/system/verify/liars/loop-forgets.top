@@ -1,0 +1,20 @@
+// The loop changes x; the invariant says nothing about it.
+liar()
+  ensures result == 5
+{
+  var i, x;
+  i = 0;
+  x = 5;
+  while (i < 3)
+    invariant i <= 3
+    decreases 3 - i
+  {
+    x = 0;
+    i = i + 1;
+  }
+  return x;
+}
+
+main() {
+  return liar();
+}

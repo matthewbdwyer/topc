@@ -1,0 +1,10 @@
+spec factorial	19	proved	recursive call decreases the measure
+fact	33	proved	recursive call decreases the measure
+fact	33	proved	precondition of fact(n - 1)
+fact	36	proved	postcondition
+factAny	50	FAILED	recursive call decreases the measure
+factAny	50	proved	precondition of factAny(n - 1)
+factAny	53	proved	postcondition
+main	58	proved	precondition of fact(10)
+main	59	proved	assertion
+main	60	proved	postcondition

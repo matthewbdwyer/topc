@@ -1,0 +1,23 @@
+spec has	20	proved	recursive call decreases the measure
+spec has	20	proved	recursive call decreases the measure
+spec allGe	33	proved	recursive call decreases the measure
+spec allGe	33	proved	recursive call decreases the measure
+lowerBound	47	proved	recursive call decreases the measure
+lowerBound	47	proved	precondition of lowerBound(l, m, b)
+lowerBound	48	proved	recursive call decreases the measure
+lowerBound	48	proved	precondition of lowerBound(r, m, b)
+lowerBound	51	proved	postcondition
+least	66	proved	recursive call decreases the measure
+least	66	proved	precondition of least(l, m)
+least	67	proved	recursive call decreases the measure
+least	67	proved	precondition of least(r, a)
+least	68	proved	precondition of lowerBound(l, a, m)
+least	71	proved	postcondition
+least0	86	proved	recursive call decreases the measure
+least0	86	proved	precondition of least0(l, m)
+least0	87	proved	recursive call decreases the measure
+least0	87	proved	precondition of least0(r, a)
+least0	90	UNKNOWN	postcondition
+main	96	proved	precondition of least(t, 1000)
+main	97	proved	assertion
+main	98	proved	postcondition

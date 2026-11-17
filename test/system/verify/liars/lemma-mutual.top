@@ -1,0 +1,18 @@
+// Two lemmas, each proved from the other.
+lemma liarA(n)
+  ensures 0 == 1
+{
+  use liarB(n);
+  return 0;
+}
+
+lemma liarB(n)
+  ensures 0 == 1
+{
+  use liarA(n);
+  return 0;
+}
+
+main() {
+  return 0;
+}

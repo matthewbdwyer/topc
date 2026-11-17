@@ -866,7 +866,14 @@ def main() -> int:
     parser.add_argument("--soundness", action="store_true",
                         help="run only the ownership soundness grid "
                              "(test/system/soundness; not part of the default run)")
+    parser.add_argument("--verifier", action="store_true",
+                        help="run only the VERUTOP verifier tests "
+                             "(test/system/verify; needs z3; not part of the default run)")
     args = parser.parse_args()
+
+    if args.verifier:
+        return subprocess.call([sys.executable, str(SCRIPT_DIR / "verify" / "runner.py"),
+                                "-j", str(max(args.jobs, 4))] + (["-v"] if args.verbose else []))
 
     if not TOPCLANG:
         print("error: TOPCLANG env var must be set", file=sys.stderr)

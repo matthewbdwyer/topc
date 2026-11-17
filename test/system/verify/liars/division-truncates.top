@@ -1,0 +1,10 @@
+// TOP division truncates toward zero: -1 / 2 is 0, and 0 <= -1 is false.
+liar(x)
+  ensures 2 * result <= x
+{
+  return x / 2;
+}
+
+main() {
+  return liar(0 - 1);
+}

@@ -1,0 +1,12 @@
+# name: file (from the repository root) and topc flags.  Output: name.txt.
+abs-gcl:         verutop-demos/01-abs.top --pgcl --vfn=abs
+abs-passive:     verutop-demos/01-abs.top --ppassive --vfn=abs
+abs-outline:     verutop-demos/01-abs.top --pwp --vfn=abs
+abs-vc-wp:       verutop-demos/01-abs.top --pvc --vcmode=wp --vfn=abs
+abs-vc-passive:  verutop-demos/01-abs.top --pvc --vfn=abs
+abs-smt:         verutop-demos/01-abs.top --psmt --vfn=abs
+multiply-gcl:    verutop-demos/02-multiply.top --pgcl --vfn=mult
+division-gcl:    verutop-demos/06-division.top --pgcl --vfn=half
+factorial-spec:  verutop-demos/05-factorial.top --pspec
+swap-gcl:        verutop-demos/16-swap.top --pgcl --vfn=main
+height-gcl:      verutop-demos/14-tree-height.top --pgcl

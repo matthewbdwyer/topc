@@ -1,0 +1,19 @@
+// set writes through its borrow and says nothing about it; the caller may
+// not assume a is unchanged.
+set(p) {
+  *p = 7;
+  return 0;
+}
+
+liar()
+  ensures result == 1
+{
+  var a, d;
+  a = 1;
+  d = set(&a);
+  return a;
+}
+
+main() {
+  return liar();
+}

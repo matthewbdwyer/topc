@@ -1,0 +1,11 @@
+// An assumption that cannot hold proves everything after it.
+liar(x)
+  ensures result == 42
+{
+  assume x > x;
+  return x;
+}
+
+main() {
+  return liar(5);
+}

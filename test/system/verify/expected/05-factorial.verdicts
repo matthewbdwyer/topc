@@ -1,0 +1,6 @@
+fact	16	proved	recursive call decreases the measure
+fact	16	proved	precondition of fact(n - 1)
+fact	19	proved	postcondition
+main	24	proved	precondition of fact(5)
+main	25	proved	assertion
+main	26	proved	postcondition

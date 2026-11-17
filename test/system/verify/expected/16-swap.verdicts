@@ -1,0 +1,9 @@
+swap	18	proved	postcondition
+bump	25	proved	postcondition
+main	32	proved	precondition of swap(a, b)
+main	33	proved	assertion
+main	35	proved	precondition of bump(a, b)
+main	36	proved	assertion
+main	38	proved	precondition of swap(a, a)
+main	38	FAILED	borrowed arguments do not overlap
+main	39	proved	postcondition

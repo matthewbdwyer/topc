@@ -1,0 +1,80 @@
+== height(p)
+-- guarded commands
+  h := 0;                                     // locals start at 0
+  lh := 0;                                    // locals start at 0
+  rh := 0;                                    // locals start at 0
+  {
+    assume p is Leaf;                         // case Leaf
+    h := 0;
+  } [] {
+    assume !(p is Leaf);                      // not Leaf
+    {
+      assume p is Node;                       // case Node(v, l, r)
+      v := p.val;                             // bind v
+      l := p.left;                            // bind l
+      r := p.right;                           // bind r
+      assert 0 <= rank(l) && rank(l) < rank(p);  // #0 line 35: recursive call decreases the measure
+      assert true;                            // #1 line 35: precondition of height(l)
+      havoc lh;                               // result of height(l)
+      assume lh == hgt(l) && lh >= 0;         // postcondition of height(l)
+      assert 0 <= rank(r) && rank(r) < rank(p);  // #2 line 36: recursive call decreases the measure
+      assert true;                            // #3 line 36: precondition of height(r)
+      havoc rh;                               // result of height(r)
+      assume rh == hgt(r) && rh >= 0;         // postcondition of height(r)
+      {
+        assume lh > rh;                       // then
+        h := 1 + lh;
+      } [] {
+        assume !(lh > rh);                    // else
+        h := 1 + rh;
+      }
+    } [] {
+      assume !(p is Node);                    // not Node(v, l, r)
+    }
+  }
+  result := h;                                // return
+  assert result == hgt(p) && result >= 0;     // #4 line 44: postcondition
+
+== main()
+-- guarded commands
+  havoc t;                                    // no initial value
+  t := Node(1, Node(2, Leaf, Node(3, Leaf, Leaf)), Leaf);
+  assert true;                                // #0 line 50: precondition of height(t)
+  havoc height#0;                             // result of height(t)
+  assume height#0 == hgt(t) && height#0 >= 0; // postcondition of height(t)
+  {
+    assume height#0 != 3;                     // then
+    assert false;                             // #1 line 50: error statement is unreachable
+    assume false;                             // the program stops
+  } [] {
+    assume !(height#0 != 3);                  // else
+  }
+  assert true;                                // #2 line 51: precondition of height(t)
+  havoc height#1;                             // result of height(t)
+  assume height#1 == hgt(t) && height#1 >= 0; // postcondition of height(t)
+  {
+    assume height#1 != 3;                     // then
+    assert false;                             // #3 line 51: error statement is unreachable
+    assume false;                             // the program stops
+  } [] {
+    assume !(height#1 != 3);                  // else
+  }
+  result := 0;                                // return
+  assert true;                                // #4 line 52: postcondition
+
+VC (passive): 12 queries, 11289 bytes in 14-tree-height.top.vc.smt2
+spec hgt:
+  proved  line 18: recursive call decreases the measure
+  proved  line 19: recursive call decreases the measure
+height:
+  proved  line 35: recursive call decreases the measure
+  proved  line 35: precondition of height(l)
+  proved  line 36: recursive call decreases the measure
+  proved  line 36: precondition of height(r)
+  proved  line 44: postcondition
+main:
+  proved  line 50: precondition of height(t)
+  proved  line 50: error statement is unreachable
+  proved  line 51: precondition of height(t)
+  proved  line 51: error statement is unreachable
+  proved  line 52: postcondition

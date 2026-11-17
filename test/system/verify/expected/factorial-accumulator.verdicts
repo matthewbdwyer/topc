@@ -1,0 +1,9 @@
+spec factorial	11	proved	recursive call decreases the measure
+factHelp	25	proved	recursive call decreases the measure
+factHelp	25	proved	precondition of factHelp(k - 1, acc * k)
+factHelp	27	proved	postcondition
+fact	35	proved	precondition of factHelp(n, 1)
+fact	36	proved	postcondition
+main	41	proved	precondition of fact(5)
+main	42	proved	assertion
+main	43	proved	postcondition

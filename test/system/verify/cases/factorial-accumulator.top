@@ -1,0 +1,44 @@
+// The implementation computes factorial with an accumulator; the spec
+// function defines it by recursion.  fact's contract says what it computes;
+// the helper's contract says what the accumulator means.
+spec factorial(n)
+  decreases n
+{
+  var r;
+  if (n <= 0) {
+    r = 1;
+  } else {
+    r = n * factorial(n - 1);
+  }
+  return r;
+}
+
+factHelp(k, acc)
+  requires k >= 0
+  ensures result == acc * factorial(k)
+  decreases k
+{
+  var r;
+  if (k == 0) {
+    r = acc;
+  } else {
+    r = factHelp(k - 1, acc * k);
+  }
+  return r;
+}
+
+fact(n)
+  requires n >= 0
+  ensures result == factorial(n)
+{
+  var r;
+  r = factHelp(n, 1);
+  return r;
+}
+
+main() {
+  var f;
+  f = fact(5);
+  assert f == 120;
+  return f;
+}

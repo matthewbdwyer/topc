@@ -1,0 +1,18 @@
+// bad(n) = bad(n) + 1 has no solution.  Used as an axiom it proves anything,
+// so the definition must be withheld when its termination check fails.
+spec bad(n)
+  decreases n
+{
+  return bad(n) + 1;
+}
+
+liar(x)
+  ensures result == 42
+{
+  assert bad(0) == bad(0);
+  return 0;
+}
+
+main() {
+  return liar(1);
+}

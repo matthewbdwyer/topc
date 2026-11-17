@@ -1,0 +1,4 @@
+lookup	17	proved	error statement is unreachable
+lookup	21	proved	postcondition
+main	26	FAILED	precondition of lookup(i)
+main	27	proved	postcondition

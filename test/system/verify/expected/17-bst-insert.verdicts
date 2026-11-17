@@ -1,0 +1,22 @@
+spec size	16	proved	recursive call decreases the measure
+spec size	16	proved	recursive call decreases the measure
+spec has	28	proved	recursive call decreases the measure
+spec has	28	proved	recursive call decreases the measure
+insert	43	proved	recursive call decreases the measure
+insert	43	proved	precondition of insert(r, v)
+insert	46	proved	recursive call decreases the measure
+insert	46	proved	precondition of insert(l, v)
+insert	48	proved	recursive call decreases the measure
+insert	48	proved	precondition of insert(r, v)
+insert	53	proved	postcondition
+inorder	64	proved	recursive call decreases the measure
+inorder	64	proved	precondition of inorder(l)
+inorder	66	proved	recursive call decreases the measure
+inorder	66	proved	precondition of inorder(r)
+inorder	69	proved	postcondition
+main	77	proved	loop invariant holds on entry
+main	77	proved	loop invariant is preserved
+main	80	proved	precondition of insert(t, n)
+main	84	proved	assertion
+main	85	proved	precondition of inorder(t)
+main	86	proved	postcondition

@@ -1,0 +1,19 @@
+// flags: --trust-specs
+// --trust-specs uses a definition whose termination check failed.  The
+// proof that follows is vacuous and must be marked.
+spec bad(n)
+  decreases n
+{
+  return bad(n) + 1;
+}
+
+liar(x)
+  ensures result == 42
+{
+  assert bad(0) == bad(0);
+  return 0;
+}
+
+main() {
+  return liar(1);
+}

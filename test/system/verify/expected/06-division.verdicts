@@ -1,0 +1,6 @@
+average	7	proved	divisor is not zero
+average	7	proved	postcondition
+half	13	proved	divisor is not zero
+half	13	FAILED	postcondition
+main	18	FAILED	precondition of average(10, k)
+main	19	proved	postcondition

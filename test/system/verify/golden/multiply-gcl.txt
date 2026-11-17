@@ -1,0 +1,30 @@
+== mult(x, y)
+-- guarded commands
+  assume x >= 0;                              // requires
+  i := 0;                                     // locals start at 0
+  r := 0;                                     // locals start at 0
+  i := 0;
+  r := 0;
+  assert i <= x && r == i * y;                // #0 line 11: loop invariant holds on entry
+  havoc i, r;                                 // an arbitrary iteration
+  assume i <= x && r == i * y;                // loop invariant
+  {
+    assume i < x;                             // loop body
+    measure#0 := x - i;                       // measure at the start of the body
+    r := r + y;
+    i := i + 1;
+    assert i <= x && r == i * y;              // #1 line 11: loop invariant is preserved
+    assert 0 <= measure#0 && x - i < measure#0;  // #2 line 11: loop measure decreases
+    assume false;                             // this path ends
+  } [] {
+    assume !(i < x);                          // loop exit
+  }
+  result := r;                                // return
+  assert result == x * y;                     // #3 line 19: postcondition
+
+VC (passive): 4 queries, 4795 bytes in 02-multiply.top.vc.smt2
+mult:
+  proved  line 11: loop invariant holds on entry
+  proved  line 11: loop invariant is preserved
+  proved  line 11: loop measure decreases
+  proved  line 19: postcondition

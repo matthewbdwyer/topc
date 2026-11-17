@@ -1,0 +1,12 @@
+spec hgt	18	proved	recursive call decreases the measure
+spec hgt	19	proved	recursive call decreases the measure
+height	35	proved	recursive call decreases the measure
+height	35	proved	precondition of height(l)
+height	36	proved	recursive call decreases the measure
+height	36	proved	precondition of height(r)
+height	44	proved	postcondition
+main	50	proved	precondition of height(t)
+main	50	proved	error statement is unreachable
+main	51	proved	precondition of height(t)
+main	51	proved	error statement is unreachable
+main	52	proved	postcondition

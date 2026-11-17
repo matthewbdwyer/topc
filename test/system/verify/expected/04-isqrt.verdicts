@@ -1,0 +1,6 @@
+isqrt	10	proved	loop invariant holds on entry
+isqrt	10	proved	loop invariant is preserved
+isqrt	16	proved	postcondition
+main	21	proved	precondition of isqrt(50)
+main	22	proved	assertion
+main	23	proved	postcondition

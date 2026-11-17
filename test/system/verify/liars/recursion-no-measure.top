@@ -1,0 +1,12 @@
+// The recursive call's contract promises 42; the function never returns.
+liar(n)
+  ensures result == 42
+{
+  var r;
+  r = liar(n);
+  return r;
+}
+
+main() {
+  return 0;
+}

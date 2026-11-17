@@ -1,0 +1,12 @@
+// input can be any integer.
+liar()
+  ensures result == 0
+{
+  var x;
+  x = input;
+  return x;
+}
+
+main() {
+  return liar();
+}

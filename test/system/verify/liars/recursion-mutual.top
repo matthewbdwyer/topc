@@ -1,0 +1,20 @@
+// The same, through a second function.
+liarA(n)
+  ensures result == 42
+{
+  var r;
+  r = liarB(n);
+  return r;
+}
+
+liarB(n)
+  ensures result == 42
+{
+  var r;
+  r = liarA(n);
+  return r;
+}
+
+main() {
+  return 0;
+}

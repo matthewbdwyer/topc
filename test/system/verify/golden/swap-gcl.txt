@@ -1,0 +1,35 @@
+== main()
+-- guarded commands
+  a := 0;                                     // locals start at 0
+  b := 0;                                     // locals start at 0
+  d := 0;                                     // locals start at 0
+  a := 1;
+  b := 2;
+  assert true;                                // #0 line 32: precondition of swap(a, b)
+  havoc d, a', b';                            // result of swap(a, b)
+  assume a' == b && b' == a;                  // postcondition of swap(a, b)
+  a := a';                                    // written through the borrow
+  b := b';                                    // written through the borrow
+  assert a == 2 && b == 1;                    // #1 line 33: assertion
+  assert true;                                // #2 line 35: precondition of bump(a, b)
+  havoc d, a';                                // result of bump(a, b)
+  assume a' == a + b;                         // postcondition of bump(a, b)
+  a := a';                                    // written through the borrow
+  assert a == 3 && b == 1;                    // #3 line 36: assertion
+  assert true;                                // #4 line 38: precondition of swap(a, a)
+  assert false;                               // #5 line 38: borrowed arguments do not overlap
+  havoc d, a';                                // result of swap(a, a)
+  assume a' == a && a == a;                   // postcondition of swap(a, a)
+  a := a';                                    // written through the borrow
+  result := a;                                // return
+  assert true;                                // #6 line 39: postcondition
+
+VC (passive): 7 queries, 5796 bytes in 16-swap.top.vc.smt2
+main:
+  proved  line 32: precondition of swap(a, b)
+  proved  line 33: assertion
+  proved  line 35: precondition of bump(a, b)
+  proved  line 36: assertion
+  proved  line 38: precondition of swap(a, a)
+  FAILED  line 38: borrowed arguments do not overlap
+  proved  line 39: postcondition

@@ -1,0 +1,26 @@
+; ==== abs #0, line 13: postcondition
+; C-style division: truncates toward zero, unlike SMT-LIB's div
+(define-fun tdiv ((a Int) (b Int)) Int
+  (ite (>= a 0) (ite (> b 0) (div a b) (- (div a (- b))))
+                (ite (> b 0) (- (div (- a) b)) (div (- a) (- b)))))
+(set-option :timeout 10000)
+(declare-const |x@0| Int)
+(declare-const |r@0| Int)
+(declare-const |r@1| Int)
+(declare-const |r@2| Int)
+(declare-const |r@3| Int)
+(declare-const |result@0| Int)
+(define-fun |N!0| () Bool (and (> |x@0| 0) (= |r@1| |x@0|)))
+(define-fun |N!1| () Bool (and |N!0| (= |r@3| |r@1|)))
+(define-fun |N!2| () Bool (and (not (> |x@0| 0)) (= |r@2| (- 0 |x@0|))))
+(define-fun |N!3| () Bool (and |N!2| (= |r@3| |r@2|)))
+(define-fun |N!4| () Bool (or |N!1| |N!3|))
+(define-fun |N!5| () Bool (and (= |r@0| 0) |N!4|))
+(define-fun |N!6| () Bool (and |N!5| (= |result@0| |r@3|)))
+(assert (not (=> |N!6| (and (>= |result@0| 0) (or (= |result@0| |x@0|) (= |result@0| (- 0 |x@0|)))))))
+(check-sat)
+(get-value (|x@0| ))
+
+VC (passive): 1 queries, 1049 bytes in 01-abs.top.vc.smt2
+abs:
+  proved  line 13: postcondition

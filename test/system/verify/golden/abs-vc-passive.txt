@@ -1,0 +1,14 @@
+== abs(x)
+-- VC (passive), every obligation checked: VC must be valid
+  N!0 := x@0 > 0 && r@1 == x@0
+  N!1 := N!0 && r@3 == r@1
+  N!2 := !(x@0 > 0) && r@2 == 0 - x@0
+  N!3 := N!2 && r@3 == r@2
+  N!4 := N!1 || N!3
+  N!5 := r@0 == 0 && N!4
+  N!6 := N!5 && result@0 == r@3
+  VC: N!6 ==> result@0 >= 0 && (result@0 == x@0 || result@0 == 0 - x@0)
+
+VC (passive): 1 queries, 1049 bytes in 01-abs.top.vc.smt2
+abs:
+  proved  line 13: postcondition

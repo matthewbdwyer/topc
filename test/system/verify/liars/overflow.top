@@ -1,0 +1,11 @@
+// flags: --overflow
+// At 9223372036854775807 the sum wraps and the result is smaller than x.
+liar(x)
+  ensures result > x
+{
+  return x + 1;
+}
+
+main(x) {
+  return liar(x);
+}

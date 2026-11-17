@@ -1,0 +1,11 @@
+// A lemma that proves itself by applying itself.
+lemma liarFalse(n)
+  ensures 0 == 1
+{
+  use liarFalse(n);
+  return 0;
+}
+
+main() {
+  return 0;
+}

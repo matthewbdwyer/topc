@@ -1,0 +1,3 @@
+next	8	proved	postcondition
+main	13	proved	precondition of next(x)
+main	15	proved	postcondition

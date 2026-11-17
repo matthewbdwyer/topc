@@ -1,0 +1,11 @@
+// In ensures, x is the caller's argument, not the reassigned local.
+liar(x)
+  ensures result == x
+{
+  x = x + 1;
+  return x;
+}
+
+main() {
+  return liar(1);
+}

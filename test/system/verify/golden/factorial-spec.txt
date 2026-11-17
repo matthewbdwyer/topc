@@ -1,0 +1,9 @@
+VC (passive): 6 queries, 3333 bytes in 05-factorial.top.vc.smt2
+fact:
+  proved  line 16: recursive call decreases the measure
+  proved  line 16: precondition of fact(n - 1)
+  proved  line 19: postcondition
+main:
+  proved  line 24: precondition of fact(5)
+  proved  line 25: assertion
+  proved  line 26: postcondition

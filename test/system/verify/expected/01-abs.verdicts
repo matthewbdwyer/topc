@@ -1,0 +1,4 @@
+abs	13	proved	postcondition
+main	18	proved	precondition of abs(0 - 7)
+main	19	proved	assertion
+main	20	proved	postcondition

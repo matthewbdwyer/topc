@@ -1,0 +1,16 @@
+		note	spec bad: does not terminate; its definition is not used
+spec bad	49	FAILED	recursive call decreases the measure
+count	15	FAILED	recursive call needs a decreases clause
+count	15	proved	precondition of count(n - 1)
+count	17	proved	postcondition
+spin	27	FAILED	recursive call decreases the measure
+spin	27	proved	precondition of spin(n)
+spin	29	proved	postcondition
+loopUp	37	proved	loop invariant holds on entry
+loopUp	37	proved	loop invariant is preserved
+loopUp	37	FAILED	loop measure decreases
+loopUp	43	proved	postcondition
+liar	55	proved	assertion
+liar	56	FAILED	postcondition
+main	61	proved	precondition of count(3)
+main	62	proved	postcondition

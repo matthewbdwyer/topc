@@ -1,0 +1,18 @@
+== abs(x)
+-- passive commands: entry versions x@0
+  assume r@0 == 0;                            // r := 0
+  {
+    assume x@0 > 0;                           // then
+    assume r@1 == x@0;                        // r := x
+    assume r@3 == r@1;                        // merge r
+  } [] {
+    assume !(x@0 > 0);                        // else
+    assume r@2 == 0 - x@0;                    // r := 0 - x
+    assume r@3 == r@2;                        // merge r
+  }
+  assume result@0 == r@3;                     // result := r
+  assert result@0 >= 0 && (result@0 == x@0 || result@0 == 0 - x@0);  // #0 line 13: postcondition
+
+VC (passive): 1 queries, 1049 bytes in 01-abs.top.vc.smt2
+abs:
+  proved  line 13: postcondition
