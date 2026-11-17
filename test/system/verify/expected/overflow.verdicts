@@ -1,0 +1,23 @@
+next	10	proved	x + 1 does not overflow
+next	10	proved	postcondition
+midBad	18	FAILED	lo + hi does not overflow
+midBad	18	proved	divisor is not zero
+midBad	18	proved	(lo + hi) / 2 does not overflow
+midBad	18	proved	postcondition
+mid	25	proved	hi - lo does not overflow
+mid	25	proved	divisor is not zero
+mid	25	proved	(hi - lo) / 2 does not overflow
+mid	25	proved	lo + (hi - lo) / 2 does not overflow
+mid	25	proved	postcondition
+quotient	32	proved	divisor is not zero
+quotient	32	FAILED	x / y does not overflow
+quotient	32	proved	postcondition
+sumTo	43	proved	loop invariant holds on entry
+sumTo	43	proved	loop invariant is preserved
+sumTo	43	proved	loop measure decreases
+sumTo	48	proved	s + i does not overflow
+sumTo	49	proved	i + 1 does not overflow
+sumTo	51	proved	postcondition
+doubleGrows	65	proved	postcondition
+main	72	proved	precondition of next(x)
+main	74	proved	postcondition

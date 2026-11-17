@@ -134,6 +134,9 @@ T rebuild(const T &t, std::vector<T> a) {
 }
 
 const T TRUE = op("true"), FALSE = op("false");
+// A TOP int at run time is a 64-bit integer; in a formula it is a
+// mathematical one.  INT_MIN and INT_MAX are defined in the prelude.
+T inRange(const T &t) { return op("and", {op("<=", {op("INT_MIN"), t}), op("<=", {t, op("INT_MAX")})}); }
 bool isOp(const T &t, const char *o) { return t->kind == Term::Op && t->name == o; }
 bool isTrue(const T &t) { return isOp(t, "true"); }
 bool isFalse(const T &t) { return isOp(t, "false"); }
@@ -706,6 +709,7 @@ struct Proc {
   ASTFunction *fn = nullptr;
   G body;
   std::vector<Obligation> obs;
+  int arithmetic = 0;                       // + - * / in code that no obligation checks
   std::map<std::string, std::string> sorts; // every variable's sort
   std::string sortOf(const std::string &x) const {
     auto it = sorts.find(x);
@@ -896,6 +900,8 @@ public:
   // knows the cycles they form.
   CallEdges *edges = nullptr;
   const Cycles *cycles = nullptr;
+  // --overflow: arithmetic in code must stay in 64 bits.
+  bool overflow = false;
   // Called on each spec-function call in a specification (for termination).
   std::function<void(ASTFunction *, const std::vector<T> &, int)> onSpecCall;
   // The sort of a variable, for measures.
@@ -941,6 +947,12 @@ public:
     std::vector<T> req;
     for (auto *e : f->getRequires()) req.push_back(spec(e));
     if (!req.empty()) cs.push_back(gAssume(And(req), f->getRequires()[0]->getLine(), "requires"));
+    if (machineInts()) {
+      std::vector<T> rs;
+      for (auto *p : f->getFormals())
+        if (sorts[p->getName()] == "Int") rs.push_back(inRange(var(p->getName())));
+      if (!rs.empty()) cs.push_back(gAssume(And(rs), f->getLine(), "arguments are 64-bit values"));
+    }
     for (auto *d : f->getDeclarations())
       for (auto *v : d->getVars()) {
         if (sorts[v->getName()] == "Int")
@@ -1010,16 +1022,26 @@ public:
         auto r = I(b->getRight(), pre, sub);
         return op(o, {l, r});
       };
+      // In code the result must be a 64-bit value; a specification, a
+      // lemma, and the arguments of `use` compute with mathematical ints.
+      auto checked = [&](T t) {
+        if (!pre || ghost || current->isLemma()) return t;
+        if (overflow)
+          pre->push_back(assertion(inRange(t), e->getLine(), flat(t) + " does not overflow"));
+        else
+          ++proc_.arithmetic;
+        return t;
+      };
       switch (b->getOpKind()) {
-      case K::Add: return two("+");
-      case K::Sub: return two("-");
-      case K::Mul: return two("*");
+      case K::Add: return checked(two("+"));
+      case K::Sub: return checked(two("-"));
+      case K::Mul: return checked(two("*"));
       case K::Div: {
         auto t = two("tdiv");
         if (pre)
           pre->push_back(assertion(Not(Eq(t->args[1], num(0))), e->getLine(),
                                    "divisor is not zero"));
-        return t;
+        return checked(t);
       }
       default: return op("ite", {B(e, pre, sub), num(1), num(0)});
       }
@@ -1092,20 +1114,30 @@ private:
   const Sub *oldSub = nullptr;
   std::map<std::string, std::string> renames; // case binders that shadow
   int fresh = 0;
+  int ghost = 0; // inside the arguments of `use`
+
+  // Whether values here are 64-bit values that an obligation keeps in range.
+  bool machineInts() const { return overflow && !ghost && !current->isLemma(); }
 
   std::string name(const std::string &x) const {
     auto it = renames.find(x);
     return it == renames.end() ? x : it->second;
   }
 
+  // An unknown value; an int in code is still a 64-bit value.
   G havoc(std::vector<std::string> xs, int line, std::string note) {
     G g;
     g.kind = G::Havoc;
-    for (auto &x : xs) g.sorts.push_back(proc_.sortOf(x));
+    std::vector<T> rs;
+    for (auto &x : xs) {
+      g.sorts.push_back(proc_.sortOf(x));
+      if (g.sorts.back() == "Int") rs.push_back(inRange(var(x)));
+    }
     g.vars = std::move(xs);
     g.line = line;
     g.note = std::move(note);
-    return g;
+    if (!machineInts() || rs.empty()) return g;
+    return gSeq({g, gAssume(And(rs), line, "64-bit values")});
   }
 
   // The assume that starts a branch; `cond` is the source condition.
@@ -1151,7 +1183,9 @@ private:
           if (writes.isWritten(fv->getName(), (int)k))
             throw Unsupported(where(s) + "a lemma may not write through a borrow");
         std::vector<G> cs;
+        ++ghost;
         callExpr(call, cs, "");
+        --ghost;
         return gSeq(cs);
       }
       auto P = spec(proof->getExpr());
@@ -1214,6 +1248,8 @@ private:
           proc_.sorts[target] = bs;
           renames[b] = target;
           body.push_back(gAssign(target, v, arm->getLine(), "bind " + b));
+          if (machineInts() && bs == "Int")
+            body.push_back(gAssume(inRange(var(target)), arm->getLine(), "a 64-bit value"));
         }
         body.push_back(stmt(arm->getBody()));
         renames = saved;
@@ -2120,6 +2156,10 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
   // seconds, so a verdict does not depend on how busy the machine is.
   std::string base = std::string(PRELUDE) + "(set-option :rlimit " + std::to_string(opt.rlimit) +
                      ")\n" + TY.decls + specs.decls;
+  if (opt.overflow)
+    base += "(define-fun INT_MIN () Int (- 9223372036854775808))\n"
+            "(define-fun INT_MAX () Int 9223372036854775807)\n";
+  low.overflow = opt.overflow;
 
   // ---- spec functions -----------------------------------------------------
   if (opt.pspec) {

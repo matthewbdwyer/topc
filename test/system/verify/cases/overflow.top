@@ -1,0 +1,75 @@
+// flags: --overflow
+// With --overflow, + - * / in code must stay in 64 bits.  Specifications,
+// lemmas, and the arguments of `use` compute with mathematical integers.
+
+// A bound on the argument makes the sum safe.
+next(x)
+  requires x < 1000
+  ensures result == x + 1
+{
+  return x + 1;
+}
+
+// The classic: (lo + hi) / 2 can overflow; lo + (hi - lo) / 2 cannot.
+midBad(lo, hi)
+  requires 0 <= lo && lo <= hi
+  ensures lo <= result && result <= hi
+{
+  return (lo + hi) / 2;
+}
+
+mid(lo, hi)
+  requires 0 <= lo && lo <= hi
+  ensures lo <= result && result <= hi
+{
+  return lo + (hi - lo) / 2;
+}
+
+// The only division that overflows.
+quotient(x, y)
+  requires y != 0
+{
+  return x / y;
+}
+
+// A loop: the invariant bounds the sum.
+sumTo(n)
+  requires 0 <= n && n <= 1000
+  ensures result <= 1000 * 1000
+{
+  var i, s;
+  i = 0;
+  s = 0;
+  while (i < n)
+    invariant 0 <= i && i <= n
+    invariant 0 <= s && s <= i * 1000
+    decreases n - i
+  {
+    s = s + i;
+    i = i + 1;
+  }
+  return s;
+}
+
+spec double(n) {
+  return n + n;
+}
+
+// A lemma's arithmetic is mathematical: no overflow obligations.
+lemma doubleGrows(n)
+  requires n > 0
+  ensures double(n) > n
+{
+  var d;
+  d = n + n;
+  return 0;
+}
+
+main(x) {
+  var y;
+  y = 0;
+  if (x < 1000) {
+    y = next(x);
+  }
+  return y;
+}

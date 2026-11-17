@@ -64,6 +64,10 @@ static cl::opt<long long> vrlimitOpt(
     "vrlimit", cl::value_desc("n"),
     cl::desc("VERUTOP: Z3's resource limit for each query (default 20000000)"),
     cl::init(20000000), cl::cat(TOPcat));
+static cl::opt<bool> overflowOpt(
+    "overflow",
+    cl::desc("VERUTOP: check that + - * / in code do not overflow 64 bits"),
+    cl::cat(TOPcat));
 static cl::opt<bool> pgclOpt("pgcl", cl::desc("VERUTOP: print guarded commands"),
                              cl::cat(TOPcat));
 static cl::opt<bool> ppassiveOpt("ppassive",
@@ -725,6 +729,7 @@ int main(int argc, char *argv[]) {
       vopt.passive = vcMode == "passive";
       vopt.trustSpecs = trustSpecs;
       vopt.rlimit = vrlimitOpt;
+      vopt.overflow = overflowOpt;
       vopt.pgcl = pgclOpt;
       vopt.ppassive = ppassiveOpt;
       vopt.pwp = pwpOpt;
@@ -734,7 +739,7 @@ int main(int argc, char *argv[]) {
       vopt.psmt = psmtOpt.getNumOccurrences() > 0;
       vopt.psmtLine = psmtOpt.empty() ? 0 : std::atoi(psmtOpt.c_str());
       vopt.fn = vfnOpt;
-      if (verifyOpt || vopt.pgcl || vopt.ppassive || vopt.pwp || vopt.pvc || vopt.pspec ||
+      if (verifyOpt || vopt.overflow || vopt.pgcl || vopt.ppassive || vopt.pwp || vopt.pvc || vopt.pspec ||
           vopt.pcex || vopt.psmt || !vopt.fn.empty()) {
         ensureOwnershipResult();
         bool ok = VCGen::verify(ast.get(), typeResults.get(), sourceFile + ".vc.smt2",
