@@ -119,7 +119,11 @@ Any of these implies `--verify`. A TOP condition is true when it is not
 zero. Integers are mathematical (`Int`) unless `--overflow` is given, which
 adds the obligation that each `+ - * /` in code stays in 64 bits.
 `--vrlimit=N` sets Z3's resource limit for a query (default 20000000): a
-count of Z3's own steps, so a verdict does not depend on machine load.
+count of Z3's own steps, not seconds, so a verdict depends much less on
+machine load than a timeout does. It is not perfectly repeatable: for
+nonlinear arithmetic Z3's count varies from run to run (`factDown`'s
+invariant in demo 11, in wp mode, between 4.7 and 33 million), so that
+obligation is occasionally `UNKNOWN` on a busy machine.
 
 ### Guarded commands
 

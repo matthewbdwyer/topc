@@ -6,7 +6,7 @@ a notice without it. They are not part of the default system-test run:
 ```bash
 python3 test/system/verify/runner.py            # or: run.py --verifier
 python3 test/system/verify/runner.py --only liars -v
-python3 test/system/verify/runner.py --mutation # about a minute; run before a push
+python3 test/system/verify/runner.py --mutation # about two minutes; run before a push
 ```
 
 A run takes about 20 seconds. With `TOPCLANG` set (the clang used to link,
@@ -28,6 +28,12 @@ Verdict rows are compared, not bytes: a counterexample's values
 and are dropped. A mark in capitals after the obligation (`VACUOUS`) is
 part of the verdict. Counterexample traces are not pinned for the same
 reason.
+
+One row is not exact. Z3's resource count for a query is supposed to be
+the same on every run, and for nonlinear arithmetic it is not: demo 11's
+`factDown` invariant, in wp mode, was measured between 4.7 and 33 million
+steps for the same input, against a limit of 20 million. That row may be
+`proved` or `UNKNOWN` (`UNSTABLE` in `runner.py`).
 
 A test may start with directives:
 
@@ -73,7 +79,7 @@ mutant whose verdicts are all unchanged survives; that is legitimate when
 the mutant is equivalent or the contract is weak, and each such mutant is
 recorded with its reason in `mutation/SURVIVORS`. An unlisted survivor
 fails the run: look at it, and either list it or find out why the verifier
-accepted it. Mutants run with `--vrlimit=3000000` so that one Z3 cannot
+accepted it. Mutants run with `--vrlimit=10000000` so that one Z3 cannot
 decide does not cost the full limit.
 
 ## Changing expected output

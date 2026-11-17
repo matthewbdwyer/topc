@@ -26,6 +26,13 @@ LIARS = HERE / "liars"
 EXPECTED = HERE / "expected"
 GOLDEN = HERE / "golden"
 TIMEOUT = 300
+# Z3's resource count for one query is not the same on every run when the
+# query is nonlinear arithmetic: for this one it was measured between 4.7
+# and 33 million steps for identical input, higher on a loaded machine, and
+# the limit is 20 million.  So this row may be `proved` or `UNKNOWN` in wp
+# mode, and the comparison accepts either.  Every other row is exact.
+UNSTABLE = {("11-factorial-variants.top", "wp"): ("factDown", "loop invariant is preserved")}
+
 # Demo 10 exists to make a large VC; its contract (the result is in a range)
 # says almost nothing about its sixteen branches, so nearly every mutant
 # survives for that one reason.
@@ -119,7 +126,11 @@ def verdict_test(src, update):
     exp = EXPECTED / (src.stem + ".verdicts")
     results, tables = [], {}
     for mode in d["modes"]:
-        tables[mode] = table(verdicts(topc(src, [f"--vcmode={mode}", *d["flags"], "--verify"])))
+        rows = verdicts(topc(src, [f"--vcmode={mode}", *d["flags"], "--verify"]))
+        fn, what = UNSTABLE.get((src.name, mode), (None, None))
+        rows = [(r[0], r[1], "proved", r[3]) if r[0] == fn and r[3] == what and r[2] == "UNKNOWN" else r
+                for r in rows]
+        tables[mode] = table(rows)
     first = tables[d["modes"][0]]
     if update:
         exp.write_text(first)
@@ -221,7 +232,7 @@ def mutation_tests(src, survivors, seen):
     d = directives(src)
     # A mutant Z3 cannot decide costs the whole resource limit, so mutants
     # get a smaller one; the original is run with the same limit.
-    flags = ["--vcmode=passive", "--vrlimit=3000000", *d["flags"], "--verify"]
+    flags = ["--vcmode=passive", "--vrlimit=10000000", *d["flags"], "--verify"]
     shape = lambda out: [(r[0], r[2]) for r in verdicts(out)]
     text = src.read_text()
     base = shape(topc(src, flags))
