@@ -239,7 +239,10 @@ factUp(n)
   with none, so every proof is of total correctness. `decreases *` on a
   loop or a function opts out: it may not terminate, the report lists it,
   and partial correctness is still checked. A spec function or a lemma may
-  not opt out.
+  not opt out. Termination has to hold across calls, so a function without
+  `decreases *` may neither contain a `decreases *` loop nor call a
+  `decreases *` function (Dafny's rule); otherwise a lemma could call a
+  function that never returns and take `ensures false` from it.
 - **Recursion through several functions.** A call from `f` to `g` on a
   cycle of calls must make `g`'s measure, at the call, smaller than `f`'s
   was on entry, and not negative. This holds for spec functions, lemmas,
@@ -411,8 +414,10 @@ induction step. With `--overflow`, arithmetic in code is checked to stay in
 
 `test/system/verify/` (run `python3 test/system/verify/runner.py`; needs
 `z3`): the verdicts of every demo, pinned; agreement between the two VC
-generators; the text of some views; and *liars*, programs with a false
-contract that must not be plainly proved, one for each known way to cheat.
+generators; the text of some views; *liars*, programs with a false
+contract that must not be plainly proved, one for each known way to cheat;
+verified functions compiled and run with their `ensures` checked; and
+mutants of the demos, which must change a verdict.
 A change that lets the verifier prove more should come with a liar. See
 the README there.
 

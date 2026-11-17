@@ -26,6 +26,12 @@ LIARS = HERE / "liars"
 EXPECTED = HERE / "expected"
 GOLDEN = HERE / "golden"
 TIMEOUT = 300
+# Demo 10 exists to make a large VC; its contract (the result is in a range)
+# says almost nothing about its sixteen branches, so nearly every mutant
+# survives for that one reason.
+NO_MUTATION = {"10-many-ifs.top"}
+MUTANT_JOBS = 4    # mutants of one file run at once
+MIN_RUNTIME = 15  # verified functions whose contract the run-time tests execute
 
 VERDICT = re.compile(r"^  (proved|FAILED|UNKNOWN)\s+line (\d+): (.*)$")
 HEADER = re.compile(r"^(\S.*):$")
@@ -193,11 +199,78 @@ def golden_tests(update):
     return [lambda n=n, s=s, f=f: one(n, s, f) for n, s, f in jobs]
 
 
+# ---- run-time agreement: a verified contract holds when the program runs ----
+
+def agreement_test(src, verbose):
+    import agree
+    clang = os.environ.get("TOPCLANG", "")
+    rtlib = Path(os.environ.get("RTLIB", str(ROOT / "build/rtlib"))) / "top_rtlib.bc"
+    report = topc(src, [*directives(src)["flags"], "--ptrust"])
+    results = []
+    for fn, ok, detail, skipped in agree.run(src, TOPC, clang, rtlib, report):
+        r = Result(f"runtime/{src.name}:{fn}", ok, detail)
+        r.skipped = skipped
+        results.append(r)
+    return results
+
+
+# ---- mutation: a changed program must change a verdict ----------------------
+
+def mutation_tests(src, survivors, seen):
+    import mutate
+    d = directives(src)
+    # A mutant Z3 cannot decide costs the whole resource limit, so mutants
+    # get a smaller one; the original is run with the same limit.
+    flags = ["--vcmode=passive", "--vrlimit=3000000", *d["flags"], "--verify"]
+    shape = lambda out: [(r[0], r[2]) for r in verdicts(out)]
+    text = src.read_text()
+    base = shape(topc(src, flags))
+    results = []
+    with tempfile.TemporaryDirectory(prefix="verutop_mut_") as tmp:
+        def one(k, mutated):
+            copy = Path(tmp) / str(k) / src.name
+            copy.parent.mkdir()
+            copy.write_text(mutated)
+            return shape(topc(copy, flags)) == base
+        all_mutants = list(mutate.mutants(text))
+        with concurrent.futures.ThreadPoolExecutor(max_workers=MUTANT_JOBS) as pool:
+            outcomes = list(pool.map(lambda km: one(km[0], km[1][1]), enumerate(all_mutants)))
+        for (name, _), survived in zip(all_mutants, outcomes):
+            name = f"{src.name}:{name}"
+            seen.add(name)
+            if survived and name not in survivors:
+                results.append(Result(f"mutation/{name}", False,
+                                      "every verdict is unchanged, and the mutant is not in mutation/SURVIVORS"))
+            elif not survived and name in survivors:
+                results.append(Result(f"mutation/{name}", False,
+                                      "listed in mutation/SURVIVORS but a verdict now changes: remove it"))
+            else:
+                r = Result(f"mutation/{name}", True)
+                r.survived = survived
+                results.append(r)
+    return results
+
+
+def agreement_self_check():
+    """The harness must be able to fail: half's contract in demo 06 is false
+    at -1 (and its proof fails).  Told that half is verified, the run-time
+    test must catch it."""
+    import agree
+    clang = os.environ.get("TOPCLANG", "")
+    rtlib = Path(os.environ.get("RTLIB", str(ROOT / "build/rtlib"))) / "top_rtlib.bc"
+    got = list(agree.run(DEMOS / "06-division.top", TOPC, clang, rtlib, "half:\n  => verified\n"))
+    caught = len(got) == 1 and not got[0][1] and "false at run time" in got[0][2]
+    return [Result("runtime/self-check", caught,
+                   "a false contract, presented as verified, was not caught: " + repr(got))]
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("-j", "--jobs", type=int, default=os.cpu_count() or 4)
     ap.add_argument("--update", action="store_true",
                     help="rewrite expected verdicts and golden text from this run; review the diff")
+    ap.add_argument("--mutation", action="store_true",
+                    help="run only the mutation tests (several minutes)")
     ap.add_argument("--only", default="", help="run tests whose name contains this")
     ap.add_argument("-v", "--verbose", action="store_true")
     args = ap.parse_args()
@@ -222,6 +295,18 @@ def main():
         jobs.append((f"liars/{src.name}", lambda s=src: liar_test(s, known)))
     for g in golden_tests(args.update):
         jobs.append(("golden/", g))
+    if os.environ.get("TOPCLANG"):
+        for src in sorted(DEMOS.glob("*.top")) + sorted(CASES.glob("*.top")):
+            jobs.append((f"runtime/{src.name}", lambda s=src: agreement_test(s, args.verbose)))
+        jobs.append(("runtime/self-check", agreement_self_check))
+    else:
+        print("run-time agreement tests skipped: TOPCLANG is not set")
+    if args.mutation:
+        import mutate
+        survivors, seen = mutate.listed(HERE / "mutation" / "SURVIVORS"), set()
+        jobs = [(f"mutation/{src.name}", lambda s=src: mutation_tests(s, survivors, seen))
+                for src in sorted(DEMOS.glob("*.top")) + sorted(CASES.glob("*.top"))
+                if src.name not in NO_MUTATION]
     jobs = [(n, j) for n, j in jobs if args.only in n or n == "golden/"]
 
     results = []
@@ -229,12 +314,32 @@ def main():
         for rs in pool.map(lambda nj: nj[1](), jobs):
             results.extend(r for r in rs if args.only in r.name)
     results.sort(key=lambda r: r.name)
+    # A contract that cannot be executed is not a test; say so, and insist
+    # that enough can be.
+    skipped = [r for r in results if getattr(r, "skipped", None)]
+    results = [r for r in results if not getattr(r, "skipped", None)]
+    ran = [r for r in results if r.name.startswith("runtime/")]
+    if os.environ.get("TOPCLANG") and not args.only and not args.mutation and len(ran) < MIN_RUNTIME:
+        results.append(Result("runtime/coverage", False,
+                              f"only {len(ran)} verified functions could be run; expected {MIN_RUNTIME}"))
+    if args.verbose:
+        for r in skipped:
+            print(f"skip  {r.name}: {r.skipped}")
 
+    if args.mutation:
+        for name in sorted(set(survivors) - seen):
+            if args.only in name:
+                results.append(Result(f"mutation/{name}", False,
+                                      "listed in mutation/SURVIVORS but no such mutant exists: remove it"))
+        alive = sum(1 for r in results if getattr(r, "survived", False))
+        print(f"mutants: {len(results)}, killed {len(results) - alive - sum(not r.ok for r in results)}, "
+              f"listed survivors {alive}")
     failed = [r for r in results if not r.ok]
     xfail = [r for r in results if r.xfail]
     for r in results:
         if args.verbose:
-            print(("XFAIL" if r.xfail else "ok   " if r.ok else "FAIL ") + " " + r.name)
+            print(("XFAIL" if r.xfail else "ok   " if r.ok else "FAIL ") + " " + r.name
+                  + (f"  ({r.detail})" if r.ok and r.detail and r.name.startswith("runtime/") else ""))
     for r in failed:
         print(f"FAIL: {r.name}")
         for line in r.detail.splitlines()[:40]:

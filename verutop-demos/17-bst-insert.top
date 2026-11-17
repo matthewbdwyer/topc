@@ -69,7 +69,9 @@ inorder(t)
   return 0;
 }
 
-main() {
+main()
+  decreases *
+{
   var t, n, count, dummy;
   t = Leaf;
   count = 0;

@@ -1,0 +1,29 @@
+// never does not return, so partial correctness lets its contract promise
+// anything.  A lemma must not be able to borrow that promise.
+never()
+  ensures 0 == 1
+  decreases *
+{
+  var r;
+  r = never();
+  return r;
+}
+
+lemma liarFalse()
+  ensures 0 == 1
+{
+  var d;
+  d = never();
+  return 0;
+}
+
+liar()
+  ensures result == 42
+{
+  use liarFalse();
+  return 0;
+}
+
+main() {
+  return 0;
+}

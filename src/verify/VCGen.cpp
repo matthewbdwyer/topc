@@ -1316,6 +1316,9 @@ private:
       if (!w->getDecreases() && !w->mayDiverge())
         cs.push_back(missingClause(line, "loop needs a decreases clause"));
       if (w->mayDiverge()) proc_.diverges.push_back("the loop at line " + std::to_string(line));
+      if (w->mayDiverge() && !current->mayDiverge())
+        cs.push_back(missingClause(line, "loop may not terminate; " + current->getName() +
+                                             " needs decreases *"));
       std::vector<std::string> mods;
       for (auto &x : writes.assigned(w->getBody())) mods.push_back(name(x));
       if (!mods.empty()) cs.push_back(havoc(mods, line, "an arbitrary iteration"));
@@ -1370,9 +1373,15 @@ private:
       at[formals[k]->getName()] = olds[formals[k]->getName()] = args[k];
 
     if (edges) edges->insert({current->getName(), g->getName()});
-    // A function with `decreases *` may not return, so its calls owe nothing.
-    if (!current->mayDiverge() &&
-        (g == current || (cycles && cycles->mutual(current->getName(), g->getName())))) {
+    // A function with `decreases *` may not return, so its calls owe
+    // nothing.  Any other function must return, so it may not call one
+    // that might not: termination has to hold across calls, or a lemma
+    // could borrow `ensures false` from a function that never returns.
+    if (!current->mayDiverge() && g->mayDiverge()) {
+      cs.push_back(missingClause(line, g->getName() + " may not terminate; " + current->getName() +
+                                           " needs decreases *"));
+    } else if (!current->mayDiverge() &&
+               (g == current || (cycles && cycles->mutual(current->getName(), g->getName())))) {
       bool both = false;
       auto what = cycleObligation(current, g, both);
       if (both) {

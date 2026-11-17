@@ -1,8 +1,12 @@
 // decreases * says that code may not terminate: a loop that reads until a
 // sentinel, and a function that calls itself with no measure.  Nothing is
 // owed for termination; partial correctness is still checked.
+//
+// Termination has to hold across calls, so a function that must return
+// may neither contain a decreases * loop nor call a decreases * function.
 readAll()
   ensures result >= 0
+  decreases *
 {
   var n, count;
   count = 0;
@@ -29,8 +33,24 @@ retry(n)
   return r;
 }
 
-// A terminating function on a cycle with one that may not terminate still
-// owes a measure, and has none to compare with.
+// The loop may run forever, but the function does not say so.
+readSome()
+  ensures result >= 0
+{
+  var n, count;
+  count = 0;
+  n = input;
+  while (n != 0)
+    invariant count >= 0
+    decreases *
+  {
+    count = count + 1;
+    n = input;
+  }
+  return count;
+}
+
+// A function that must return calls one that may not.
 careful(n)
   decreases n
 {
@@ -47,6 +67,8 @@ careless(n)
   return r;
 }
 
-main() {
+main()
+  decreases *
+{
   return readAll();
 }

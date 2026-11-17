@@ -1,12 +1,16 @@
-readAll	10	proved	loop invariant holds on entry
-readAll	10	proved	loop invariant is preserved
-readAll	17	proved	postcondition
-retry	27	proved	precondition of retry(input#0)
-retry	29	proved	postcondition
-careful	38	FAILED	mutually recursive call needs a decreases clause on careless
-careful	38	proved	precondition of careless(n)
-careful	39	proved	postcondition
-careless	46	proved	precondition of careful(n)
-careless	47	proved	postcondition
-main	51	proved	precondition of readAll()
-main	51	proved	postcondition
+readAll	14	proved	loop invariant holds on entry
+readAll	14	proved	loop invariant is preserved
+readAll	21	proved	postcondition
+retry	31	proved	precondition of retry(input#0)
+retry	33	proved	postcondition
+readSome	43	proved	loop invariant holds on entry
+readSome	43	FAILED	loop may not terminate; readSome needs decreases *
+readSome	43	proved	loop invariant is preserved
+readSome	50	proved	postcondition
+careful	58	FAILED	careless may not terminate; careful needs decreases *
+careful	58	proved	precondition of careless(n)
+careful	59	proved	postcondition
+careless	66	proved	precondition of careful(n)
+careless	67	proved	postcondition
+main	73	proved	precondition of readAll()
+main	73	proved	postcondition

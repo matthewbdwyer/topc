@@ -1,0 +1,33 @@
+# Mutants whose verdicts do not change, each with the reason it is not a
+# sign that the verifier proves too much.  Format: mutant <tab> reason.
+# A mutant is file:line:column:old->new (see mutate.py).  An unlisted
+# survivor fails `runner.py --mutation`, and so does a listed mutant that
+# is now killed or no longer exists.
+01-abs.top:8:8:>->>=	equivalent: at x == 0 both branches give 0
+03-weak-invariant.top:11:11:<-><=	the original's postcondition already fails (that is the demo); it still does
+03-weak-invariant.top:12:1:drop invariant	the original's postcondition already fails; it still does
+04-isqrt.top:11:1:drop invariant	invariant r >= 0 is redundant: r * r <= n and the loop condition give all the proof uses
+05-factorial.top:14:9:1->2	weak contract: only result >= 1 and result >= n, and 2 satisfies both
+05-factorial.top:17:10:*->+	weak contract: n + m is also >= 1 and >= n when m >= 1
+06-division.top:13:14:2->3	the original's postcondition already fails (that is the demo); it still does
+09-overflow.top:8:14:1->2	weak contract: result > x holds for x + 2
+14-tree-height.top:37:13:>->>=	equivalent: when lh == rh both branches give 1 + lh
+15-expr-borrow.top:102:10:0->1	the contract is about *p; the returned value is not constrained
+16-swap.top:18:10:0->1	the contract is about *p and *q; the returned value is not constrained
+16-swap.top:25:10:0->1	the contract is about *p; the returned value is not constrained
+18-tree-least.top:65:12:<-><=	equivalent: when v == m, m = v changes nothing
+18-tree-least.top:85:12:<-><=	equivalent: when v == m, m = v changes nothing
+19-mutual-recursion.top:117:10:0->1	liar's postcondition already fails; 1 is not 42 either
+20-trust.top:59:10:-->+	dead code: the precondition rules the branch out (it is the demo's vacuous proof)
+20-trust.top:59:9:0->1	dead code: the precondition rules the branch out
+diverges.top:12:11:0->1	weak contract: result >= 0 holds from 1 as well
+diverges.top:14:11:!=->==	decreases *: any loop condition is allowed, and the invariant gives the postcondition
+diverges.top:14:15:0->1	decreases *: any loop condition is allowed
+diverges.top:18:21:1->2	weak contract: count stays >= 0
+diverges.top:30:12:0->1	equivalent for the contract: r is 0 on both branches, by retry's own postcondition
+diverges.top:30:8:!=->==	equivalent for the contract: r is 0 on both branches
+diverges.top:41:11:0->1	weak contract, as line 12; readSome's failed obligation is unchanged
+diverges.top:43:11:!=->==	as line 14
+diverges.top:43:15:0->1	as line 14
+diverges.top:47:21:1->2	as line 18
+overflow.top:25:27:2->3	weak contract: lo + (hi - lo) / 3 is also between lo and hi, and cannot overflow

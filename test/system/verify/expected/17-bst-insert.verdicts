@@ -14,9 +14,9 @@ inorder	64	proved	precondition of inorder(l)
 inorder	66	proved	recursive call decreases the measure
 inorder	66	proved	precondition of inorder(r)
 inorder	69	proved	postcondition
-main	77	proved	loop invariant holds on entry
-main	77	proved	loop invariant is preserved
-main	81	proved	precondition of insert(t, n)
-main	85	proved	assertion
-main	86	proved	precondition of inorder(t)
-main	87	proved	postcondition
+main	79	proved	loop invariant holds on entry
+main	79	proved	loop invariant is preserved
+main	83	proved	precondition of insert(t, n)
+main	87	proved	assertion
+main	88	proved	precondition of inorder(t)
+main	89	proved	postcondition
