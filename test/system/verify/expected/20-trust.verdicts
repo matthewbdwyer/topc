@@ -1,0 +1,13 @@
+twice	13	proved	postcondition
+seven	20	FAILED	postcondition
+eight	28	proved	precondition of seven()
+eight	29	proved	postcondition
+positive	37	proved	postcondition
+client	45	proved	precondition of positive(x)
+client	46	proved	postcondition
+guarded	58	proved VACUOUS	assertion
+guarded	61	proved	postcondition
+main	66	proved	precondition of twice(4)
+main	67	proved	precondition of eight()
+main	68	proved	precondition of client(a)
+main	69	proved	postcondition

@@ -1,4 +1,6 @@
-// What a proof rests on.  Run with --ptrust for the detail.
+// What a proof rests on.  topc --verify ends with what the run assumed;
+// topc --ptrust says which proof used what, and gives each function a
+// verdict: verified; verified, assuming ...; or not verified.
 
 spec double(n) {
   return n + n;

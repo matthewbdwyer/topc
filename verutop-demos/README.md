@@ -15,6 +15,10 @@ Each stage can be printed; any of these flags implies `--verify`, and
 | `--psmt[=line]` | the SMT-LIB queries sent to Z3 |
 | `--pspec` | spec-function definitions, axioms, and termination obligations |
 | `--pcex` | a trace for each failure |
+| `--ptrust` | what each proof uses, why a vacuous proof is vacuous, a verdict for each function, and what is always trusted |
+
+`--overflow` adds the obligation that each `+ - * /` in code stays in 64
+bits. Every report ends with what the run assumed without proof.
 
 For example, `topc --pcex --vfn=factAny 13-factorial-total.top`:
 ```
@@ -53,6 +57,8 @@ all, and code may not call one. The last column is the run.
 | `16-swap` | 3 |
 | `17-bst-insert` | the inputs in order, then their count (`5 3 8 1 0` prints 1 3 5 8 and 4) |
 | `18-tree-least` | 2 |
+| `19-mutual-recursion` | 1 |
+| `20-trust` | 23 |
 
 | Program | What it shows | Outcome |
 |---|---|---|
@@ -63,8 +69,8 @@ all, and code may not call one. The last column is the run.
 | `05-factorial.top` | calls use contracts, so recursion works; `decreases n` makes it total correctness; the contract (`result >= n`) is weak | all proved |
 | `06-division.top` | run-time checks become obligations; TOP's division truncates toward zero, so `half(-1)` is 0 | `half` fails at `x = -1`; `main` fails the precondition at `k = 0` |
 | `07-error.top` | `error` is an obligation that it cannot run; a precondition makes it unreachable | `lookup` proved; `main` fails at `i = -1` |
-| `08-assume.top` | `assume` is trusted: `assume x > x` proves `result == 42` | "proved", vacuously |
-| `09-overflow.top` | mathematical integers are not 64-bit integers: `result > x` is proved, yet `./09-overflow 9223372036854775807` prints 0 for `y > x` | proved, and wrong at run time |
+| `08-assume.top` | `assume` is trusted: `assume x > x` proves `result == 42` | "proved", and marked `VACUOUS`: nothing reaches the postcondition |
+| `09-overflow.top` | mathematical integers are not 64-bit integers: `result > x` is proved, yet `./09-overflow 9223372036854775807` prints 0 for `y > x` | proved, and wrong at run time; with `--overflow`, `x + 1 does not overflow` fails at that value |
 | `10-many-ifs.top` | 16 consecutive `if`s: the wp query is 9.3 MB, the passive one 7.5 KB | proved in both modes |
 | `11-factorial-variants.top` | a spec function `factorial` states exactly what is computed; five implementations (recursion, a loop up, a loop down, tail recursion with an accumulator, and a loop that multiplies by repeated addition) are each proved equal to it, with termination | all 34 proved |
 | `12-termination.top` | a recursive call with no measure, a measure that does not decrease, a loop measure that increases; and `bad(n) = bad(n) + 1`, a spec function whose definition is false | each fails with a counterexample; `bad`'s definition is not used, so `liar` fails; with `--trust-specs` the false definition is used and `liar` "proves" `result == 42` |
@@ -74,3 +80,5 @@ all, and code may not call one. The last column is the run.
 | `16-swap.top` | in-out borrows: `swap` ensures `*p == old(*q)`; `bump` reads `q` without writing it; `swap(&a, &a)` | proved, except "borrowed arguments do not overlap" at `swap(&a, &a)` |
 | `17-bst-insert.top` | the consuming BST `insert` from `iotests/recursive_tree.top`: one more node, and it has `v`; a loop invariant over a tree | all proved |
 | `18-tree-least.top` | the least element; a fact about every subtree needs induction, so a `lemma` supplies it with `use` | `least` proved; `least0`, without the lemma, unknown |
+| `19-mutual-recursion.top` | recursion through two functions: `even`/`odd` as spec functions, code, and lemmas; `ping`/`pong`, whose measure does not decrease; `f(n) = g(n) + 1`, `g(n) = f(n)`, a false definition | proved, except `ping`'s call and the termination of `f` and `g`; their definitions are withheld, so `liar` fails |
+| `20-trust.top` | what a proof rests on: an unverified callee's contract, an `assume`, an assumption reached through a callee, a branch the precondition rules out | `seven` fails; `--ptrust` gives `eight` "verified, assuming: contract of seven (not verified)", `client` "assuming: assume (line 34) (through positive)", and marks `guarded`'s assertion `VACUOUS` |

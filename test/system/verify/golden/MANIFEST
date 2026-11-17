@@ -15,5 +15,5 @@ assume-report:      verutop-demos/08-assume.top --verify
 assume-trust:       verutop-demos/08-assume.top --ptrust
 trust-specs-trust:  verutop-demos/12-termination.top --ptrust --trust-specs
 least-trust:        verutop-demos/18-tree-least.top --ptrust
-trust-case:         test/system/verify/cases/trust.top --ptrust
+trust-case:         verutop-demos/20-trust.top --ptrust
 diverges-report:    test/system/verify/cases/diverges.top --verify

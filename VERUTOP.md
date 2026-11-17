@@ -48,7 +48,7 @@ written to `prog.top.vc.smt2`, which is readable SMT-LIB.
 | Proof statements | `assert E;` `assume E;` |
 | Specification operators | `!` `&&` `\|\|` `==>` `<` `<=` `>=` |
 | Spec function | `spec f(x) decreases E { ... return E; }` |
-| Termination | `decreases E` on a function or a loop; `E` is an int |
+| Termination | `decreases E` on a function or a loop; `E` is an int. Every loop needs one. `decreases *` says instead that the loop or function may not terminate (code only) |
 | Size of a sum value | `rank(E)`, an int, in specifications only: `decreases rank(t)` |
 | Entry value | `old(E)` in `ensures`: `*p == old(*q)` |
 | Lemma | `lemma f(x) requires ... ensures ... decreases ... { ... }`, applied with `use f(args);` |
@@ -112,10 +112,14 @@ AST --lower--> guarded commands --passivize--> passive commands --> VC --> SMT q
 | `--psmt[=line]` | the SMT-LIB queries exactly as sent to Z3, or only those for one line |
 | `--pspec` | each spec function's definition, its axiom, and its termination obligations |
 | `--pcex` | a trace for each failure: entry values, each assignment with its value, each branch taken, and the failing assertion with the values substituted |
+| `--ptrust` | what each proof uses, why a vacuous proof is vacuous, a verdict for each function, and what is always trusted |
 | `--vfn=f` | only function `f` (or spec function `f`) |
 
-Any of these implies `--verify`. Integers are mathematical (`Int`); a TOP
-condition is true when it is not zero.
+Any of these implies `--verify`. A TOP condition is true when it is not
+zero. Integers are mathematical (`Int`) unless `--overflow` is given, which
+adds the obligation that each `+ - * /` in code stays in 64 bits.
+`--vrlimit=N` sets Z3's resource limit for a query (default 20000000): a
+count of Z3's own steps, so a verdict does not depend on machine load.
 
 ### Guarded commands
 
@@ -231,8 +235,16 @@ factUp(n)
 - **`decreases`** on a function: each direct recursive call must make the
   measure smaller and keep it non-negative. On a loop: the measure at the end
   of the body must be smaller than at its start, and not negative. A
-  recursive call with no measure is a failed obligation, so every proof is of
-  total correctness. Mutual recursion is not checked.
+  recursive call with no measure is a failed obligation, and so is a loop
+  with none, so every proof is of total correctness. `decreases *` on a
+  loop or a function opts out: it may not terminate, the report lists it,
+  and partial correctness is still checked. A spec function or a lemma may
+  not opt out.
+- **Recursion through several functions.** A call from `f` to `g` on a
+  cycle of calls must make `g`'s measure, at the call, smaller than `f`'s
+  was on entry, and not negative. This holds for spec functions, lemmas,
+  and code alike (`19-mutual-recursion`). Without it, `f(n) = g(n) + 1`
+  and `g(n) = f(n)` would be used as axioms and prove anything.
 - **Termination comes first for spec functions.** A definition that does not
   terminate can be false: `bad(n) = bad(n) + 1` has no solution, and from a
   false axiom Z3 proves anything. So each spec function's recursive calls are
@@ -323,12 +335,86 @@ ownership rules remove all three, so VERUTOP has no heap model:
   sum of the ranks of its fields that are sum values (an int field adds
   nothing; a boxed field counts as what it holds). So any part is smaller
   than the whole, for lists, trees, or a pair of lists alike. That a rank is
-  at least 1 needs induction, so the axiom states it; it is true, and
-  trusted.
+  at least 1 needs induction, so the axiom states it, and one query per
+  type checks the induction step: if every sum-valued field has rank at
+  least 1, so does the value.
 - **Induction is the programmer's job.** Z3 does not do induction, so a fact
   about every subtree needs a lemma: a recursive function, verified like any
   other, whose recursion is the induction. `18-tree-least` needs one; without
   it Z3 answers unknown.
+
+## What a proof rests on
+
+A `proved` is a claim relative to assumptions. The verifier names them and
+reports them.
+
+**Every run** ends with a summary:
+
+```
+Assumed without proof:
+  assume (line 34) in positive
+  contract of seven (not verified), used by eight
+  4 arithmetic operations in code: no overflow (--overflow checks them)
+Checked in this run:
+  definition of double: not recursive
+```
+
+and marks a proof `VACUOUS` when nothing reaches the obligation. After
+`assume x > x`, or after a contract or definition that is false, every
+obligation is proved; so each proved obligation is asked once more, as
+`false`. If that is proved too, no execution gets there. A branch the
+precondition rules out is marked the same way, with the precondition as
+the reason. This check gets a hundredth of the resource limit: Z3 finds a
+contradiction quickly or not at all.
+
+**`--ptrust`** adds, for each proof, the assumptions it used, taken from
+Z3's unsat core: each `assume`, each callee's or lemma's postcondition, and
+each definition is asserted under a name. Then a verdict for each function:
+
+```
+eight:
+  line 27: postcondition
+      uses contract of seven (line 26)
+  => verified, assuming: contract of seven (not verified)
+client:
+  line 44: postcondition
+      uses contract of positive (line 43)
+  => verified, assuming: assume (line 34) (through positive)
+guarded:
+  line 56: assertion
+      VACUOUS: nothing reaches line 56, given the precondition
+  => verified; 1 proof is vacuous
+```
+
+The core is the one Z3's proof used, not a smallest one: minimizing a core
+is a search that the resource limit does not bound.
+
+**What is checked instead of assumed.** A spec function's definition is
+used only if its termination is proved. `rank(x) >= 1` is checked by an
+induction step. With `--overflow`, arithmetic in code is checked to stay in
+64 bits.
+
+**What is always trusted.**
+
+- topc's parser, type checker, and ownership checks. The encoding (a
+  reference is its referent, a borrow an in-out parameter) is sound only
+  for programs that pass them.
+- The translation of the program to verification conditions.
+- Z3.
+- Erasure, code generation, LLVM, and the runtime: the source is verified,
+  not the binary.
+- The model of the world: `input` is any integer; output is not modelled.
+- Structural induction over sum types, and that a terminating recursive
+  definition defines a function.
+
+## Tests
+
+`test/system/verify/` (run `python3 test/system/verify/runner.py`; needs
+`z3`): the verdicts of every demo, pinned; agreement between the two VC
+generators; the text of some views; and *liars*, programs with a false
+contract that must not be plainly proved, one for each known way to cheat.
+A change that lets the verifier prove more should come with a liar. See
+the README there.
 
 ## What is not there yet
 
@@ -337,11 +423,12 @@ ownership rules remove all three, so VERUTOP has no heap model:
   `forall x :: has(t, x) ==> has(result, x)`.
 - **Polymorphic sum types.** A sum type gets one SMT datatype, so one used
   at two payload types is not supported.
-- **Overflow.** Mathematical integers are unsound for 64-bit TOP. Verus adds
-  an obligation that each `+ - *` stays in range; that is a few lines here.
+- **Overflow by default.** `--overflow` checks it; without the flag,
+  integers are mathematical, which is unsound for 64-bit TOP, and the
+  report says how many operations were not checked. Verus checks by
+  default.
 - **Calls through function values** need contracts on function types; only
   direct calls by name are supported.
-- **Mutual recursion** is not checked for termination.
 
 ## A teaching sequence this supports
 

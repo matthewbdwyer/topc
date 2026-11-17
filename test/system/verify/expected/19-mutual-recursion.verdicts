@@ -1,0 +1,29 @@
+		note	spec f: does not terminate; its definition is not used
+		note	spec g: does not terminate; its definition is not used
+spec even	16	proved	mutually recursive call decreases the measure
+spec odd	27	proved	mutually recursive call decreases the measure
+spec f	106	FAILED	mutually recursive call needs a decreases clause on f and g
+spec g	110	FAILED	mutually recursive call needs a decreases clause on g and f
+isEven	42	proved	mutually recursive call decreases the measure
+isEven	42	proved	precondition of isOddStep(n)
+isEven	44	proved	postcondition
+isOddStep	55	proved	mutually recursive call decreases the measure
+isOddStep	55	proved	precondition of isEven(n - 2)
+isOddStep	57	proved	postcondition
+ping	66	FAILED	mutually recursive call decreases the measure
+ping	66	proved	precondition of pong(n)
+ping	67	proved	postcondition
+pong	77	proved	mutually recursive call decreases the measure
+pong	77	proved	precondition of ping(n - 1)
+pong	79	proved	postcondition
+evenOrOdd	89	proved	mutually recursive call decreases the measure
+evenOrOdd	89	proved	precondition of oddOrEven(n - 1)
+evenOrOdd	91	proved	postcondition
+oddOrEven	100	proved	mutually recursive call decreases the measure
+oddOrEven	100	proved	precondition of evenOrOdd(n - 1)
+oddOrEven	102	proved	postcondition
+liar	116	FAILED	assertion
+liar	117	FAILED	postcondition
+main	122	proved	precondition of isEven(4)
+main	123	proved	assertion
+main	124	proved	postcondition

@@ -1,6 +1,12 @@
-// Recursion through two functions terminates when every call on the cycle
-// decreases the measure.  even calls odd at n - 1 with the same measure;
-// odd calls even likewise.
+// Recursion through more than one function.  Every call on a cycle must
+// make the callee's measure smaller than the caller's was on entry.
+//
+// - even and odd, as spec functions, as code, and as lemmas: all terminate.
+// - ping and pong: the measure does not decrease from ping to pong.
+// - f and g have no measure.  Together their definitions say
+//   f(n) = f(n) + 1, which is false; used as axioms they would prove
+//   anything.  Their termination checks fail, the definitions are withheld,
+//   and liar is not proved.
 spec even(n)
   decreases n
 {
@@ -93,6 +99,21 @@ lemma oddOrEven(n)
   if (n > 0) {
     use evenOrOdd(n - 1);
   }
+  return 0;
+}
+
+spec f(n) {
+  return g(n) + 1;
+}
+
+spec g(n) {
+  return f(n);
+}
+
+liar(x)
+  ensures result == 42
+{
+  assert f(0) == g(0) + 1;
   return 0;
 }
 

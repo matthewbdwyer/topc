@@ -1,52 +1,52 @@
 twice:
-  proved  line 11: postcondition
+  proved  line 13: postcondition
 seven:
-  FAILED  line 18: postcondition
+  FAILED  line 20: postcondition
 eight:
-  proved  line 26: precondition of seven()
-  proved  line 27: postcondition
+  proved  line 28: precondition of seven()
+  proved  line 29: postcondition
 positive:
-  proved  line 35: postcondition
+  proved  line 37: postcondition
 client:
-  proved  line 43: precondition of positive(x)
-  proved  line 44: postcondition
+  proved  line 45: precondition of positive(x)
+  proved  line 46: postcondition
 guarded:
-  proved  line 56: assertion   VACUOUS
-  proved  line 59: postcondition
+  proved  line 58: assertion   VACUOUS
+  proved  line 61: postcondition
 main:
-  proved  line 64: precondition of twice(4)
-  proved  line 65: precondition of eight()
-  proved  line 66: precondition of client(a)
-  proved  line 67: postcondition
+  proved  line 66: precondition of twice(4)
+  proved  line 67: precondition of eight()
+  proved  line 68: precondition of client(a)
+  proved  line 69: postcondition
 
 Trust report
 twice:
-  line 11: postcondition
+  line 13: postcondition
       uses definition of double
   => verified
 seven:
   => not verified: 1 of 1 obligation not proved
 eight:
-  line 27: postcondition
-      uses contract of seven (line 26)
+  line 29: postcondition
+      uses contract of seven (line 28)
   => verified, assuming: contract of seven (not verified)
 positive:
-  line 35: postcondition
-      uses assume (line 34)
-  => verified, assuming: assume (line 34)
+  line 37: postcondition
+      uses assume (line 36)
+  => verified, assuming: assume (line 36)
 client:
-  line 44: postcondition
-      uses contract of positive (line 43)
-  => verified, assuming: assume (line 34) (through positive)
+  line 46: postcondition
+      uses contract of positive (line 45)
+  => verified, assuming: assume (line 36) (through positive)
 guarded:
-  line 56: assertion
-      VACUOUS: nothing reaches line 56, given the precondition
+  line 58: assertion
+      VACUOUS: nothing reaches line 58, given the precondition
   => verified; 1 proof is vacuous
 main:
   => verified
 
 Assumed without proof:
-  assume (line 34) in positive
+  assume (line 36) in positive
   contract of seven (not verified), used by eight
   4 arithmetic operations in code: no overflow (--overflow checks them)
 Checked in this run:
