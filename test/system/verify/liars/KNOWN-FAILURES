@@ -1,9 +1,5 @@
 # Liars the verifier still proves.  Each line: file, then why.  A test here
 # that starts passing fails the run until its line is removed.
-spec-mutual.top           mutual recursion of spec functions is not checked for termination
-spec-mutual-measure.top   the same, with measures that do not decrease
-lemma-mutual.top          mutual recursion of lemmas is not checked
-recursion-mutual.top      mutual recursion of functions is not checked
 assume-false.top          no vacuity check
 loop-forever.top          no vacuity check
 trust-specs.top           no vacuity check

@@ -1,0 +1,104 @@
+// Recursion through two functions terminates when every call on the cycle
+// decreases the measure.  even calls odd at n - 1 with the same measure;
+// odd calls even likewise.
+spec even(n)
+  decreases n
+{
+  var r;
+  r = 1;
+  if (n > 0) {
+    r = odd(n - 1);
+  }
+  return r;
+}
+
+spec odd(n)
+  decreases n
+{
+  var r;
+  r = 0;
+  if (n > 0) {
+    r = even(n - 1);
+  }
+  return r;
+}
+
+// The same in code.  The measures differ: isOdd's is one less than
+// isEven's would be at the same argument, so isEven may call it at n.
+isEven(n)
+  requires n >= 0
+  ensures result == even(n)
+  decreases 2 * n + 1
+{
+  var r;
+  r = 1;
+  if (n > 0) {
+    r = isOddStep(n);
+  }
+  return r;
+}
+
+isOddStep(n)
+  requires n > 0
+  ensures result == odd(n - 1)
+  decreases 2 * n
+{
+  var r;
+  r = 0;
+  if (n > 1) {
+    r = isEven(n - 2);
+  }
+  return r;
+}
+
+// A measure that does not decrease around the cycle.
+ping(n)
+  requires n >= 0
+  decreases n
+{
+  var r;
+  r = pong(n);
+  return r;
+}
+
+pong(n)
+  requires n >= 0
+  decreases n
+{
+  var r;
+  r = 0;
+  if (n > 0) {
+    r = ping(n - 1);
+  }
+  return r;
+}
+
+// Lemmas on a cycle, each smaller than the last.
+lemma evenOrOdd(n)
+  requires n >= 0
+  ensures even(n) == 1 || odd(n) == 1
+  decreases n
+{
+  if (n > 0) {
+    use oddOrEven(n - 1);
+  }
+  return 0;
+}
+
+lemma oddOrEven(n)
+  requires n >= 0
+  ensures odd(n) == 1 || even(n) == 1
+  decreases n
+{
+  if (n > 0) {
+    use evenOrOdd(n - 1);
+  }
+  return 0;
+}
+
+main() {
+  var a;
+  a = isEven(4);
+  assert a == 1;
+  return a;
+}

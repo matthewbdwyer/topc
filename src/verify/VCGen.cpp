@@ -807,6 +807,52 @@ private:
   std::map<std::string, ASTFunction *> fns;
 };
 
+// Recursion through more than one function.  A call from f to g is on a
+// cycle when g can also reach f; such a call needs a termination obligation
+// just as a call from f to itself does.
+class Cycles {
+public:
+  Cycles() = default;
+  explicit Cycles(const std::set<std::pair<std::string, std::string>> &edges) {
+    std::map<std::string, std::set<std::string>> next;
+    for (auto &[a, b] : edges) next[a].insert(b);
+    for (auto &[a, _] : next) {
+      std::vector<std::string> work{a};
+      while (!work.empty()) {
+        auto x = work.back();
+        work.pop_back();
+        for (auto &y : next[x])
+          if (reach[a].insert(y).second) work.push_back(y);
+      }
+    }
+  }
+  // f and g are different functions on one cycle.
+  bool mutual(const std::string &f, const std::string &g) const {
+    if (f == g) return false;
+    auto a = reach.find(f), b = reach.find(g);
+    return a != reach.end() && b != reach.end() && a->second.count(g) && b->second.count(f);
+  }
+
+private:
+  std::map<std::string, std::set<std::string>> reach;
+};
+using CallEdges = std::set<std::pair<std::string, std::string>>;
+
+// The obligation that a call from `from` to `to` on a cycle terminates:
+// both need a measure, and `to`'s, at the call, must be smaller than
+// `from`'s was on entry.  Returns the obligation's name; `both` says
+// whether there is anything to compare.
+std::string cycleObligation(ASTFunction *from, ASTFunction *to, bool &both) {
+  both = from->getDecreases() && to->getDecreases();
+  if (from == to)
+    return both ? "recursive call decreases the measure" : "recursive call needs a decreases clause";
+  if (both) return "mutually recursive call decreases the measure";
+  std::string missing;
+  for (auto *f : {from, to})
+    if (!f->getDecreases()) missing += (missing.empty() ? "" : " and ") + f->getName();
+  return "mutually recursive call needs a decreases clause on " + missing;
+}
+
 // A case arm as a condition on the scrutinee t, and the binder values.
 T matchPattern(ASTPattern *p, const T &t, std::vector<std::pair<ASTDeclNode *, T>> &binds);
 T matchCtor(const std::string &tag, const std::vector<ASTPattern *> &subs, const T &t,
@@ -842,6 +888,10 @@ public:
   }
 
   std::map<std::string, ASTFunction *> fns;
+  // The first pass over the program records its calls here; the second
+  // knows the cycles they form.
+  CallEdges *edges = nullptr;
+  const Cycles *cycles = nullptr;
   // Called on each spec-function call in a specification (for termination).
   std::function<void(ASTFunction *, const std::vector<T> &, int)> onSpecCall;
   // The sort of a variable, for measures.
@@ -1223,14 +1273,16 @@ private:
     for (size_t k = 0; k < formals.size() && k < args.size(); ++k)
       at[formals[k]->getName()] = olds[formals[k]->getName()] = args[k];
 
-    if (g == current) {
+    if (edges) edges->insert({current->getName(), g->getName()});
+    if (g == current || (cycles && cycles->mutual(current->getName(), g->getName()))) {
+      bool both = false;
+      auto what = cycleObligation(current, g, both);
       T ok = FALSE;
-      if (auto *D = g->getDecreases()) {
-        auto now = measure(D, &at), before = measure(D, &oldAll);
+      if (both) {
+        auto now = measure(g->getDecreases(), &at), before = measure(current->getDecreases(), &oldAll);
         ok = And({op("<=", {num(0), now}), op("<", {now, before})});
       }
-      cs.push_back(assertion(ok, line, g->getDecreases() ? "recursive call decreases the measure"
-                                                         : "recursive call needs a decreases clause"));
+      cs.push_back(assertion(ok, line, what));
     }
     // The call as written, with its arguments: a contract is instantiated
     // at each call, so its obligations are named by the call.
@@ -1284,9 +1336,10 @@ private:
 // Spec functions.  A spec function is pure: no loops, input, output, error,
 // or calls to ordinary functions.  With each if and case merged into an ite,
 // its body is one term; it becomes an uninterpreted function and a defining
-// axiom, triggered on each application.  A recursive call must decrease the
-// function's measure: a definition that does not terminate, like
-// f(n) = f(n) + 1, can be false, and from it Z3 proves anything.
+// axiom, triggered on each application.  A recursive call, to itself or
+// around a cycle of spec functions, must decrease the measure: a definition
+// that does not terminate, like f(n) = f(n) + 1, can be false, and from it
+// Z3 proves anything.
 // ===========================================================================
 class SpecFns {
 public:
@@ -1303,9 +1356,29 @@ public:
   std::vector<std::string> skipped;
 
   SpecFns(ASTProgram *p, Lower &low) : low(low) {
-    low.onSpecCall = [this](ASTFunction *g, const std::vector<T> &args, int line) {
-      if (g == current && !inMeasure) termination(g, args, line);
+    // Once to find the calls between spec functions, once knowing the cycles.
+    CallEdges edges;
+    low.onSpecCall = [&](ASTFunction *g, const std::vector<T> &, int) {
+      if (!inMeasure) edges.insert({current->getName(), g->getName()});
     };
+    build(p);
+    Cycles cycles(edges);
+    decls.clear();
+    axioms.clear();
+    lhs.clear();
+    rhs.clear();
+    checks.clear();
+    skipped.clear();
+    low.onSpecCall = [&](ASTFunction *g, const std::vector<T> &args, int line) {
+      if (inMeasure) return;
+      if (g == current || cycles.mutual(current->getName(), g->getName())) termination(g, args, line);
+    };
+    build(p);
+    low.onSpecCall = nullptr;
+  }
+
+private:
+  void build(ASTProgram *p) {
     low.sortLookup = [this](const std::string &x) {
       auto it = sorts.find(x);
       return it == sorts.end() ? std::string("Int") : it->second;
@@ -1360,10 +1433,8 @@ public:
         skipped.push_back(f->getName() + ": " + u.what());
       }
     }
-    low.onSpecCall = nullptr;
   }
 
-private:
   Lower &low;
   ASTFunction *current = nullptr;
   Sub env, params0;
@@ -1434,27 +1505,30 @@ private:
     throw Unsupported(where(s) + "a spec function may not contain this statement");
   }
 
-  // On the path to a recursive call, the measure at the call is smaller than
-  // at entry and not negative.
+  // On the path to a call of g on a cycle (g may be the function itself),
+  // g's measure at the call is smaller than this function's at entry, and
+  // not negative.
   void termination(ASTFunction *g, const std::vector<T> &args, int line) {
     T P = FALSE;
-    std::string what = "recursive call needs a decreases clause";
-    if (auto *D = g->getDecreases()) {
+    bool both = false;
+    std::string what = cycleObligation(current, g, both);
+    if (both) {
       Sub atCall = params0, atEntry = params0;
       auto formals = g->getFormals();
-      for (size_t k = 0; k < formals.size(); ++k) atCall[formals[k]->getName()] = args[k];
+      for (size_t k = 0; k < formals.size() && k < args.size(); ++k)
+        atCall[formals[k]->getName()] = args[k];
       inMeasure = true;
-      auto now = low.measure(D, &atCall), before = low.measure(D, &atEntry);
+      auto now = low.measure(g->getDecreases(), &atCall);
+      auto before = low.measure(current->getDecreases(), &atEntry);
       inMeasure = false;
       P = And({op("<=", {num(0), now}), op("<", {now, before})});
-      what = "recursive call decreases the measure";
     }
     T F = path.empty() ? P : Implies(And(path), P);
     std::string q;
-    for (auto *x : g->getFormals())
+    for (auto *x : current->getFormals())
       q += "(declare-const |" + x->getName() + "| " + sorts[x->getName()] + ")\n";
     q += "(assert (not " + smt(F) + "))\n";
-    checks.push_back({g->getName(), {line, what}, q, F});
+    checks.push_back({current->getName(), {line, what}, q, F});
   }
 };
 
@@ -2085,7 +2159,22 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
     defs += ax;
   }
 
-  // 3. Every obligation of every function, one query each.
+  // 3. The calls between functions (and lemmas), to find recursion through
+  // more than one of them.
+  CallEdges edges;
+  low.edges = &edges;
+  for (auto *f : program->getFunctions()) {
+    if (f->isSpec()) continue;
+    try {
+      low.proc(f);
+    } catch (Unsupported &) {
+    }
+  }
+  low.edges = nullptr;
+  Cycles cycles(edges);
+  low.cycles = &cycles;
+
+  // 4. Every obligation of every function, one query each.
   for (auto *f : program->getFunctions()) {
     if (f->isSpec() || !wanted(f->getName())) continue;
     Proc proc;
