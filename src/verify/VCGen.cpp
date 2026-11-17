@@ -2342,7 +2342,13 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
                  std::to_string(j) + "| :named ob!" + std::to_string(j) + "))\n";
     std::string t = flags + passiveQuery(pv, passiveVC.run(flagged(pv.prog, k, reach), k)) +
                     "(check-sat)\n(get-unsat-core)\n";
-    auto [v, rest] = run(preludeFor(t, true, reach ? opt.rlimit / 100 : 0) + t);
+    std::string full = preludeFor(t, true, reach ? opt.rlimit / 100 : 0) + t;
+    // --psmt with --ptrust shows these queries too.
+    if (opt.psmt && opt.ptrust && (opt.psmtLine == 0 || opt.psmtLine == proc.obs[k].line))
+      out << "; ==== " << proc.fn->getName() << " #" << k << ", line " << proc.obs[k].line << ": "
+          << proc.obs[k].what << (reach ? " -- does anything reach it?" : " -- what does the proof use?")
+          << "\n" << full << "\n";
+    auto [v, rest] = run(full);
     std::vector<std::string> names;
     if (v == "unsat") {
       std::string name;

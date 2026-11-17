@@ -112,7 +112,7 @@ AST --lower--> guarded commands --passivize--> passive commands --> VC --> SMT q
 | `--psmt[=line]` | the SMT-LIB queries exactly as sent to Z3, or only those for one line |
 | `--pspec` | each spec function's definition, its axiom, and its termination obligations |
 | `--pcex` | a trace for each failure: entry values, each assignment with its value, each branch taken, and the failing assertion with the values substituted |
-| `--ptrust` | what each proof uses, why a vacuous proof is vacuous, a verdict for each function, and what is always trusted |
+| `--ptrust` | what each proof uses, why a vacuous proof is vacuous, a verdict for each function, and what is always trusted; with `--psmt`, also the queries that ask |
 | `--vfn=f` | only function `f` (or spec function `f`) |
 
 Any of these implies `--verify`. A TOP condition is true when it is not
@@ -355,7 +355,7 @@ reports them.
 
 ```
 Assumed without proof:
-  assume (line 34) in positive
+  assume (line 36) in positive
   contract of seven (not verified), used by eight
   4 arithmetic operations in code: no overflow (--overflow checks them)
 Checked in this run:
@@ -376,16 +376,16 @@ each definition is asserted under a name. Then a verdict for each function:
 
 ```
 eight:
-  line 27: postcondition
-      uses contract of seven (line 26)
+  line 29: postcondition
+      uses contract of seven (line 28)
   => verified, assuming: contract of seven (not verified)
 client:
-  line 44: postcondition
-      uses contract of positive (line 43)
-  => verified, assuming: assume (line 34) (through positive)
+  line 46: postcondition
+      uses contract of positive (line 45)
+  => verified, assuming: assume (line 36) (through positive)
 guarded:
-  line 56: assertion
-      VACUOUS: nothing reaches line 56, given the precondition
+  line 58: assertion
+      VACUOUS: nothing reaches line 58, given the precondition
   => verified; 1 proof is vacuous
 ```
 
