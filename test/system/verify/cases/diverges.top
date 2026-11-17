@@ -1,0 +1,52 @@
+// decreases * says that code may not terminate: a loop that reads until a
+// sentinel, and a function that calls itself with no measure.  Nothing is
+// owed for termination; partial correctness is still checked.
+readAll()
+  ensures result >= 0
+{
+  var n, count;
+  count = 0;
+  n = input;
+  while (n != 0)
+    invariant count >= 0
+    decreases *
+  {
+    count = count + 1;
+    n = input;
+  }
+  return count;
+}
+
+retry(n)
+  ensures result == 0
+  decreases *
+{
+  var r;
+  r = 0;
+  if (n != 0) {
+    r = retry(input);
+  }
+  return r;
+}
+
+// A terminating function on a cycle with one that may not terminate still
+// owes a measure, and has none to compare with.
+careful(n)
+  decreases n
+{
+  var r;
+  r = careless(n);
+  return r;
+}
+
+careless(n)
+  decreases *
+{
+  var r;
+  r = careful(n);
+  return r;
+}
+
+main() {
+  return readAll();
+}

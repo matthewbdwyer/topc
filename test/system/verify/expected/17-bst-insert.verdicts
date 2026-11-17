@@ -16,7 +16,7 @@ inorder	66	proved	precondition of inorder(r)
 inorder	69	proved	postcondition
 main	77	proved	loop invariant holds on entry
 main	77	proved	loop invariant is preserved
-main	80	proved	precondition of insert(t, n)
-main	84	proved	assertion
-main	85	proved	precondition of inorder(t)
-main	86	proved	postcondition
+main	81	proved	precondition of insert(t, n)
+main	85	proved	assertion
+main	86	proved	precondition of inorder(t)
+main	87	proved	postcondition

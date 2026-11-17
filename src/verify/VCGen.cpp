@@ -58,6 +58,7 @@
 #include <set>
 #include <sstream>
 #include <stdexcept>
+#include <tuple>
 #include <string>
 #include <vector>
 
@@ -70,6 +71,7 @@ struct Unsupported : std::runtime_error {
 struct Obligation {
   int line;
   std::string what;
+  bool missing = false; // a clause the program lacks: fails without asking Z3
 };
 
 // ===========================================================================
@@ -596,6 +598,8 @@ struct G {
   int line = 0;
   std::string note;               // shown as a comment
   bool guard = false;             // Assume: the condition that picks a branch
+  bool missing = false;           // Assert: a clause the program lacks; it fails,
+                                  // but nothing after it assumes it
   T src; // a guard: the source condition; a passive assignment: the value
 };
 
@@ -1111,6 +1115,15 @@ private:
     return g;
   }
 
+  // An obligation that fails because a clause is missing.  It is not a fact
+  // about the program, so the obligations after it do not assume it.
+  G missingClause(int line, std::string what) {
+    G g = assertion(FALSE, line, std::move(what));
+    g.missing = true;
+    obs.back().missing = true;
+    return g;
+  }
+
   G assertion(T p, int line, std::string what) {
     G g;
     g.kind = G::Assert;
@@ -1220,6 +1233,10 @@ private:
       for (auto *e : w->getInvariants()) inv.push_back(spec(e));
       T J = And(inv);
       std::vector<G> cs{assertion(J, line, "loop invariant holds on entry")};
+      // Every loop has a measure, or says with `decreases *` that it may
+      // run forever.
+      if (!w->getDecreases() && !w->mayDiverge())
+        cs.push_back(missingClause(line, "loop needs a decreases clause"));
       std::vector<std::string> mods;
       for (auto &x : writes.assigned(w->getBody())) mods.push_back(name(x));
       if (!mods.empty()) cs.push_back(havoc(mods, line, "an arbitrary iteration"));
@@ -1274,15 +1291,17 @@ private:
       at[formals[k]->getName()] = olds[formals[k]->getName()] = args[k];
 
     if (edges) edges->insert({current->getName(), g->getName()});
-    if (g == current || (cycles && cycles->mutual(current->getName(), g->getName()))) {
+    // A function with `decreases *` may not return, so its calls owe nothing.
+    if (!current->mayDiverge() &&
+        (g == current || (cycles && cycles->mutual(current->getName(), g->getName())))) {
       bool both = false;
       auto what = cycleObligation(current, g, both);
-      T ok = FALSE;
       if (both) {
         auto now = measure(g->getDecreases(), &at), before = measure(current->getDecreases(), &oldAll);
-        ok = And({op("<=", {num(0), now}), op("<", {now, before})});
+        cs.push_back(assertion(And({op("<=", {num(0), now}), op("<", {now, before})}), line, what));
+      } else {
+        cs.push_back(missingClause(line, what));
       }
-      cs.push_back(assertion(ok, line, what));
     }
     // The call as written, with its arguments: a contract is instantiated
     // at each call, so its obligations are named by the call.
@@ -1675,7 +1694,9 @@ bool checked(const G &c, int target) { return target == -2 || c.id == target; }
 T wp(const G &c, const T &Q, int target) {
   switch (c.kind) {
   case G::Assume: return isTrue(c.p) ? Q : Implies(c.p, Q);
-  case G::Assert: return checked(c, target) ? And({c.p, Q}) : Implies(c.p, Q);
+  case G::Assert:
+    if (checked(c, target)) return And({c.p, Q});
+    return c.missing ? Q : Implies(c.p, Q);
   case G::Assign: return let(c.x, c.p, Q);
   case G::Havoc: return forall(c.vars, c.sorts, Q);
   case G::Seq: {
@@ -1739,7 +1760,7 @@ private:
   std::pair<T, T> vc(const G &c) {
     switch (c.kind) {
     case G::Assume: return {TRUE, c.p};
-    case G::Assert: return {checked(c, target) ? c.p : TRUE, c.p};
+    case G::Assert: return {checked(c, target) ? c.p : TRUE, c.missing ? TRUE : c.p};
     case G::Assign:
     case G::Havoc: return {TRUE, TRUE};
     case G::Seq: {
@@ -1997,7 +2018,7 @@ const char *PRELUDE =
 // The visitor does not enter specifications, so only code is checked.
 class SpecUse : public ASTVisitor {
   std::set<std::string> specs, lemmas;
-  bool inSpecFn = false;
+  bool inSpecFn = false, inLemma = false;
 
 public:
   explicit SpecUse(ASTProgram *p) {
@@ -2008,7 +2029,17 @@ public:
   }
   bool visit(ASTFunction *f) override {
     inSpecFn = f->isSpec();
+    inLemma = f->isLemma();
+    // A spec function or a lemma that did not terminate would prove anything.
+    if ((f->isSpec() || f->isLemma()) && f->mayDiverge())
+      throw SemanticError(std::string(f->isSpec() ? "spec function " : "lemma ") + f->getName() +
+                          " has decreases *; only code may fail to terminate");
     return true;
+  }
+  void endVisit(ASTWhileStmt *w) override {
+    if (inLemma && w->mayDiverge())
+      throw SemanticError("loop with decreases * in a lemma on line " +
+                          std::to_string(w->getLine()) + "; a lemma must terminate");
   }
   void endVisit(ASTRankExpr *r) override {
     if (!inSpecFn)
@@ -2251,9 +2282,10 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
         out << "; ==== " << f->getName() << " #" << k << ", line " << q.ob.line << ": "
             << q.ob.what << "\n"
             << full << "\n";
-      auto [v, rest] = run(full);
+      std::string v = "sat", rest;
+      if (!q.ob.missing) std::tie(v, rest) = run(full);
       q.verdict = v;
-      if (v != "unsat") {
+      if (v != "unsat" && !q.ob.missing) {
         size_t i = 0;
         SX vals = parseSX(rest, i);
         std::vector<std::string> shown;

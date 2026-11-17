@@ -18,11 +18,14 @@ function : (KSPEC | KLEMMA)? nameDeclaration
 spec : KREQUIRES expr      #requiresSpec
      | KENSURES expr       #ensuresSpec
      | KDECREASES expr     #decreasesSpec
+     | KDECREASES '*'      #divergesSpec
 ;
 
-// VERUTOP: what a loop promises.
+// VERUTOP: what a loop promises.  Every loop needs a measure; `decreases *`
+// says instead that it may run forever.
 loopSpec : KINVARIANT expr  #invariantSpec
          | KDECREASES expr  #loopDecreasesSpec
+         | KDECREASES '*'   #loopDivergesSpec
 ;
 
 ////////////////////// TOP Type Declarations ////////////////////////// 

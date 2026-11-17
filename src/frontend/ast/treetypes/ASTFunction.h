@@ -23,6 +23,7 @@ class ASTFunction : public ASTNode {
   bool ISSPEC = false;
   bool ISLEMMA = false;
   std::shared_ptr<ASTExpr> DECREASES;
+  bool DIVERGES = false;
 
 public:
   std::vector<std::shared_ptr<ASTNode>> getChildren() override;
@@ -63,6 +64,9 @@ public:
   bool isLemma() const { return ISLEMMA; }
   bool isErased() const { return ISSPEC || ISLEMMA; }
   void setDecreases(std::shared_ptr<ASTExpr> d) { DECREASES = std::move(d); }
+  // VERUTOP: `decreases *`: the function may not return.
+  void setMayDiverge(bool b) { DIVERGES = b; }
+  bool mayDiverge() const { return DIVERGES; }
   ASTExpr *getDecreases() const { return DECREASES.get(); }
   std::vector<ASTDeclNode *> getFormals() const;
   std::vector<ASTDeclStmt *> getDeclarations() const;

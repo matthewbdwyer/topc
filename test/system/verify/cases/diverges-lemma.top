@@ -1,0 +1,14 @@
+// modes: passive
+// A lemma that might not terminate would prove anything: rejected before
+// verification.
+lemma anything(n)
+  ensures 0 == 1
+  decreases *
+{
+  use anything(n);
+  return 0;
+}
+
+main() {
+  return 0;
+}

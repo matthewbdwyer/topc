@@ -10,6 +10,7 @@ mult(x, y)
   r = 0;
   while (i < x)
     invariant r == i * y
+    decreases x - i
   {
     r = r + y;
     i = i + 1;

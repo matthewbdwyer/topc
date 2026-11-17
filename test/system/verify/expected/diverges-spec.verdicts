@@ -1,0 +1,2 @@
+		note	topc: spec function bad has decreases *; only code may fail to terminate
+		note	topc: semantic error

@@ -76,6 +76,7 @@ main() {
   n = input;
   while (n != 0)
     invariant size(t) == count
+    decreases *
   {
     t = insert(t, n);
     count = count + 1;

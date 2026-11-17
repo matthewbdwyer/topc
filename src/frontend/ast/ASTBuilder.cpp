@@ -160,6 +160,7 @@ Any ASTBuilder::visitFunction(TOPParser::FunctionContext *ctx) {
   // VERUTOP: the contract.  `result` is declared for the ensures clauses.
   std::vector<std::shared_ptr<ASTExpr>> req, ens;
   std::shared_ptr<ASTExpr> dec;
+  bool diverges = false;
   for (auto spec : ctx->spec()) {
     if (auto *r = dynamic_cast<TOPParser::RequiresSpecContext *>(spec)) {
       visit(r->expr());
@@ -170,8 +171,11 @@ Any ASTBuilder::visitFunction(TOPParser::FunctionContext *ctx) {
     } else if (auto *d = dynamic_cast<TOPParser::DecreasesSpecContext *>(spec)) {
       visit(d->expr());
       dec = visitedExpr;
+    } else if (dynamic_cast<TOPParser::DivergesSpecContext *>(spec)) {
+      diverges = true;
     }
   }
+  visitedFunction->setMayDiverge(diverges);
   visitedFunction->setSpecFunction(ctx->KSPEC() != nullptr);
   visitedFunction->setLemma(ctx->KLEMMA() != nullptr);
   visitedFunction->setDecreases(dec);
@@ -508,6 +512,7 @@ Any ASTBuilder::visitWhileStmt(TOPParser::WhileStmtContext *ctx) {
   auto cond = visitedExpr;
   std::vector<std::shared_ptr<ASTExpr>> invariants;
   std::shared_ptr<ASTExpr> dec;
+  bool diverges = false;
   for (auto spec : ctx->loopSpec()) {
     if (auto *i = dynamic_cast<TOPParser::InvariantSpecContext *>(spec)) {
       visit(i->expr());
@@ -515,6 +520,8 @@ Any ASTBuilder::visitWhileStmt(TOPParser::WhileStmtContext *ctx) {
     } else if (auto *d = dynamic_cast<TOPParser::LoopDecreasesSpecContext *>(spec)) {
       visit(d->expr());
       dec = visitedExpr;
+    } else if (dynamic_cast<TOPParser::LoopDivergesSpecContext *>(spec)) {
+      diverges = true;
     }
   }
   visit(ctx->statement());
@@ -522,6 +529,7 @@ Any ASTBuilder::visitWhileStmt(TOPParser::WhileStmtContext *ctx) {
   auto loop = std::make_shared<ASTWhileStmt>(cond, body);
   loop->setInvariants(invariants);
   loop->setDecreases(dec);
+  loop->setMayDiverge(diverges);
   visitedStmt = loop;
 
   LOG_S(1) << "Built AST node " << *visitedStmt;

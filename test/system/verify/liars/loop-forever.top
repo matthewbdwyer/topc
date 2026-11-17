@@ -1,10 +1,11 @@
-// The loop never exits, so the postcondition is never reached: it holds
-// only vacuously.
+// The loop never exits, which decreases * allows; the postcondition is
+// never reached, so it holds only vacuously.
 liar(n)
   ensures result == 42
 {
   while (1)
     invariant 1
+    decreases *
   {
     n = n + 1;
   }

@@ -10,6 +10,7 @@ class ASTWhileStmt : public ASTStmt {
   std::shared_ptr<ASTStmt> BODY;
   std::vector<std::shared_ptr<ASTExpr>> INVARIANTS; // VERUTOP
   std::shared_ptr<ASTExpr> DECREASES;               // VERUTOP
+  bool DIVERGES = false;                            // VERUTOP
 
 public:
   std::vector<std::shared_ptr<ASTNode>> getChildren() override;
@@ -21,6 +22,9 @@ public:
     INVARIANTS = std::move(inv);
   }
   void setDecreases(std::shared_ptr<ASTExpr> d) { DECREASES = std::move(d); }
+  // VERUTOP: `decreases *`: the loop may run forever.
+  void setMayDiverge(bool b) { DIVERGES = b; }
+  bool mayDiverge() const { return DIVERGES; }
   ASTExpr *getDecreases() const { return DECREASES.get(); }
   std::vector<ASTExpr *> getInvariants() const {
     std::vector<ASTExpr *> v;

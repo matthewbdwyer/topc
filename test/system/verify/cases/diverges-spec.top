@@ -1,0 +1,11 @@
+// modes: passive
+// The same for a spec function.
+spec bad(n)
+  decreases *
+{
+  return bad(n) + 1;
+}
+
+main() {
+  return 0;
+}

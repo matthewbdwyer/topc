@@ -55,7 +55,7 @@ def topc(src, flags):
             p = subprocess.run([str(TOPC), *flags, src.name], cwd=d, text=True,
                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                timeout=TIMEOUT)
-            return p.stdout
+            return re.sub(r"\x1b\[[0-9;]*m", "", p.stdout)  # no colour codes
         except subprocess.TimeoutExpired:
             return "TIMEOUT\n"
 

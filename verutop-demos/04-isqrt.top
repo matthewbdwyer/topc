@@ -10,6 +10,7 @@ isqrt(n)
   while ((r + 1) * (r + 1) <= n)
     invariant r >= 0
     invariant r * r <= n
+    decreases n - r
   {
     r = r + 1;
   }
