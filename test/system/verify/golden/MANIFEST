@@ -10,3 +10,10 @@ division-gcl:    verutop-demos/06-division.top --pgcl --vfn=half
 factorial-spec:  verutop-demos/05-factorial.top --pspec
 swap-gcl:        verutop-demos/16-swap.top --pgcl --vfn=main
 height-gcl:      verutop-demos/14-tree-height.top --pgcl
+# the trust summary and the detailed report
+assume-report:      verutop-demos/08-assume.top --verify
+assume-trust:       verutop-demos/08-assume.top --ptrust
+trust-specs-trust:  verutop-demos/12-termination.top --ptrust --trust-specs
+least-trust:        verutop-demos/18-tree-least.top --ptrust
+trust-case:         test/system/verify/cases/trust.top --ptrust
+diverges-report:    test/system/verify/cases/diverges.top --verify

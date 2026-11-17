@@ -1,0 +1,46 @@
+spec bad: does not terminate, but --trust-specs uses its definition
+spec bad:
+  FAILED  line 49: recursive call decreases the measure
+count:
+  FAILED  line 15: recursive call needs a decreases clause
+  proved  line 15: precondition of count(n - 1)
+  proved  line 17: postcondition
+spin:
+  FAILED  line 27: recursive call decreases the measure
+  proved  line 27: precondition of spin(n)
+  proved  line 29: postcondition
+loopUp:
+  proved  line 37: loop invariant holds on entry
+  proved  line 37: loop invariant is preserved
+  FAILED  line 37: loop measure decreases
+  proved  line 43: postcondition
+liar:
+  proved  line 55: assertion
+  proved  line 56: postcondition   VACUOUS
+main:
+  proved  line 61: precondition of count(3)
+  proved  line 62: postcondition
+
+Trust report
+count:
+  => not verified: 1 of 3 obligations not proved
+spin:
+  => not verified: 1 of 3 obligations not proved
+loopUp:
+  => not verified: 1 of 4 obligations not proved
+liar:
+  line 56: postcondition
+      VACUOUS: nothing reaches line 56, given definition of bad
+  => verified, assuming: definition of bad (--trust-specs); 1 proof is vacuous
+main:
+  => verified
+
+Assumed without proof:
+  definition of bad: does not terminate (--trust-specs)
+  2 arithmetic operations in code: no overflow (--overflow checks them)
+Always trusted:
+  topc's parser, type checker, and ownership checks (the encoding relies on ownership)
+  VERUTOP's translation of the program to verification conditions
+  Z3
+  erasure, code generation, LLVM, and the runtime: the source is verified, not the binary
+  input is any integer; output is not modelled

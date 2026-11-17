@@ -72,6 +72,21 @@ struct Obligation {
   int line;
   std::string what;
   bool missing = false; // a clause the program lacks: fails without asking Z3
+  bool unreachable = false; // the obligation is `false`: that no execution gets here
+};
+
+// Something a proof may use that the function itself does not establish.
+// Each is tracked through the VC, so a proof can say which it needed.
+struct Assumption {
+  enum Kind {
+    Pre,      // the function's own requires: the caller's obligation
+    Assume,   // an assume statement: trusted
+    Contract, // a callee's postcondition: holds if the callee is verified
+    Lemma     // a lemma's postcondition, from `use`: likewise
+  } kind;
+  int line;
+  std::string what;   // as shown in a report
+  std::string callee; // Contract, Lemma
 };
 
 // ===========================================================================
@@ -484,6 +499,7 @@ struct Types {
   std::map<std::string, std::string> selSort;                              // selector -> sort
   std::map<std::string, std::string> fnSort;                               // function -> result sort
   std::map<std::string, std::string> rankAxioms;                           // rank#D -> axiom
+  std::map<std::string, std::string> rankChecks;                           // rank#D -> query
   std::string decls;                                                       // datatypes and rank functions
 
   static bool isDatatype(const std::string &s) { return s != "Int" && s != "Bool"; }
@@ -552,6 +568,15 @@ struct Types {
         for (size_t k = 1; k < sum.size(); ++k) e = op("+", {e, sum[k]});
         body = i + 1 == (int)vs.size() ? e : op("ite", {is(vs[i]->getTag(), x), e, body});
       }
+      // The axiom also says rank >= 1, which needs induction.  This query
+      // is the induction step: if every sum-valued field has rank >= 1, the
+      // value does.  Structural induction then gives it for all values.
+      std::string step = "(declare-const |x| " + s + ")\n";
+      for (auto *v : vs)
+        for (auto &[sl, so] : fields[v->getTag()])
+          if (isDatatype(so))
+            step += "(assert " + smt(Implies(is(v->getTag(), x), op(">=", {rank(sel(sl, x), so), num(1)}))) + ")\n";
+      rankChecks[r] = step + "(assert (not " + smt(op(">=", {body, num(1)})) + "))\n";
       T call = app(r, {x});
       rankAxioms[r] = "(assert (forall ((|x| " + s + ")) (! (and (>= " + smt(call) + " 1) " +
                       smt(Eq(call, body)) + ") :pattern (" + smt(call) + "))))\n";
@@ -600,6 +625,7 @@ struct G {
   int id = -1;                    // Assert: obligation number
   int line = 0;
   std::string note;               // shown as a comment
+  int asmId = -1;                 // Assume: the tracked assumption it states, if any
   bool guard = false;             // Assume: the condition that picks a branch
   bool missing = false;           // Assert: a clause the program lacks; it fails,
                                   // but nothing after it assumes it
@@ -709,6 +735,8 @@ struct Proc {
   ASTFunction *fn = nullptr;
   G body;
   std::vector<Obligation> obs;
+  std::vector<Assumption> assumptions;
+  std::vector<std::string> diverges;        // what `decreases *` leaves unproved
   int arithmetic = 0;                       // + - * / in code that no obligation checks
   std::map<std::string, std::string> sorts; // every variable's sort
   std::string sortOf(const std::string &x) const {
@@ -946,7 +974,10 @@ public:
     std::vector<G> cs;
     std::vector<T> req;
     for (auto *e : f->getRequires()) req.push_back(spec(e));
-    if (!req.empty()) cs.push_back(gAssume(And(req), f->getRequires()[0]->getLine(), "requires"));
+    if (f->mayDiverge()) proc_.diverges.push_back(f->getName());
+    if (!req.empty())
+      cs.push_back(tracked(gAssume(And(req), f->getRequires()[0]->getLine(), "requires"),
+                           Assumption::Pre, "the precondition"));
     if (machineInts()) {
       std::vector<T> rs;
       for (auto *p : f->getFormals())
@@ -1147,6 +1178,14 @@ private:
     return g;
   }
 
+  // An assume that a proof may be found to depend on.
+  G tracked(G g, Assumption::Kind kind, std::string what, std::string callee = "") {
+    if (isTrue(g.p)) return g;
+    g.asmId = (int)proc_.assumptions.size();
+    proc_.assumptions.push_back({kind, g.line, std::move(what), std::move(callee)});
+    return g;
+  }
+
   // An obligation that fails because a clause is missing.  It is not a fact
   // about the program, so the obligations after it do not assume it.
   G missingClause(int line, std::string what) {
@@ -1164,6 +1203,7 @@ private:
     g.line = line;
     g.note = what;
     obs.push_back({line, std::move(what)});
+    obs.back().unreachable = isFalse(g.p);
     return g;
   }
 
@@ -1189,7 +1229,9 @@ private:
         return gSeq(cs);
       }
       auto P = spec(proof->getExpr());
-      if (proof->getKind() == ASTProofStmt::Kind::Assume) return gAssume(P, line, "assume");
+      if (proof->getKind() == ASTProofStmt::Kind::Assume)
+        return tracked(gAssume(P, line, "assume"), Assumption::Assume,
+                       "assume (line " + std::to_string(line) + ")");
       return assertion(P, line, "assertion");
     }
     if (auto *blk = dynamic_cast<ASTBlockStmt *>(s)) {
@@ -1273,6 +1315,7 @@ private:
       // run forever.
       if (!w->getDecreases() && !w->mayDiverge())
         cs.push_back(missingClause(line, "loop needs a decreases clause"));
+      if (w->mayDiverge()) proc_.diverges.push_back("the loop at line " + std::to_string(line));
       std::vector<std::string> mods;
       for (auto &x : writes.assigned(w->getBody())) mods.push_back(name(x));
       if (!mods.empty()) cs.push_back(havoc(mods, line, "an arbitrary iteration"));
@@ -1380,7 +1423,11 @@ private:
     at["result"] = var(r);
     std::vector<T> ens;
     for (auto *e : g->getEnsures()) ens.push_back(spec(e, &at, &olds));
-    cs.push_back(gAssume(And(ens), line, "postcondition of " + site));
+    cs.push_back(tracked(gAssume(And(ens), line, "postcondition of " + site),
+                         g->isLemma() ? Assumption::Lemma : Assumption::Contract,
+                         (g->isLemma() ? "lemma " : "contract of ") + g->getName() + " (line " +
+                             std::to_string(line) + ")",
+                         g->getName()));
     for (size_t k = 0; k < outs.size(); ++k)
       cs.push_back(gAssign(outs[k], var(outVars[k]), line, "written through the borrow"));
     return var(r);
@@ -1820,6 +1867,35 @@ private:
   }
 };
 
+// For asking Z3 what a proof depends on.  Each tracked assumption P becomes
+// A!k ==> P, and each other obligation Q (which this proof may assume)
+// O!j ==> Q; the flags are then asserted by name, and the names in Z3's
+// unsat core are the ones the proof needed.
+//
+// With `reach`, the target obligation becomes `false`: if that is proved,
+// no execution reaches the obligation at all, and its proof says nothing.
+G flagged(const G &c, int target, bool reach) {
+  G r = c;
+  switch (c.kind) {
+  case G::Assume:
+    if (c.asmId >= 0) r.p = Implies(var("A!" + std::to_string(c.asmId)), c.p);
+    break;
+  case G::Assert:
+    if (c.id == target) {
+      if (reach) r.p = FALSE;
+    } else if (!c.missing) {
+      r.p = Implies(var("O!" + std::to_string(c.id)), c.p);
+    }
+    break;
+  case G::Seq:
+  case G::Choice:
+    for (auto &k : r.kids) k = flagged(k, target, reach);
+    break;
+  default: break;
+  }
+  return r;
+}
+
 std::string passiveQuery(const Passive &pv, const PassiveVC &vc) {
   std::string q;
   for (auto &v : pv.versions) q += "(declare-const |" + v + "| " + pv.sorts.at(v) + ")\n";
@@ -2121,7 +2197,22 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
     std::string text; // declarations and assertion, without the prelude
     std::string verdict, model;
     std::vector<std::string> trace;
+    int order = 0;                 // of its function, in the report
+    bool vacuous = false;          // proved, but no execution reaches it
+    bool usesKnown = false;        // Z3 said what the proof depends on
+    std::vector<std::string> uses; // names from the unsat core: asm!k, ob!j, def!f, rank!T
   };
+  // What the report needs to know about each function.
+  struct FnInfo {
+    bool ran = false;
+    std::string skipped;
+    std::vector<Assumption> assumptions;
+    std::vector<Obligation> obs;
+    std::vector<std::string> diverges;
+    int arithmetic = 0;
+  };
+  std::map<std::string, FnInfo> info;
+  std::vector<std::string> fnOrder;
 
   // Run one query in its own Z3 process.  (In one process, state left by an
   // earlier query, even after push/pop, can make Z3 give up on a later one.)
@@ -2189,7 +2280,9 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
   // A query gets only the definitions it mentions (and those they mention).
   // An unneeded quantified definition can keep Z3 from finding a
   // counterexample, so it answers unknown instead of sat.
-  auto preludeFor = [&](const std::string &text) {
+  // With `named`, each definition is asserted under a name (def!f, rank!T)
+  // and Z3 is asked to keep an unsat core.
+  auto preludeFor = [&](const std::string &text, bool named = false, long long limit = 0) {
     std::set<std::string> need;
     std::vector<std::string> work{text};
     while (!work.empty()) {
@@ -2202,8 +2295,58 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
         }
     }
     std::string p = base;
-    for (auto &fn : need) p += usable[fn];
+    if (!named) {
+      for (auto &fn : need) p += usable[fn];
+      return p;
+    }
+    if (limit) {
+      auto old = "(set-option :rlimit " + std::to_string(opt.rlimit) + ")";
+      p.replace(p.find(old), old.size(), "(set-option :rlimit " + std::to_string(limit) + ")");
+    }
+    // (Z3 can also minimize a core, but that search is not bounded by
+    // rlimit; the core of the proof it found is small enough.)
+    p = "(set-option :produce-unsat-cores true)\n" + p;
+    for (auto &fn : need) {
+      auto &ax = usable[fn]; // (assert F)\n
+      std::string name = fn.rfind("rank#", 0) == 0 ? "rank!" + fn.substr(5) : "def!" + fn;
+      p += "(assert (! " + ax.substr(8, ax.size() - 10) + " :named " + name + "))\n";
+    }
     return p;
+  };
+  // Ask what the proof of obligation k depends on; with `reach`, whether
+  // anything reaches the obligation at all.  Returns whether Z3 proved the
+  // query, and the names in its unsat core.
+  //
+  // Showing that something *is* reachable is not what Z3 is good at when
+  // definitions are recursive: it unfolds them until its limit.  A vacuous
+  // proof is found quickly or not at all, so the reachability question
+  // gets a hundredth of the limit.  The dependency question repeats a
+  // proof Z3 has found.
+  auto dependencies = [&](const Proc &proc, const Passive &pv, int k, bool reach) {
+    std::string flags;
+    for (size_t i = 0; i < proc.assumptions.size(); ++i)
+      flags += "(declare-const |A!" + std::to_string(i) + "| Bool)\n(assert (! |A!" +
+               std::to_string(i) + "| :named asm!" + std::to_string(i) + "))\n";
+    for (size_t j = 0; j < proc.obs.size(); ++j)
+      if ((int)j != k && !proc.obs[j].missing)
+        flags += "(declare-const |O!" + std::to_string(j) + "| Bool)\n(assert (! |O!" +
+                 std::to_string(j) + "| :named ob!" + std::to_string(j) + "))\n";
+    std::string t = flags + passiveQuery(pv, passiveVC.run(flagged(pv.prog, k, reach), k)) +
+                    "(check-sat)\n(get-unsat-core)\n";
+    auto [v, rest] = run(preludeFor(t, true, reach ? opt.rlimit / 100 : 0) + t);
+    std::vector<std::string> names;
+    if (v == "unsat") {
+      std::string name;
+      for (char c : rest + " ") {
+        if (c == '(' || c == ')' || isspace((unsigned char)c)) {
+          if (!name.empty()) names.push_back(name);
+          name.clear();
+        } else {
+          name += c;
+        }
+      }
+    }
+    return std::make_pair(v == "unsat", names);
   };
 
   // 1. Termination of spec functions, using no spec definitions at all.
@@ -2255,8 +2398,11 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
       pv = passivize.run(proc);
     } catch (Unsupported &u) {
       out << f->getName() << ": skipped (" << u.what() << ")\n";
+      info[f->getName()].skipped = u.what();
       continue;
     }
+    fnOrder.push_back(f->getName());
+    info[f->getName()] = {true, "", proc.assumptions, proc.obs, proc.diverges, proc.arithmetic};
 
     std::string sig = f->getName() + "(";
     for (size_t i = 0; i < f->getFormals().size(); ++i)
@@ -2297,6 +2443,7 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
     if (dumps) out << "\n";
 
     std::vector<std::string> model;
+    std::set<int> unprovedObs;
     for (size_t k = 0; k < proc.obs.size(); ++k) {
       std::string t;
       if (opt.passive) {
@@ -2317,6 +2464,7 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
         t += "))\n";
       }
       Query q{f->getName(), proc.obs[k], t};
+      q.order = (int)fnOrder.size();
       std::string full = preludeFor(q.text) + q.text;
       if (opt.psmt && (opt.psmtLine == 0 || opt.psmtLine == q.ob.line))
         out << "; ==== " << f->getName() << " #" << k << ", line " << q.ob.line << ": "
@@ -2361,9 +2509,34 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
           q.trace = tr.lines;
         }
       }
+      // A proof says nothing if no execution reaches the obligation: an
+      // assumption that cannot hold, or a contract or definition that is
+      // false, proves everything after it.  So each proved obligation is
+      // asked once more, as `false`.  (An obligation that is `false` to
+      // begin with claims exactly that the point is unreachable.)
+      if (v == "unsat" && !q.ob.unreachable) {
+        auto [unreached, why] = dependencies(proc, pv, (int)k, true);
+        // Unreachable only because an obligation that failed is assumed
+        // after it: the failure is already reported.
+        for (auto &n : why)
+          if (n.rfind("ob!", 0) == 0 && unprovedObs.count(std::atoi(n.c_str() + 3))) unreached = false;
+        if (unreached) {
+          q.vacuous = q.usesKnown = true;
+          q.uses = why;
+        } else if (opt.ptrust) {
+          std::tie(q.usesKnown, q.uses) = dependencies(proc, pv, (int)k, false);
+        }
+      } else if (v == "unsat" && opt.ptrust) {
+        std::tie(q.usesKnown, q.uses) = dependencies(proc, pv, (int)k, false);
+      }
+      if (v != "unsat") unprovedObs.insert((int)k);
       queries.push_back(q);
     }
   }
+
+  // rank(x) >= 1, by induction: one step per sum type.
+  std::map<std::string, bool> rankProved;
+  for (auto &[r, q] : TY.rankChecks) rankProved[r] = run(base + q + "(check-sat)\n").first == "unsat";
 
   // The same queries as one readable SMT-LIB file.
   std::ofstream smtOut(smtFile);
@@ -2383,8 +2556,9 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
   out << "VC (" << (opt.passive ? "passive" : "wp") << "): " << queries.size() << " queries, "
       << bytes << " bytes in " << smtFile << "\n";
 
-  std::stable_sort(queries.begin(), queries.end(),
-                   [](auto &x, auto &y) { return x.fn == y.fn && x.ob.line < y.ob.line; });
+  std::stable_sort(queries.begin(), queries.end(), [](auto &x, auto &y) {
+    return std::tie(x.order, x.ob.line) < std::tie(y.order, y.ob.line);
+  });
   bool allOk = true;
   std::string fn;
   for (auto &r : queries) {
@@ -2401,8 +2575,187 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
       out << "   when " << r.model;
     if (r.verdict != "sat" && r.verdict != "unsat" && r.verdict != "unknown")
       out << "   (z3: " << r.verdict << ")";
+    if (r.vacuous) out << "   VACUOUS";
     out << "\n";
     for (auto &l : r.trace) out << l << "\n";
+  }
+
+  // ---- what the proofs rest on ----------------------------------------------
+  auto verified = [&](const std::string &fn) {
+    if (!info.count(fn) || !info[fn].ran) return false;
+    for (auto &q : queries)
+      if (q.fn == fn && q.verdict != "unsat") return false;
+    return true;
+  };
+  auto whyNot = [&](const std::string &fn) -> std::string {
+    if (!info.count(fn)) return "not checked in this run";
+    if (!info[fn].skipped.empty()) return "not checked: " + info[fn].skipped;
+    return "not verified";
+  };
+  // A name from an unsat core, as text.
+  auto show = [&](const std::string &fn, const std::string &name) -> std::string {
+    auto n = name.substr(name.find('!') + 1);
+    if (name.rfind("def!", 0) == 0) return "definition of " + n;
+    if (name.rfind("rank!", 0) == 0) return "rank(" + n + ")";
+    size_t i = (size_t)std::atoi(n.c_str());
+    if (name.rfind("asm!", 0) == 0 && i < info[fn].assumptions.size()) return info[fn].assumptions[i].what;
+    if (name.rfind("ob!", 0) == 0 && i < info[fn].obs.size())
+      return "the obligation at line " + std::to_string(info[fn].obs[i].line) + " (" +
+             info[fn].obs[i].what + ")";
+    return name;
+  };
+
+  // Assumed without proof, wherever a proof could use it.
+  std::vector<std::string> assumed, checked;
+  for (auto &fn : fnOrder)
+    for (auto &a : info[fn].assumptions)
+      if (a.kind == Assumption::Assume) assumed.push_back(a.what + " in " + fn);
+  for (auto &[fn, ax] : specs.axioms)
+    if (unsound.count(fn) && opt.trustSpecs)
+      assumed.push_back("definition of " + fn + ": does not terminate (--trust-specs)");
+  // A contract is used by every caller, verified or not.
+  std::map<std::string, std::set<std::string>> callers;
+  for (auto &[f, g] : edges)
+    if (f != g && info.count(f) && info[f].ran && !verified(g) && !low.fns[g]->getEnsures().empty())
+      callers[g].insert(f);
+  for (auto &[g, fs] : callers)
+    assumed.push_back("contract of " + g + " (" + whyNot(g) + "), used by " +
+                      join(std::vector<std::string>(fs.begin(), fs.end())));
+  int arithmetic = 0;
+  for (auto &fn : fnOrder) arithmetic += info[fn].arithmetic;
+  if (arithmetic)
+    assumed.push_back(std::to_string(arithmetic) + " arithmetic operation" + (arithmetic > 1 ? "s" : "") +
+                      " in code: no overflow (--overflow checks " + (arithmetic > 1 ? "them" : "it") + ")");
+  for (auto &[r, ok] : rankProved)
+    if (!ok) assumed.push_back("rank(" + r.substr(5) + ") >= 1");
+
+  for (auto &[fn, ax] : specs.axioms) {
+    if (unsound.count(fn)) continue;
+    bool recursive = false;
+    for (auto &c : specs.checks) recursive = recursive || c.fn == fn;
+    checked.push_back("definition of " + fn + (recursive ? ": terminates" : ": not recursive"));
+  }
+  for (auto &[r, ok] : rankProved)
+    if (ok) checked.push_back("rank(" + r.substr(5) + ") >= 1: induction step");
+  std::vector<std::string> diverges;
+  for (auto &fn : fnOrder)
+    for (auto &d : info[fn].diverges) diverges.push_back(d == fn ? fn : d + " in " + fn);
+  bool anyVacuous = false;
+  for (auto &q : queries) anyVacuous = anyVacuous || q.vacuous;
+
+  if (opt.ptrust) {
+    // What each proof used, and what each function's verdict rests on.
+    out << "\nTrust report\n";
+    std::map<std::string, std::set<std::string>> rests; // function -> unproved things it rests on
+    std::map<std::string, std::set<std::string>> usedCallees;
+    std::map<std::string, std::vector<std::string>> lines;
+    for (auto &q : queries) {
+      if (q.verdict != "unsat" || !info.count(q.fn)) continue;
+      std::string head = "  line " + std::to_string(q.ob.line) + ": " + q.ob.what;
+      if (!q.usesKnown) {
+        lines[q.fn].push_back(head);
+        lines[q.fn].push_back("      Z3 did not say what this proof depends on");
+        rests[q.fn].insert("whatever the proof at line " + std::to_string(q.ob.line) + " depends on");
+        continue;
+      }
+      std::vector<std::string> shown;
+      for (auto &u : q.uses) {
+        size_t i = (size_t)std::atoi(u.substr(u.find('!') + 1).c_str());
+        bool isAsm = u.rfind("asm!", 0) == 0 && i < info[q.fn].assumptions.size();
+        auto kind = isAsm ? info[q.fn].assumptions[i].kind : Assumption::Pre;
+        // The precondition and the function's own proved obligations are
+        // not news, unless they explain why nothing reaches a point.
+        bool ownProved = u.rfind("ob!", 0) == 0;
+        if (ownProved)
+          for (auto &o : queries)
+            if (o.fn == q.fn && i < info[q.fn].obs.size() && o.ob.line == info[q.fn].obs[i].line &&
+                o.ob.what == info[q.fn].obs[i].what && o.verdict != "unsat")
+              ownProved = false;
+        if (!q.vacuous && ((isAsm && kind == Assumption::Pre) || ownProved)) continue;
+        shown.push_back(show(q.fn, u));
+        if (isAsm && kind == Assumption::Assume) rests[q.fn].insert(info[q.fn].assumptions[i].what);
+        if (isAsm && (kind == Assumption::Contract || kind == Assumption::Lemma))
+          usedCallees[q.fn].insert(info[q.fn].assumptions[i].callee);
+        if (u.rfind("def!", 0) == 0 && unsound.count(u.substr(4)))
+          rests[q.fn].insert("definition of " + u.substr(4) + " (--trust-specs)");
+      }
+      if (q.vacuous) {
+        lines[q.fn].push_back(head);
+        lines[q.fn].push_back("      VACUOUS: nothing reaches line " + std::to_string(q.ob.line) +
+                              (shown.empty() ? ", whatever is assumed" : ", given " + join(shown)));
+      } else if (!shown.empty()) {
+        lines[q.fn].push_back(head);
+        lines[q.fn].push_back("      uses " + join(shown));
+      }
+    }
+    // A function rests on what its callees rest on.
+    for (auto &[f, gs] : usedCallees)
+      for (auto &g : gs)
+        if (g != f && !verified(g)) rests[f].insert("contract of " + g + " (" + whyNot(g) + ")");
+    for (bool changed = true; changed;) {
+      changed = false;
+      for (auto &[f, gs] : usedCallees)
+        for (auto &g : gs) {
+          if (g == f || !verified(g)) continue;
+          for (auto &r : rests[g]) {
+            auto via = r.find(" (through ") == std::string::npos ? r + " (through " + g + ")" : r;
+            changed = rests[f].insert(via).second || changed;
+          }
+        }
+    }
+    for (auto &fn : fnOrder) {
+      out << fn << ":\n";
+      for (auto &l : lines[fn]) out << l << "\n";
+      int total = 0, unproved = 0, vacuous = 0;
+      for (auto &q : queries)
+        if (q.fn == fn) {
+          ++total;
+          unproved += q.verdict != "unsat";
+          vacuous += q.vacuous;
+        }
+      std::string v;
+      if (unproved)
+        v = "not verified: " + std::to_string(unproved) + " of " + std::to_string(total) +
+            (total > 1 ? " obligations" : " obligation") + " not proved";
+      else if (rests[fn].empty())
+        v = "verified";
+      else
+        v = "verified, assuming: " + join(std::vector<std::string>(rests[fn].begin(), rests[fn].end()), "; ");
+      if (vacuous)
+        v += "; " + std::to_string(vacuous) + (vacuous > 1 ? " proofs are" : " proof is") + " vacuous";
+      out << "  => " << v << "\n";
+    }
+  }
+
+  auto list = [&](const std::string &title, const std::vector<std::string> &items) {
+    if (items.empty()) return;
+    out << title << ":\n";
+    for (auto &i : items) out << "  " << i << "\n";
+  };
+  if (opt.ptrust || !assumed.empty() || !checked.empty() || !diverges.empty() || anyVacuous) out << "\n";
+  list("Assumed without proof", assumed);
+  list("Not shown to terminate (decreases *)", diverges);
+  list("Checked in this run", checked);
+  if (anyVacuous && !opt.ptrust)
+    out << "VACUOUS: no execution reaches the obligation, so its proof says nothing "
+           "(--ptrust says why)\n";
+  if (opt.ptrust) {
+    std::string z3 = "Z3";
+    if (FILE *p = popen("z3 --version 2>/dev/null", "r")) {
+      char buf[256];
+      if (fgets(buf, sizeof buf, p)) {
+        z3 = buf;
+        z3 = z3.substr(0, z3.find(" - "));
+        while (!z3.empty() && isspace((unsigned char)z3.back())) z3.pop_back();
+      }
+      pclose(p);
+    }
+    list("Always trusted",
+         {"topc's parser, type checker, and ownership checks (the encoding relies on ownership)",
+          "VERUTOP's translation of the program to verification conditions",
+          z3,
+          "erasure, code generation, LLVM, and the runtime: the source is verified, not the binary",
+          "input is any integer; output is not modelled"});
   }
   return allOk;
 }

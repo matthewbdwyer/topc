@@ -1,0 +1,24 @@
+readAll:
+  proved  line 10: loop invariant holds on entry
+  proved  line 10: loop invariant is preserved
+  proved  line 17: postcondition
+retry:
+  proved  line 27: precondition of retry(input#0)
+  proved  line 29: postcondition
+careful:
+  FAILED  line 38: mutually recursive call needs a decreases clause on careless
+  proved  line 38: precondition of careless(n)
+  proved  line 39: postcondition
+careless:
+  proved  line 46: precondition of careful(n)
+  proved  line 47: postcondition
+main:
+  proved  line 51: precondition of readAll()
+  proved  line 51: postcondition
+
+Assumed without proof:
+  1 arithmetic operation in code: no overflow (--overflow checks it)
+Not shown to terminate (decreases *):
+  the loop at line 10 in readAll
+  retry
+  careless

@@ -80,6 +80,9 @@ static cl::opt<bool> pvcOpt("pvc", cl::desc("VERUTOP: print each function's VC")
 static cl::opt<bool> pspecOpt("pspec",
                               cl::desc("VERUTOP: print spec-function definitions and termination"),
                               cl::cat(TOPcat));
+static cl::opt<bool> ptrustOpt(
+    "ptrust", cl::desc("VERUTOP: print what each proof depends on and what is trusted"),
+    cl::cat(TOPcat));
 static cl::opt<bool> pcexOpt("pcex", cl::desc("VERUTOP: print a trace for each failure"),
                              cl::cat(TOPcat));
 static cl::opt<std::string>
@@ -736,10 +739,11 @@ int main(int argc, char *argv[]) {
       vopt.pvc = pvcOpt;
       vopt.pspec = pspecOpt;
       vopt.pcex = pcexOpt;
+      vopt.ptrust = ptrustOpt;
       vopt.psmt = psmtOpt.getNumOccurrences() > 0;
       vopt.psmtLine = psmtOpt.empty() ? 0 : std::atoi(psmtOpt.c_str());
       vopt.fn = vfnOpt;
-      if (verifyOpt || vopt.overflow || vopt.pgcl || vopt.ppassive || vopt.pwp || vopt.pvc || vopt.pspec ||
+      if (verifyOpt || vopt.overflow || vopt.ptrust || vopt.pgcl || vopt.ppassive || vopt.pwp || vopt.pvc || vopt.pspec ||
           vopt.pcex || vopt.psmt || !vopt.fn.empty()) {
         ensureOwnershipResult();
         bool ok = VCGen::verify(ast.get(), typeResults.get(), sourceFile + ".vc.smt2",

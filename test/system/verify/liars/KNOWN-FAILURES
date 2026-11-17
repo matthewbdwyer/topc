@@ -1,5 +1,2 @@
 # Liars the verifier still proves.  Each line: file, then why.  A test here
 # that starts passing fails the run until its line is removed.
-assume-false.top          no vacuity check
-trust-specs.top           no vacuity check
-loop-forever.top          no vacuity check

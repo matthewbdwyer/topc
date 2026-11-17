@@ -27,3 +27,6 @@ mult:
   proved  line 11: loop invariant is preserved
   proved  line 11: loop measure decreases
   proved  line 19: postcondition
+
+Assumed without proof:
+  2 arithmetic operations in code: no overflow (--overflow checks them)

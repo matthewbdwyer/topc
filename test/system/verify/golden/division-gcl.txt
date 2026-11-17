@@ -7,3 +7,6 @@
 half:
   proved  line 13: divisor is not zero
   FAILED  line 13: postcondition
+
+Assumed without proof:
+  1 arithmetic operation in code: no overflow (--overflow checks it)

@@ -26,6 +26,7 @@ struct Options {
   bool pvc = false;       // each function's VC, in infix
   bool pspec = false;     // spec-function definitions and termination
   bool pcex = false;      // a trace for each failure
+  bool ptrust = false;    // what each proof depends on, and what is trusted
   bool psmt = false;      // the SMT-LIB queries
   int psmtLine = 0;       //   only those for this line (0: all)
   std::string fn;         // only this function (empty: all)

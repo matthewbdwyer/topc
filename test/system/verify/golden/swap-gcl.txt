@@ -32,3 +32,7 @@ main:
   proved  line 38: precondition of swap(a, a)
   FAILED  line 38: borrowed arguments do not overlap
   proved  line 39: postcondition
+
+Assumed without proof:
+  contract of bump (not checked in this run), used by main
+  contract of swap (not checked in this run), used by main

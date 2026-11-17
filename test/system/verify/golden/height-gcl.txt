@@ -77,3 +77,9 @@ main:
   proved  line 51: precondition of height(t)
   proved  line 51: error statement is unreachable
   proved  line 52: postcondition
+
+Assumed without proof:
+  2 arithmetic operations in code: no overflow (--overflow checks them)
+Checked in this run:
+  definition of hgt: terminates
+  rank(Tree) >= 1: induction step

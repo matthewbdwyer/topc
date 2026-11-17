@@ -1,0 +1,22 @@
+answer:
+  proved  line 7: postcondition   VACUOUS
+main:
+  proved  line 12: precondition of answer(5)
+  proved  line 13: postcondition
+
+Trust report
+answer:
+  line 7: postcondition
+      VACUOUS: nothing reaches line 7, given assume (line 6)
+  => verified, assuming: assume (line 6); 1 proof is vacuous
+main:
+  => verified
+
+Assumed without proof:
+  assume (line 6) in answer
+Always trusted:
+  topc's parser, type checker, and ownership checks (the encoding relies on ownership)
+  VERUTOP's translation of the program to verification conditions
+  Z3
+  erasure, code generation, LLVM, and the runtime: the source is verified, not the binary
+  input is any integer; output is not modelled

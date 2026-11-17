@@ -1,0 +1,68 @@
+// What a proof rests on.  Run with --ptrust for the detail.
+
+spec double(n) {
+  return n + n;
+}
+
+// Verified with nothing assumed.
+twice(x)
+  ensures result == double(x)
+{
+  return x + x;
+}
+
+// Its contract is false, and its proof fails.
+seven()
+  ensures result == 8
+{
+  return 7;
+}
+
+// Proved, but only from seven's contract.
+eight()
+  ensures result == 8
+{
+  var r;
+  r = seven();
+  return r;
+}
+
+// Proved from an assumption nobody checks.
+positive(x)
+  ensures result > 0
+{
+  assume x > 0;
+  return x;
+}
+
+// Rests on positive's assumption, through positive.
+client(x)
+  ensures result > 0
+{
+  var r;
+  r = positive(x);
+  return r;
+}
+
+// The precondition rules the branch out: the assertion in it is proved,
+// vacuously, and honestly.
+guarded(x)
+  requires x >= 0
+  ensures result >= 0
+{
+  var r;
+  r = x;
+  if (x < 0) {
+    assert r == 12345;
+    r = 0 - x;
+  }
+  return r;
+}
+
+main() {
+  var a, b, c;
+  a = twice(4);
+  b = eight();
+  c = client(a);
+  return a + b + c;
+}

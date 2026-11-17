@@ -1,0 +1,9 @@
+answer:
+  proved  line 7: postcondition   VACUOUS
+main:
+  proved  line 12: precondition of answer(5)
+  proved  line 13: postcondition
+
+Assumed without proof:
+  assume (line 6) in answer
+VACUOUS: no execution reaches the obligation, so its proof says nothing (--ptrust says why)

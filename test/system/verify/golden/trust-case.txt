@@ -1,0 +1,59 @@
+twice:
+  proved  line 11: postcondition
+seven:
+  FAILED  line 18: postcondition
+eight:
+  proved  line 26: precondition of seven()
+  proved  line 27: postcondition
+positive:
+  proved  line 35: postcondition
+client:
+  proved  line 43: precondition of positive(x)
+  proved  line 44: postcondition
+guarded:
+  proved  line 56: assertion   VACUOUS
+  proved  line 59: postcondition
+main:
+  proved  line 64: precondition of twice(4)
+  proved  line 65: precondition of eight()
+  proved  line 66: precondition of client(a)
+  proved  line 67: postcondition
+
+Trust report
+twice:
+  line 11: postcondition
+      uses definition of double
+  => verified
+seven:
+  => not verified: 1 of 1 obligation not proved
+eight:
+  line 27: postcondition
+      uses contract of seven (line 26)
+  => verified, assuming: contract of seven (not verified)
+positive:
+  line 35: postcondition
+      uses assume (line 34)
+  => verified, assuming: assume (line 34)
+client:
+  line 44: postcondition
+      uses contract of positive (line 43)
+  => verified, assuming: assume (line 34) (through positive)
+guarded:
+  line 56: assertion
+      VACUOUS: nothing reaches line 56, given the precondition
+  => verified; 1 proof is vacuous
+main:
+  => verified
+
+Assumed without proof:
+  assume (line 34) in positive
+  contract of seven (not verified), used by eight
+  4 arithmetic operations in code: no overflow (--overflow checks them)
+Checked in this run:
+  definition of double: not recursive
+Always trusted:
+  topc's parser, type checker, and ownership checks (the encoding relies on ownership)
+  VERUTOP's translation of the program to verification conditions
+  Z3
+  erasure, code generation, LLVM, and the runtime: the source is verified, not the binary
+  input is any integer; output is not modelled

@@ -1,0 +1,74 @@
+spec has:
+  proved  line 20: recursive call decreases the measure
+  proved  line 20: recursive call decreases the measure
+spec allGe:
+  proved  line 33: recursive call decreases the measure
+  proved  line 33: recursive call decreases the measure
+lowerBound:
+  proved  line 47: recursive call decreases the measure
+  proved  line 47: precondition of lowerBound(l, m, b)
+  proved  line 48: recursive call decreases the measure
+  proved  line 48: precondition of lowerBound(r, m, b)
+  proved  line 51: postcondition
+least:
+  proved  line 66: recursive call decreases the measure
+  proved  line 66: precondition of least(l, m)
+  proved  line 67: recursive call decreases the measure
+  proved  line 67: precondition of least(r, a)
+  proved  line 68: precondition of lowerBound(l, a, m)
+  proved  line 71: postcondition
+least0:
+  proved  line 86: recursive call decreases the measure
+  proved  line 86: precondition of least0(l, m)
+  proved  line 87: recursive call decreases the measure
+  proved  line 87: precondition of least0(r, a)
+  UNKNOWN line 90: postcondition
+main:
+  proved  line 96: precondition of least(t, 1000)
+  proved  line 97: assertion
+  proved  line 98: postcondition
+
+Trust report
+lowerBound:
+  line 47: recursive call decreases the measure
+      uses rank(Tree)
+  line 47: precondition of lowerBound(l, m, b)
+      uses definition of allGe
+  line 48: recursive call decreases the measure
+      uses rank(Tree)
+  line 48: precondition of lowerBound(r, m, b)
+      uses definition of allGe
+  line 51: postcondition
+      uses definition of allGe, lemma lowerBound (line 47), lemma lowerBound (line 48)
+  => verified
+least:
+  line 66: recursive call decreases the measure
+      uses rank(Tree)
+  line 67: recursive call decreases the measure
+      uses rank(Tree)
+  line 68: precondition of lowerBound(l, a, m)
+      uses contract of least (line 66), contract of least (line 67)
+  line 71: postcondition
+      uses definition of allGe, definition of has, contract of least (line 66), contract of least (line 67), lemma lowerBound (line 68)
+  => verified
+least0:
+  line 86: recursive call decreases the measure
+      uses rank(Tree)
+  line 87: recursive call decreases the measure
+      uses rank(Tree)
+  => not verified: 1 of 5 obligations not proved
+main:
+  line 97: assertion
+      uses definition of allGe, definition of has, contract of least (line 96)
+  => verified
+
+Checked in this run:
+  definition of allGe: terminates
+  definition of has: terminates
+  rank(Tree) >= 1: induction step
+Always trusted:
+  topc's parser, type checker, and ownership checks (the encoding relies on ownership)
+  VERUTOP's translation of the program to verification conditions
+  Z3
+  erasure, code generation, LLVM, and the runtime: the source is verified, not the binary
+  input is any integer; output is not modelled

@@ -6,3 +6,6 @@ main:
   proved  line 24: precondition of fact(5)
   proved  line 25: assertion
   proved  line 26: postcondition
+
+Assumed without proof:
+  2 arithmetic operations in code: no overflow (--overflow checks them)

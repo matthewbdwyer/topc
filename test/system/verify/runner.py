@@ -183,6 +183,7 @@ def golden_tests(update):
                         if not l.startswith(("profiling:", "VC ("))) + "\n"
         # Counterexample values vary between Z3 versions.
         out = re.sub(r"\s{3}when .*$", "", out, flags=re.M)
+        out = re.sub(r"^  Z3 version .*$", "  Z3", out, flags=re.M)
         exp = GOLDEN / (name + ".txt")
         if update:
             exp.write_text(out)
