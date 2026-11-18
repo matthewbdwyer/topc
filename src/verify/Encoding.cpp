@@ -1,6 +1,8 @@
 #include "Encoding.h"
 
 #include "Support.h"
+
+#include <tuple>
 #include "TermPrint.h"
 
 #include "AST.h"
@@ -40,6 +42,7 @@ bool Encoding::isBorrow(const std::shared_ptr<TopType> &t) {
 
 void Encoding::build(ASTProgram *p, TypeInference *types) {
   ti = types;
+  findWrites(p);
   std::string dts, ctors;
   for (auto *td : p->getTypedecls()) {
     std::string s = "|" + td->getName() + "|";
@@ -139,5 +142,108 @@ std::string Encoding::sortOfTerm(const T &t, const std::function<std::string(con
   }
   return "Int";
 }
+
+// ---- references -------------------------------------------------------------
+
+// The variable an lvalue or a borrowed argument names: x, *x, **x, &x.
+std::string Encoding::rootOf(ASTExpr *e, int *derefs) {
+  int d = 0;
+  while (true) {
+    if (auto *r = dynamic_cast<ASTDeRefExpr *>(e)) {
+      e = r->getPtr();
+      ++d;
+    } else if (auto *b = dynamic_cast<ASTBorrowExpr *>(e)) {
+      e = b->getVar();
+    } else {
+      break;
+    }
+  }
+  if (derefs) *derefs = d;
+  auto *v = dynamic_cast<ASTVariableExpr *>(e);
+  return v ? v->getName() : "";
+}
+
+// ---- borrows -----------------------------------------------------------------
+
+void Encoding::findWrites(ASTProgram *p) {
+  struct Scan : ASTVisitor {
+    std::set<std::string> stores;                              // roots of *... = E
+    std::vector<std::tuple<std::string, int, std::string>> passes; // (callee, k, root)
+    void endVisit(ASTAssignStmt *a) override {
+      int d = 0;
+      auto r = rootOf(a->getLHS(), &d);
+      if (d > 0) stores.insert(r);
+    }
+    void endVisit(ASTFunAppExpr *c) override {
+      auto *fv = dynamic_cast<ASTVariableExpr *>(c->getFunction());
+      if (!fv) return;
+      auto as = c->getActuals();
+      for (size_t k = 0; k < as.size(); ++k) passes.push_back({fv->getName(), (int)k, rootOf(as[k])});
+    }
+  };
+  std::map<std::string, Scan> scans;
+  for (auto *f : p->getFunctions()) f->accept(&scans[f->getName()]);
+  bool changed = true;
+  while (changed) {
+    changed = false;
+    for (auto *f : p->getFunctions()) {
+      auto formals = f->getFormals();
+      auto &sc = scans[f->getName()];
+      for (size_t k = 0; k < formals.size(); ++k) {
+        if (!isBorrow(formals[k]) || written.count({f->getName(), (int)k})) continue;
+        auto x = formals[k]->getName();
+        bool w = sc.stores.count(x);
+        for (auto &[g, j, r] : sc.passes)
+          if (r == x && written.count({g, j})) w = true;
+        if (w) {
+          written.insert({f->getName(), (int)k});
+          changed = true;
+        }
+      }
+    }
+  }
+}
+
+// The variables a statement may change: assignment targets, and variables
+// lent to a parameter that is written.
+std::set<std::string> Encoding::assigned(ASTNode *s) const {
+  struct Scan : ASTVisitor {
+    const Encoding *w;
+    std::set<std::string> out;
+    void endVisit(ASTAssignStmt *a) override { out.insert(rootOf(a->getLHS())); }
+    void endVisit(ASTFunAppExpr *c) override {
+      auto *fv = dynamic_cast<ASTVariableExpr *>(c->getFunction());
+      if (!fv) return;
+      auto as = c->getActuals();
+      for (size_t k = 0; k < as.size(); ++k)
+        if (w->isWritten(fv->getName(), (int)k)) out.insert(rootOf(as[k]));
+    }
+  } scan;
+  scan.w = this;
+  s->accept(&scan);
+  scan.out.erase("");
+  return scan.out;
+}
+
+// ---- sum values ----------------------------------------------------------------
+
+T Encoding::matchCtor(const std::string &tag, const std::vector<ASTPattern *> &subs, const T &t,
+                      std::vector<std::pair<ASTDeclNode *, T>> &binds) const {
+  std::vector<T> cs{is(tag, t)};
+  auto &fs = fieldsOf(tag);
+  for (size_t i = 0; i < subs.size() && i < fs.size(); ++i)
+    cs.push_back(matchPattern(subs[i], sel(fs[i].first, t), binds));
+  return And(cs);
+}
+T Encoding::matchPattern(ASTPattern *p, const T &t, std::vector<std::pair<ASTDeclNode *, T>> &binds) const {
+  if (auto *c = dynamic_cast<ASTCtorPattern *>(p))
+    return matchCtor(c->getTag(), c->getSubPatterns(), t, binds);
+  if (auto *v = dynamic_cast<ASTVarPattern *>(p)) binds.push_back({v->getDecl(), t});
+  return TRUE;
+}
+
+// ---- machine integers --------------------------------------------------------
+
+T Encoding::inRange(const T &t) { return op("and", {op("<=", {op("INT_MIN"), t}), op("<=", {t, op("INT_MAX")})}); }
 
 } // namespace verutop

@@ -68,9 +68,6 @@ inline T rebuild(const T &t, std::vector<T> a) {
 }
 
 inline const T TRUE = op("true"), FALSE = op("false");
-// A TOP int at run time is a 64-bit integer; in a formula it is a
-// mathematical one.  INT_MIN and INT_MAX are defined in the prelude.
-inline T inRange(const T &t) { return op("and", {op("<=", {op("INT_MIN"), t}), op("<=", {t, op("INT_MAX")})}); }
 inline bool isOp(const T &t, const char *o) { return t->kind == Term::Op && t->name == o; }
 inline bool isTrue(const T &t) { return isOp(t, "true"); }
 inline bool isFalse(const T &t) { return isOp(t, "false"); }

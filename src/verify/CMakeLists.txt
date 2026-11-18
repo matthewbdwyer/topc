@@ -7,6 +7,9 @@ target_sources(
           ${CMAKE_CURRENT_SOURCE_DIR}/Encoding.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/Feedback.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/Gcl.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/LowerCall.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/LowerExpr.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/LowerStmt.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/Lowering.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/Obligations.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/Outline.cpp

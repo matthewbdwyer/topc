@@ -13,7 +13,7 @@ namespace verutop {
 // that does not terminate, like f(n) = f(n) + 1, can be false, and from it
 // Z3 proves anything.
 // ===========================================================================
-class SpecFns {
+class SpecFns : private Scope {
 public:
   std::string decls;                   // declare-fun for each
   std::map<std::string, Axiom> axioms; // each one's definition
@@ -29,6 +29,11 @@ public:
   SpecFns(ASTProgram *p, Lower &low);
 
 private:
+  std::string sortOf(const std::string &x) const override;
+  void specCall(ASTFunction *g, const std::vector<T> &args, ASTNode *call) override;
+  CallEdges edges;                // between spec functions
+  const Cycles *cycles = nullptr; // known in the second pass
+
   void build(ASTProgram *p);
   void stmt(ASTStmt *s);
   void termination(ASTFunction *g, const std::vector<T> &args, ASTNode *call);

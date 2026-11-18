@@ -25,32 +25,42 @@
 namespace verutop {
 
 SpecFns::SpecFns(ASTProgram *p, Lower &low) : low(low) {
+  // Spec functions are translated by the same code as every other
+  // specification, with this object as the scope: it knows the sorts of a
+  // spec function's variables, and it is told of each call.
+  Lower::In scope(low, *this);
   // Once to find the calls between spec functions, once knowing the cycles.
-  CallEdges edges;
-  low.onSpecCall = [&](ASTFunction *g, const std::vector<T> &, ASTNode *) {
-    if (!inMeasure) edges.insert({current->getName(), g->getName()});
-  };
   build(p);
-  Cycles cycles(edges);
+  Cycles found(edges);
+  cycles = &found;
   decls.clear();
   axioms.clear();
   lhs.clear();
   rhs.clear();
   checks.clear();
   skipped.clear();
-  low.onSpecCall = [&](ASTFunction *g, const std::vector<T> &args, ASTNode *call) {
-    if (inMeasure) return;
-    if (g == current || cycles.mutual(current->getName(), g->getName())) termination(g, args, call);
-  };
   build(p);
-  low.onSpecCall = nullptr;
+  cycles = nullptr;
+}
+
+std::string SpecFns::sortOf(const std::string &x) const {
+  auto it = sorts.find(x);
+  return it == sorts.end() ? std::string("Int") : it->second;
+}
+
+// A call of spec function g in the body of the current one: first an edge
+// of the call graph; then, if it is on a cycle, a termination obligation.
+void SpecFns::specCall(ASTFunction *g, const std::vector<T> &args, ASTNode *call) {
+  if (inMeasure) return;
+  if (!cycles) {
+    edges.insert({current->getName(), g->getName()});
+    return;
+  }
+  if (g == current || cycles->mutual(current->getName(), g->getName())) termination(g, args, call);
 }
 
 void SpecFns::build(ASTProgram *p) {
-  low.sortLookup = [this](const std::string &x) {
-    auto it = sorts.find(x);
-    return it == sorts.end() ? std::string("Int") : it->second;
-  };
+  
   for (auto *f : p->getFunctions()) {
     if (!f->isSpec()) continue;
     try {
@@ -109,7 +119,7 @@ void SpecFns::stmt(ASTStmt *s) {
     return;
   }
   if (auto *a = dynamic_cast<ASTAssignStmt *>(s)) {
-    auto x = rootOf(a->getLHS());
+    auto x = Encoding::rootOf(a->getLHS());
     if (x.empty()) throw Unsupported(where(s) + "unsupported assignment target");
     env[x] = low.I(a->getRHS(), nullptr, &env);
     return;
@@ -138,11 +148,11 @@ void SpecFns::stmt(ASTStmt *s) {
     std::vector<Sub> outs;
     for (auto *arm : c->getArms()) {
       std::vector<std::pair<ASTDeclNode *, T>> binds;
-      T m = matchCtor(low.enc, arm->getTag(), arm->getPatterns(), t, binds);
+      T m = low.enc.matchCtor(arm->getTag(), arm->getPatterns(), t, binds);
       env = before;
       for (auto &[d, v] : binds) {
         env[d->getName()] = v;
-        sorts[d->getName()] = low.enc.sortOfTerm(v, low.sortLookup);
+        sorts[d->getName()] = low.sortOf(v);
       }
       auto here = earlier;
       here.push_back(m);

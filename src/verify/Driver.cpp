@@ -56,9 +56,7 @@ VerifyResult verify(ASTProgram *program, TypeInference *types, Solver &solver, c
   VerifyResult res;
   Encoding enc;
   enc.build(program, types);
-  Writes writes(program, enc);
-  Lower low(program, enc, writes);
-  low.overflow = opt.overflow;
+  Lower low(program, enc, opt.overflow);
   SpecFns specs(program, low);
   std::unique_ptr<VcStrategy> strategy;
   if (opt.passive) strategy = std::make_unique<PassiveVc>();
@@ -116,17 +114,9 @@ VerifyResult verify(ASTProgram *program, TypeInference *types, Solver &solver, c
 
   // 3. The calls between functions (and lemmas), to find recursion through
   // more than one of them.
-  low.edges = &res.calls;
-  for (auto *f : program->getFunctions()) {
-    if (f->isSpec()) continue;
-    try {
-      low.proc(f);
-    } catch (Unsupported &) {
-    }
-  }
-  low.edges = nullptr;
+  res.calls = low.calls();
   Cycles cycles(res.calls);
-  low.cycles = &cycles;
+  low.recursion(cycles);
 
   // 4. Every function as guarded commands and in passive form, and a
   // query for each of its obligations.
