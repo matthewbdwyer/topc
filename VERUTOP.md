@@ -296,10 +296,22 @@ wp(S, Q)  =  ok(S) ∧ (post(S) ⇒ Q)
 ```
 
 where `ok` and `post` are defined in step 4 below, and the passive VC is
-`ok(body)`, that is, `wp(body, true)`. Passivization is what makes this
-factoring possible: once nothing is assigned, `Q` does not change as it
-moves backward through the program, so it can be written once instead of
-once under every branch.
+`ok(body)`, that is, `wp(body, true)`.
+
+The difference is where `Q`, the rest of the function, is written. By
+substitution it is copied under both branches of every choice, and each
+copy is rewritten by that branch's assignments: `wp(S1, Q) ∧ wp(S2, Q)`.
+In a passive program nothing is assigned, so `Q` is the same formula
+under both branches and can be written once, after the join, by
+
+```
+(A ⇒ Q) ∧ (B ⇒ Q)  =  (A ∨ B) ⇒ Q
+```
+
+where `A` and `B` are what the two branches establish (their `post`).
+That is why versioning comes first: with `r := x` in one branch and
+`r := 0 - x` in the other, the two copies of `Q` are different formulas
+and there is nothing common to write once.
 
 1. **Version every variable.** `x := e` becomes `assume x@k == e` for a fresh
    constant `x@k`; the program now assigns nothing (it is passive).
