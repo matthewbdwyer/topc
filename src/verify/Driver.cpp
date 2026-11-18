@@ -39,6 +39,7 @@
 #include "Obligations.h"
 #include "Outline.h"
 #include "Passivize.h"
+#include "Query.h"
 #include "SmtEncode.h"
 #include "Specs.h"
 #include "Support.h"
@@ -67,6 +68,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <fstream>
+#include <memory>
 #include <tuple>
 
 using namespace verutop;
@@ -82,12 +84,15 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
   Writes writes(program, enc);
   Lower low(program, enc, writes);
   SpecFns specs(program, low);
+  std::unique_ptr<VcStrategy> strategy;
+  if (opt.passive) strategy = std::make_unique<PassiveVc>();
+  else strategy = std::make_unique<WpVc>();
   for (auto &sk : specs.skipped) out << sk << " (spec function rejected)\n";
 
-  struct Query {
+  struct Row {
     std::string fn;
     Obligation ob;
-    std::string text; // declarations and assertion, without the prelude
+    Query query;
     std::string verdict, model;
     std::vector<std::string> trace;
     int order = 0;                 // of its function, in the report
@@ -151,13 +156,16 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
   };
   auto wanted = [&](const std::string &fn) { return opt.fn.empty() || opt.fn == fn; };
 
-  // A limit on Z3's work for one query.  It counts Z3's own steps, not
-  // seconds, so a verdict does not depend on how busy the machine is.
-  std::string base = std::string(PRELUDE) + "(set-option :rlimit " + std::to_string(opt.rlimit) +
-                     ")\n" + enc.decls + specs.decls;
-  if (opt.overflow)
-    base += "(define-fun INT_MIN () Int (- 9223372036854775808))\n"
-            "(define-fun INT_MAX () Int 9223372036854775807)\n";
+  // What every query shares.  The limit counts Z3's own steps, not
+  // seconds, so a verdict depends much less on how busy the machine is.
+  Background bg;
+  bg.rlimit = opt.rlimit;
+  bg.sorts = enc.decls;
+  bg.functions = specs.decls;
+  bg.overflow = opt.overflow;
+  // Definitions a query may use: rank functions always, spec functions
+  // only if they terminate (step 2).
+  bg.axioms = enc.rankAxioms;
   low.overflow = opt.overflow;
 
   // ---- spec functions -----------------------------------------------------
@@ -169,58 +177,19 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
       auto L = pretty(specs.rhs[fn], 66);
       out << "  " << flat(l) << " ==\n";
       for (auto &x : L) out << "    " << x << "\n";
-      out << "  " << specs.axioms[fn];
+      out << "  " << render(specs.axioms.at(fn));
       bool any = false;
       for (auto &c : specs.checks)
         if (c.fn == fn) {
           if (!any) heading(out, "termination");
           any = true;
           out << "  line " << c.ob.line << ": " << c.ob.what() << "\n";
-          for (auto &x : pretty(c.formula, 70)) out << "    " << x << "\n";
+          for (auto &x : pretty(c.query.goal, 70)) out << "    " << x << "\n";
         }
       out << "\n";
     }
   }
 
-  // Definitions a query may need: rank functions always, spec functions
-  // only if they terminate (step 2).
-  std::map<std::string, std::string> usable = enc.rankAxioms;
-  // A query gets only the definitions it mentions (and those they mention).
-  // An unneeded quantified definition can keep Z3 from finding a
-  // counterexample, so it answers unknown instead of sat.
-  // With `named`, each definition is asserted under a name (def!f, rank!T)
-  // and Z3 is asked to keep an unsat core.
-  auto preludeFor = [&](const std::string &text, bool named = false, long long limit = 0) {
-    std::set<std::string> need;
-    std::vector<std::string> work{text};
-    while (!work.empty()) {
-      auto t = work.back();
-      work.pop_back();
-      for (auto &[fn, ax] : usable)
-        if (!need.count(fn) && t.find("|" + fn + "|") != std::string::npos) {
-          need.insert(fn);
-          work.push_back(ax);
-        }
-    }
-    std::string p = base;
-    if (!named) {
-      for (auto &fn : need) p += usable[fn];
-      return p;
-    }
-    if (limit) {
-      auto old = "(set-option :rlimit " + std::to_string(opt.rlimit) + ")";
-      p.replace(p.find(old), old.size(), "(set-option :rlimit " + std::to_string(limit) + ")");
-    }
-    // (Z3 can also minimize a core, but that search is not bounded by
-    // rlimit; the core of the proof it found is small enough.)
-    p = "(set-option :produce-unsat-cores true)\n" + p;
-    for (auto &fn : need) {
-      auto &ax = usable[fn]; // (assert F)\n
-      std::string name = fn.rfind("rank#", 0) == 0 ? "rank!" + fn.substr(5) : "def!" + fn;
-      p += "(assert (! " + ax.substr(8, ax.size() - 10) + " :named " + name + "))\n";
-    }
-    return p;
-  };
   // Ask what the proof of obligation k depends on; with `reach`, whether
   // anything reaches the obligation at all.  Returns whether Z3 proved the
   // query, and the names in its unsat core.
@@ -231,17 +200,9 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
   // gets a hundredth of the limit.  The dependency question repeats a
   // proof Z3 has found.
   auto dependencies = [&](const Proc &proc, const Passive &pv, int k, bool reach) {
-    std::string flags;
-    for (size_t i = 0; i < proc.assumptions.size(); ++i)
-      flags += "(declare-const |A!" + std::to_string(i) + "| Bool)\n(assert (! |A!" +
-               std::to_string(i) + "| :named asm!" + std::to_string(i) + "))\n";
-    for (size_t j = 0; j < proc.obs.size(); ++j)
-      if ((int)j != k && !proc.obs[j].missing())
-        flags += "(declare-const |O!" + std::to_string(j) + "| Bool)\n(assert (! |O!" +
-                 std::to_string(j) + "| :named ob!" + std::to_string(j) + "))\n";
-    std::string t = flags + passiveQuery(pv, passiveVc(flagged(pv.prog, k, reach), k)) +
-                    "(check-sat)\n(get-unsat-core)\n";
-    std::string full = preludeFor(t, true, reach ? opt.rlimit / 100 : 0) + t;
+    Query dq = dependencyQuery(proc, pv, k, reach);
+    if (reach) dq.rlimit = opt.rlimit / 100;
+    std::string full = render(bg, dq);
     // --psmt with --ptrust shows these queries too.
     if (opt.psmt && opt.ptrust && (opt.psmtLine == 0 || opt.psmtLine == proc.obs[k].line))
       out << "; ==== " << proc.fn->getName() << " #" << k << ", line " << proc.obs[k].line << ": "
@@ -264,11 +225,11 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
   };
 
   // 1. Termination of spec functions, using no spec definitions at all.
-  std::vector<Query> queries;
+  std::vector<Row> queries;
   std::set<std::string> unsound;
   for (auto &c : specs.checks) {
-    Query q{"spec " + c.fn, c.ob, c.query + "(check-sat)\n"};
-    auto [v, rest] = run(preludeFor(q.text) + q.text);
+    Row q{"spec " + c.fn, c.ob, c.query};
+    auto [v, rest] = run(render(bg, q.query));
     q.verdict = v;
     q.limited = limited;
     if (v != "unsat") unsound.insert(c.fn);
@@ -284,8 +245,8 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
     }
     if (unsound.count(fn))
       out << "spec " << fn << ": does not terminate, but --trust-specs uses its definition\n";
-    usable[fn] = ax;
-    defs += ax;
+    bg.axioms[fn] = ax;
+    defs += render(ax);
   }
 
   // 3. The calls between functions (and lemmas), to find recursion through
@@ -357,30 +318,13 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
     }
     if (dumps) out << "\n";
 
-    std::vector<std::string> model;
     std::set<int> unprovedObs;
     for (size_t k = 0; k < proc.obs.size(); ++k) {
-      std::string t;
-      if (opt.passive) {
-        t = passiveQuery(pv, passiveVc(pv.prog, (int)k));
-        model = pv.entry;
-      } else {
-        model.clear();
-        for (auto *p : f->getFormals()) {
-          t += "(declare-const |" + p->getName() + "| " + proc.sortOf(p->getName()) + ")\n";
-          model.push_back(p->getName());
-        }
-        t += "(assert (not " + smt(wpFunction(proc, (int)k)) + "))\n";
-      }
-      t += "(check-sat)\n";
-      if (!model.empty()) {
-        t += "(get-value (";
-        for (auto &m : model) t += "|" + m + "| ";
-        t += "))\n";
-      }
-      Query q{f->getName(), proc.obs[k], t};
+      Vc vc = strategy->vc(proc, pv, (int)k);
+      const std::vector<std::string> &model = vc.entry;
+      Row q{f->getName(), proc.obs[k], obligationQuery(vc)};
       q.order = (int)fnOrder.size();
-      std::string full = preludeFor(q.text) + q.text;
+      std::string full = render(bg, q.query);
       if (opt.psmt && (opt.psmtLine == 0 || opt.psmtLine == q.ob.line))
         out << "; ==== " << f->getName() << " #" << k << ", line " << q.ob.line << ": "
             << q.ob.what() << "\n"
@@ -403,14 +347,10 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
       // are the same in both modes), asked for every version and every
       // branch condition.
       if (opt.pcex && v == "sat") {
-        std::vector<T> gs;
-        guards(pv.prog, gs);
+        Query tq = traceQuery(pv, (int)k);
         std::vector<std::string> asked;
-        for (auto &x : pv.versions) asked.push_back("|" + x + "|");
-        for (auto &g : gs) asked.push_back(smt(g));
-        std::string tq = passiveQuery(pv, passiveVc(pv.prog, (int)k)) + "(check-sat)\n";
-        if (!asked.empty()) tq += "(get-value (" + join(asked, " ") + "))\n";
-        auto [tv, trest] = run(preludeFor(tq) + tq);
+        for (auto &t : tq.values) asked.push_back(smt(t));
+        auto [tv, trest] = run(render(bg, tq));
         if (tv == "sat") {
           size_t i = 0;
           SX vals = parseSX(trest, i);
@@ -452,21 +392,21 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
 
   // rank(x) >= 1, by induction: one step per sum type.
   std::map<std::string, bool> rankProved;
-  for (auto &[r, q] : enc.rankChecks) rankProved[r] = run(base + q + "(check-sat)\n").first == "unsat";
+  for (auto &[r, q] : enc.rankChecks) rankProved[r] = run(render(bg, q)).first == "unsat";
 
   // The same queries as one readable SMT-LIB file.
   std::ofstream smtOut(smtFile);
-  smtOut << base;
-  for (auto &[r, ax] : enc.rankAxioms) smtOut << ax;
+  smtOut << renderPrelude(bg, bg.rlimit);
+  for (auto &[r, ax] : enc.rankAxioms) smtOut << render(ax);
   for (auto &q : queries)
     if (q.fn.rfind("spec ", 0) == 0)
       smtOut << "\n; " << q.fn << ", line " << q.ob.line << ": " << q.ob.what() << "\n(push)\n"
-             << q.text << "(pop)\n";
+             << renderBody(q.query) << "(pop)\n";
   smtOut << "\n; definitions of the spec functions that terminate\n" << defs;
   for (auto &q : queries)
     if (q.fn.rfind("spec ", 0) != 0)
       smtOut << "\n; " << q.fn << ", line " << q.ob.line << ": " << q.ob.what() << "\n(push)\n"
-             << q.text << "(pop)\n";
+             << renderBody(q.query) << "(pop)\n";
   auto bytes = smtOut.tellp();
   smtOut.close();
   out << "VC (" << (opt.passive ? "passive" : "wp") << "): " << queries.size() << " queries, "

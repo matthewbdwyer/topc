@@ -15,14 +15,13 @@ namespace verutop {
 // ===========================================================================
 class SpecFns {
 public:
-  std::string decls;                         // declare-fun for each
-  std::map<std::string, std::string> axioms; // each one's defining axiom
+  std::string decls;                   // declare-fun for each
+  std::map<std::string, Axiom> axioms; // each one's definition
   std::map<std::string, T> lhs, rhs;         // the definition, for --pspec
   struct Check {
     std::string fn;
     Obligation ob;
-    std::string query;
-    T formula;
+    Query query;
   };
   std::vector<Check> checks; // termination obligations
   std::vector<std::string> skipped;

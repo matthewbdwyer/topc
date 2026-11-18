@@ -94,4 +94,26 @@ private:
 
 PassiveVC passiveVc(const G &prog, int target) { return PassiveVCGen().run(prog, target); }
 
+Vc WpVc::vc(const Proc &proc, const Passive &, int target) const {
+  Vc v;
+  for (auto &x : proc.formals) v.consts.push_back({x, proc.sortOf(x)});
+  v.formula = wpFunction(proc, target);
+  v.entry = proc.formals;
+  return v;
+}
+
+Vc passiveVcOf(const Passive &passive, const G &prog, int target) {
+  PassiveVC pvc = passiveVc(prog, target);
+  Vc v;
+  for (auto &x : passive.versions) v.consts.push_back({x, passive.sorts.at(x)});
+  v.defs = pvc.defs;
+  v.formula = pvc.ok;
+  v.entry = passive.entry;
+  return v;
+}
+
+Vc PassiveVc::vc(const Proc &, const Passive &passive, int target) const {
+  return passiveVcOf(passive, passive.prog, target);
+}
+
 } // namespace verutop

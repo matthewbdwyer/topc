@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Query.h"
 #include "Term.h"
 
 #include "TypeInference.h"
@@ -19,8 +20,8 @@ struct Encoding {
   std::map<std::string, std::vector<std::pair<std::string, std::string>>> fields; // tag -> (selector, sort)
   std::map<std::string, std::string> selSort;                              // selector -> sort
   std::map<std::string, std::string> fnSort;                               // function -> result sort
-  std::map<std::string, std::string> rankAxioms;                           // rank#D -> axiom
-  std::map<std::string, std::string> rankChecks;                           // rank#D -> query
+  std::map<std::string, Axiom> rankAxioms;                                  // rank#D -> its definition
+  std::map<std::string, Query> rankChecks;                                  // rank#D -> the induction step
   std::string decls;                                                       // datatypes and rank functions
 
   static bool isDatatype(const std::string &s) { return s != "Int" && s != "Bool"; }

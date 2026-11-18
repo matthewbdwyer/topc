@@ -88,15 +88,18 @@ void Encoding::build(ASTProgram *p, TypeInference *types) {
     // The axiom also says rank >= 1, which needs induction.  This query
     // is the induction step: if every sum-valued field has rank >= 1, the
     // value does.  Structural induction then gives it for all values.
-    std::string step = "(declare-const |x| " + s + ")\n";
+    // It uses no definitions: it is what justifies one.
+    Query step;
+    step.consts = {{"x", s}};
     for (auto *v : vs)
       for (auto &[sl, so] : fields[v->getTag()])
         if (isDatatype(so))
-          step += "(assert " + smt(Implies(is(v->getTag(), x), op(">=", {rank(sel(sl, x), so), num(1)}))) + ")\n";
-    rankChecks[r] = step + "(assert (not " + smt(op(">=", {body, num(1)})) + "))\n";
+          step.hypotheses.push_back(Implies(is(v->getTag(), x), op(">=", {rank(sel(sl, x), so), num(1)})));
+    step.goal = op(">=", {body, num(1)});
+    step.definitions = false;
+    rankChecks[r] = step;
     T call = app(r, {x});
-    rankAxioms[r] = "(assert (forall ((|x| " + s + ")) (! (and (>= " + smt(call) + " 1) " +
-                    smt(Eq(call, body)) + ") :pattern (" + smt(call) + "))))\n";
+    rankAxioms[r] = Axiom{r, {{"x", s}}, call, op("and", {op(">=", {call, num(1)}), Eq(call, body)})};
   }
 }
 

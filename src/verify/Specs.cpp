@@ -58,13 +58,14 @@ void SpecFns::build(ASTProgram *p) {
       env.clear();
       path.clear();
       sorts.clear();
-      std::string params, sig;
+      std::vector<Decl> params;
+      std::string sig;
       std::vector<T> xs;
       for (auto *x : f->getFormals()) {
         auto s = low.enc.sortOf(x);
         sorts[x->getName()] = s;
         env[x->getName()] = var(x->getName());
-        params += "(|" + x->getName() + "| " + s + ")";
+        params.push_back({x->getName(), s});
         sig += " " + s;
         xs.push_back(var(x->getName()));
       }
@@ -92,11 +93,7 @@ void SpecFns::build(ASTProgram *p) {
       // The trigger tells Z3 to instantiate the axiom once for each
       // application it sees, which unfolds the definition exactly where a
       // proof needs it.
-      if (xs.empty())
-        axioms[f->getName()] = "(assert " + smt(Eq(call, body)) + ")\n";
-      else
-        axioms[f->getName()] = "(assert (forall (" + params + ") (! " + smt(Eq(call, body)) +
-                               " :pattern (" + smt(call) + "))))\n";
+      axioms[f->getName()] = Axiom{f->getName(), params, call, Eq(call, body)};
     } catch (Unsupported &u) {
       skipped.push_back(f->getName() + ": " + u.what());
     }
@@ -184,11 +181,10 @@ void SpecFns::termination(ASTFunction *g, const std::vector<T> &args, ASTNode *c
     P = And({op("<=", {num(0), now}), op("<", {now, before})});
   }
   T F = path.empty() ? P : Implies(And(path), P);
-  std::string q;
-  for (auto *x : current->getFormals())
-    q += "(declare-const |" + x->getName() + "| " + sorts[x->getName()] + ")\n";
-  q += "(assert (not " + smt(F) + "))\n";
-  checks.push_back({current->getName(), ob, q, F});
+  Query q;
+  for (auto *x : current->getFormals()) q.consts.push_back({x->getName(), sorts[x->getName()]});
+  q.goal = F;
+  checks.push_back({current->getName(), ob, q});
 }
 
 namespace {

@@ -73,7 +73,7 @@ TEST_CASE("the passive VC grows linearly with the number of ifs", "[verify][VcSt
       cs.push_back(ifElse(bin(">", v("x"), num(k)), gAssign("y", num(1), 1), gAssign("y", num(2), 1)));
     cs.push_back(check(bin(">", v("y"), num(0)), 0));
     Passive pv = passivize(procOf({"x"}, gSeq(cs), 1));
-    return passiveQuery(pv, passiveVc(pv.prog, 0)).size();
+    return renderBody(obligationQuery(PassiveVc().vc(Proc{}, pv, 0))).size();
   };
   size_t s4 = size(4), s8 = size(8), s16 = size(16);
   // Doubling the program adds about twice as much text, not the square.
@@ -121,6 +121,27 @@ TEST_CASE("the loop cut: both strategies agree after a havoc", "[verify][VcStrat
   Proc weak = procOf({"n"}, gSeq({h, gChoice(gSeq({guard(c), gAssume(FALSE, 3, "")}), guard(Not(c)), 3), check(Eq(i, n), 0)}), 1);
   REQUIRE_FALSE(byWp(weak, 0));
   REQUIRE_FALSE(byPassive(weak, 0));
+}
+
+TEST_CASE("both strategies answer through one interface", "[verify][VcStrategy]") {
+  Proc p = absProc();
+  Passive pv = passivize(p);
+  WpVc wpS;
+  PassiveVc passiveS;
+  std::vector<const VcStrategy *> both{&wpS, &passiveS};
+  for (auto *s : both)
+    for (int target = 0; target < 2; ++target) {
+      INFO(s->name() << " #" << target);
+      Vc vc = s->vc(p, pv, target);
+      std::vector<std::string> names;
+      for (auto &[x, sort] : vc.consts) names.push_back(x);
+      std::map<std::string, T> defs(vc.defs.begin(), vc.defs.end());
+      REQUIRE(valid(vc.formula, names, defs) == (target == 0));
+    }
+  // wp declares the formals; passive declares every version.  Both report
+  // the constants that hold the arguments, for the counterexample.
+  REQUIRE(wpS.vc(p, pv, 0).entry == std::vector<std::string>{"x"});
+  REQUIRE(passiveS.vc(p, pv, 0).entry == std::vector<std::string>{"x@0"});
 }
 
 TEST_CASE("flags mark tracked assumptions and the other obligations", "[verify][SmtEncode]") {

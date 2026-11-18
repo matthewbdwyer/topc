@@ -7,6 +7,7 @@ target_sources(
           ${CMAKE_CURRENT_SOURCE_DIR}/GclTest.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/ObligationsTest.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/PassivizeTest.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/QueryTest.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/VcStrategyTest.cpp)
 target_link_libraries(
   verify_unit_tests

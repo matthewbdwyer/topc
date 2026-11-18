@@ -1,14 +1,8 @@
 #include "SmtEncode.h"
 
-#include "TermPrint.h"
+#include "Feedback.h"
 
 namespace verutop {
-
-const char *PRELUDE =
-    "; C-style division: truncates toward zero, unlike SMT-LIB's div\n"
-    "(define-fun tdiv ((a Int) (b Int)) Int\n"
-    "  (ite (>= a 0) (ite (> b 0) (div a b) (- (div a (- b))))\n"
-    "                (ite (> b 0) (- (div (- a) b)) (div (- a) (- b)))))\n";
 
 G flagged(const G &c, int target, bool reach) {
   auto kids = [&](std::vector<G> ks) {
@@ -36,11 +30,32 @@ G flagged(const G &c, int target, bool reach) {
       [&](const Choice &ch) -> G { return Choice{kids(ch.kids), ch.line}; });
 }
 
-std::string passiveQuery(const Passive &pv, const PassiveVC &vc) {
-  std::string q;
-  for (auto &v : pv.versions) q += "(declare-const |" + v + "| " + pv.sorts.at(v) + ")\n";
-  for (auto &[n, t] : vc.defs) q += "(define-fun |" + n + "| () Bool " + smt(t) + ")\n";
-  q += "(assert (not " + smt(vc.ok) + "))\n";
+Query obligationQuery(const Vc &vc) {
+  Query q;
+  q.consts = vc.consts;
+  q.defs = vc.defs;
+  q.goal = vc.formula;
+  for (auto &x : vc.entry) q.values.push_back(var(x));
+  return q;
+}
+
+Query traceQuery(const Passive &pv, int target) {
+  Query q = obligationQuery(passiveVcOf(pv, pv.prog, target));
+  q.values.clear();
+  for (auto &x : pv.versions) q.values.push_back(var(x));
+  guards(pv.prog, q.values);
+  return q;
+}
+
+Query dependencyQuery(const Proc &proc, const Passive &pv, int target, bool reach) {
+  Query q = obligationQuery(passiveVcOf(pv, flagged(pv.prog, target, reach), target));
+  q.values.clear();
+  q.core = true;
+  for (size_t i = 0; i < proc.assumptions.size(); ++i)
+    q.flags.push_back({"A!" + std::to_string(i), "asm!" + std::to_string(i)});
+  for (size_t j = 0; j < proc.obs.size(); ++j)
+    if ((int)j != target && !proc.obs[j].missing())
+      q.flags.push_back({"O!" + std::to_string(j), "ob!" + std::to_string(j)});
   return q;
 }
 
