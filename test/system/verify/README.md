@@ -2,7 +2,7 @@
 
 Tests of `topc --verify`, end to end. (The unit tests of the verifier's
 modules are in `test/unit/verify/`; they do not run Z3, and ctest runs them,
-named `verify: ...`.) These need `z3` on the `PATH` and are skipped with
+named `verify.…`.) These need `z3` on the `PATH` and are skipped with
 a notice without it. Each `topc` here runs with `--vjobs=1`, since the
 runner already runs several at once. They are not part of the default system-test run:
 

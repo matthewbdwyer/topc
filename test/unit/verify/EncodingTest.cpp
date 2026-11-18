@@ -57,7 +57,7 @@ main() {
 )";
 } // namespace
 
-TEST_CASE("int is Int; a sum type is a datatype; a reference has its referent's sort", "[verify][Encoding]") {
+TEST_CASE("int is Int, a sum type is a datatype, a reference has its referent's sort", "[verify][Encoding]") {
   Program p(TREES);
   auto *size = p.fn("size");
   auto *main = p.fn("main");

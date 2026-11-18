@@ -40,7 +40,7 @@ TEST_CASE("wp follows the rules for each command", "[verify][VcStrategy]") {
           "(p ==> x > 0) && (q ==> x > 0)");
 }
 
-TEST_CASE("the target assertion is checked; every other one is assumed", "[verify][VcStrategy]") {
+TEST_CASE("the target assertion is checked, every other one is assumed", "[verify][VcStrategy]") {
   T Q = v("Q");
   REQUIRE(flat(wp(check(v("p"), 3), Q, 3)) == "p && Q");
   REQUIRE(flat(wp(check(v("p"), 3), Q, 4)) == "p ==> Q");

@@ -62,7 +62,7 @@ TEST_CASE("a branch that ends in assume false has nothing to merge", "[verify][P
   REQUIRE(!has(pv.versions, "y@2"));
 }
 
-TEST_CASE("havoc starts a version; old(x) is the entry version", "[verify][Passivize]") {
+TEST_CASE("havoc starts a version, old(x) is the entry version", "[verify][Passivize]") {
   Havoc h;
   h.vars = {"x"};
   h.sorts = {"Int"};

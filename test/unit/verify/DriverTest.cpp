@@ -68,7 +68,7 @@ TEST_CASE("one query per obligation, and one more asking whether it is reachable
   REQUIRE(solver.asked[1].rlimit == run.opt.rlimit / 100);
 }
 
-TEST_CASE("--ptrust also asks what each proof uses", "[verify][Driver]") {
+TEST_CASE("with --ptrust, what each proof uses is asked too", "[verify][Driver]") {
   CannedSolver solver(agreeable);
   VCGen::Options opt;
   opt.ptrust = true;
@@ -278,7 +278,7 @@ f(x)
   REQUIRE(solver.definitionsAvailable.back() == 1);
 }
 
-TEST_CASE("--vfn checks one function; its callees are then not checked in this run", "[verify][Driver]") {
+TEST_CASE("with --vfn one function is checked, and its callees are then not checked in this run", "[verify][Driver]") {
   const char *src = R"(
 g(x)
   ensures result == x

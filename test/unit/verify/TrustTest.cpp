@@ -136,7 +136,7 @@ TEST_CASE("when the solver could not say, the verdict says so", "[verify][Trust]
   REQUIRE(verdictOf(t, "f") == "verified, assuming: whatever the proof at line 9 depends on");
 }
 
-TEST_CASE("a function's own proved obligations are not listed; a failed one is", "[verify][Trust]") {
+TEST_CASE("a function's own proved obligations are not listed, a failed one is", "[verify][Trust]") {
   VerifyResult res;
   ObligationResult first = ob(0, 4, false), second = ob(1, 9, true, {"ob!0"});
   first.ob.kind = ObKind::Assertion;

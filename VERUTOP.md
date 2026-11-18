@@ -491,7 +491,7 @@ it. To use another solver: implement `Solver`.
 ## Tests
 
 `test/unit/verify/` (built as `verify_unit_tests`; ctest runs them, named
-`verify: ...`): unit
+`verify.…`): unit
 tests for each module, none of which runs Z3. Programs are built by hand
 as guarded commands, or parsed from source; VCs are checked by evaluating
 them over a small domain; the driver is run with a canned solver.

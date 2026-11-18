@@ -4,7 +4,7 @@ One file per module of `src/verify/`. None of them runs Z3.
 
 ```bash
 cmake --build build --target verify_unit_tests
-./build/test/unit/verify/verify_unit_tests            # or, in build/: ctest -R "^verify: "
+./build/test/unit/verify/verify_unit_tests            # or, in build/: ctest -R "^verify\."
 ./build/test/unit/verify/verify_unit_tests "[Trust]"  # one module
 ```
 

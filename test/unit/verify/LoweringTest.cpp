@@ -218,7 +218,7 @@ odd(n)
   REQUIRE(odd.obs[0].what() == "mutually recursive call needs a decreases clause on odd");
 }
 
-TEST_CASE("--overflow turns each arithmetic operation in code into an obligation", "[verify][Lowering]") {
+TEST_CASE("with --overflow each arithmetic operation in code is an obligation", "[verify][Lowering]") {
   Program p(R"(
 inc(x)
   requires x >= 0
