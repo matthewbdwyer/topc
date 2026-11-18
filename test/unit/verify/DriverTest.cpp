@@ -337,3 +337,51 @@ main()
                                    "  proved  line 13: postcondition\n", 0) == 0);
   REQUIRE(report.find("VC (passive): 5 queries, 0 bytes in p.top.vc.smt2\n") != std::string::npos);
 }
+
+TEST_CASE("the result does not depend on the number of jobs", "[verify][Driver]") {
+  const char *src = R"(
+half(x)
+  requires x >= 0
+  ensures result >= 0
+{
+  return x / 2;
+}
+f(x)
+  ensures result == 42
+{
+  assert x > x;
+  return 0;
+}
+main()
+{
+  var a;
+  a = half(4);
+  assert a >= 0;
+  return 0;
+}
+)";
+  // Answers depend only on the question: f's assertion fails, and what
+  // follows it is unreachable because of that.
+  auto rule = [](const Query &q) {
+    if (isReach(q)) return q.flags.empty() ? CannedSolver::sat() : CannedSolver::unsat({q.flags.back().second});
+    if (isUses(q)) return CannedSolver::unsat({"asm!0"});
+    return smt(q.goal).find("(> |x@0| |x@0|)") != std::string::npos && smt(q.goal).find("42") == std::string::npos
+               ? CannedSolver::sat({"1"})
+               : CannedSolver::unsat();
+  };
+  std::string first;
+  for (int jobs : {1, 2, 4, 8}) {
+    INFO("jobs " << jobs);
+    CannedSolver solver(rule);
+    VCGen::Options opt;
+    opt.jobs = jobs;
+    opt.ptrust = true;
+    opt.pcex = true;
+    opt.psmt = true;
+    Run run(src, solver, opt);
+    std::string report = run.report();
+    if (first.empty()) first = report;
+    REQUIRE(report == first);
+  }
+  REQUIRE(first.find("FAILED") != std::string::npos);
+}

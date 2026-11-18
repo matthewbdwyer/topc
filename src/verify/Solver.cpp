@@ -3,8 +3,12 @@
 #include <cerrno>
 #include <csignal>
 #include <cstring>
+#include <fcntl.h>
+#include <mutex>
 #include <poll.h>
 #include <sys/wait.h>
+#include <thread>
+#include <atomic>
 #include <unistd.h>
 
 namespace verutop {
@@ -66,35 +70,44 @@ std::string valueOf(const SX &x) {
 // stderr.  Writing and reading are interleaved, so neither side can block
 // on a full pipe.
 std::string runProcess(const std::vector<std::string> &argv, const std::string &input) {
-  int in[2], out[2];
-  if (pipe(in) != 0) return "";
-  if (pipe(out) != 0) {
-    close(in[0]);
-    close(in[1]);
-    return "";
+  std::vector<char *> args;
+  for (auto &a : argv) args.push_back(const_cast<char *>(a.c_str()));
+  args.push_back(nullptr);
+
+  // Queries run in parallel.  A child must not inherit the pipes of
+  // another query's child, or that one would never see the end of its
+  // input; so the pipes are close-on-exec, and creating them and forking
+  // happen under one lock.
+  static std::mutex launching;
+  int in[2] = {-1, -1}, out[2] = {-1, -1};
+  pid_t pid = -1;
+  {
+    std::lock_guard<std::mutex> lock(launching);
+    if (pipe(in) != 0) return "";
+    if (pipe(out) != 0) {
+      close(in[0]);
+      close(in[1]);
+      return "";
+    }
+    for (int fd : {in[0], in[1], out[0], out[1]}) fcntl(fd, F_SETFD, FD_CLOEXEC);
+    pid = fork();
+    if (pid == 0) {
+      // Only async-signal-safe calls from here on.
+      dup2(in[0], 0);
+      dup2(out[1], 1);
+      dup2(out[1], 2);
+      execvp(args[0], args.data());
+      const char msg[] = "the solver could not be run (is z3 on the PATH?)\n";
+      (void)!write(1, msg, sizeof msg - 1);
+      _exit(127);
+    }
   }
-  pid_t pid = fork();
   if (pid < 0) {
     for (int fd : {in[0], in[1], out[0], out[1]}) close(fd);
     return "";
   }
-  if (pid == 0) {
-    dup2(in[0], 0);
-    dup2(out[1], 1);
-    dup2(out[1], 2);
-    for (int fd : {in[0], in[1], out[0], out[1]}) close(fd);
-    std::vector<char *> args;
-    for (auto &a : argv) args.push_back(const_cast<char *>(a.c_str()));
-    args.push_back(nullptr);
-    execvp(args[0], args.data());
-    std::string msg = argv[0] + " could not be run: " + std::strerror(errno) + "\n";
-    (void)!write(1, msg.data(), msg.size());
-    _exit(127);
-  }
   close(in[0]);
   close(out[1]);
-  // A solver that exits early must not kill the compiler with SIGPIPE.
-  auto old = signal(SIGPIPE, SIG_IGN);
   std::string output;
   size_t sent = 0;
   int wfd = in[1];
@@ -127,8 +140,14 @@ std::string runProcess(const std::vector<std::string> &argv, const std::string &
   close(out[0]);
   int status = 0;
   waitpid(pid, &status, 0);
-  signal(SIGPIPE, old);
   return output;
+}
+
+// A solver that exits before reading all its input must not kill the
+// compiler with SIGPIPE.
+void ignoreSigpipe() {
+  static std::once_flag once;
+  std::call_once(once, [] { signal(SIGPIPE, SIG_IGN); });
 }
 
 const char *CHECK = "(check-sat)\n";
@@ -179,6 +198,7 @@ Answer parseAnswer(const std::string &output, const Query &q) {
 }
 
 Answer Z3Process::check(const Background &bg, const Query &q) {
+  ignoreSigpipe();
   return parseAnswer(runProcess({"z3", "-in"}, z3Input(bg, q)), q);
 }
 
@@ -209,6 +229,32 @@ Answer CannedSolver::unknown(bool limited) {
   a.raw = "unknown";
   a.limited = limited;
   return a;
+}
+
+int defaultJobs() {
+  unsigned n = std::thread::hardware_concurrency();
+  return n == 0 ? 1 : (int)std::min(n, 4u);
+}
+
+std::vector<Answer> checkAll(Solver &solver, const Background &bg, const std::vector<const Query *> &queries,
+                             int jobs) {
+  std::vector<Answer> answers(queries.size());
+  if (jobs <= 0) jobs = defaultJobs();
+  jobs = (int)std::min<size_t>((size_t)jobs, queries.size());
+  // Each worker takes the next query not yet taken.  Which worker answers
+  // which query varies from run to run; where the answer is stored does not.
+  std::atomic<size_t> next{0};
+  auto work = [&] {
+    for (size_t i = next++; i < queries.size(); i = next++) answers[i] = solver.check(bg, *queries[i]);
+  };
+  if (jobs <= 1) {
+    work();
+    return answers;
+  }
+  std::vector<std::thread> workers;
+  for (int j = 0; j < jobs; ++j) workers.emplace_back(work);
+  for (auto &w : workers) w.join();
+  return answers;
 }
 
 } // namespace verutop

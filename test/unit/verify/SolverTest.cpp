@@ -90,3 +90,24 @@ TEST_CASE("the canned solver answers by rule and records what it was asked", "[v
   REQUIRE(solver.asked[1].core);
   REQUIRE(CannedSolver::unknown(true).limited);
 }
+
+TEST_CASE("a batch is answered in the order asked, whatever the number of jobs", "[verify][Solver]") {
+  // Query i has goal i; the rule answers sat with that number.
+  std::vector<Query> queries(40);
+  for (size_t i = 0; i < queries.size(); ++i) queries[i].goal = num((long long)i);
+  std::vector<const Query *> qs;
+  for (auto &q : queries) qs.push_back(&q);
+  Background bg;
+  for (int jobs : {1, 2, 4, 9, 0}) {
+    INFO("jobs " << jobs);
+    CannedSolver solver([](const Query &q) { return CannedSolver::sat({std::to_string(q.goal->num)}); });
+    auto answers = checkAll(solver, bg, qs, jobs);
+    REQUIRE(answers.size() == queries.size());
+    for (size_t i = 0; i < answers.size(); ++i) REQUIRE(answers[i].values == std::vector<std::string>{std::to_string(i)});
+    REQUIRE(solver.asked.size() == queries.size()); // each exactly once
+  }
+  CannedSolver none([](const Query &) { return CannedSolver::unsat(); });
+  REQUIRE(checkAll(none, bg, {}, 4).empty());
+  REQUIRE(defaultJobs() >= 1);
+  REQUIRE(defaultJobs() <= 4);
+}

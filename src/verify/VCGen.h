@@ -19,6 +19,7 @@ struct Options {
   bool passive = true;    // --vcmode=passive (default) or wp
   bool trustSpecs = false;
   long long rlimit = 20000000; // --vrlimit: Z3's resource limit for each query
+  int jobs = 0;           // --vjobs: Z3 processes at once (0: one per core, at most 4)
   bool overflow = false;  // --overflow: + - * / in code must stay in 64 bits
   bool pgcl = false;      // guarded commands
   bool ppassive = false;  // passive (versioned) commands

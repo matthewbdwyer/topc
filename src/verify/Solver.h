@@ -3,6 +3,7 @@
 #include "Query.h"
 
 #include <functional>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -31,6 +32,7 @@ struct Answer {
   std::vector<std::string> core; // Unsat, and the core was asked for: its names
 };
 
+// check may be called from several threads at once.
 class Solver {
 public:
   virtual ~Solver() = default;
@@ -56,6 +58,7 @@ public:
   using Rule = std::function<Answer(const Query &)>;
   explicit CannedSolver(Rule rule) : rule(std::move(rule)) {}
   Answer check(const Background &, const Query &q) override {
+    std::lock_guard<std::mutex> lock(mutex);
     asked.push_back(q);
     return rule(q);
   }
@@ -68,7 +71,15 @@ public:
 
 private:
   Rule rule;
+  std::mutex mutex;
 };
+
+// Every query is independent of the others, so a batch can be answered by
+// several solver processes at once.  answers[i] is the answer to
+// queries[i] whatever the number of jobs (0: one per core, at most four).
+std::vector<Answer> checkAll(Solver &solver, const Background &bg, const std::vector<const Query *> &queries,
+                             int jobs);
+int defaultJobs();
 
 // The text sent for a query: its rendering, with the question about
 // `unknown` added after check-sat.

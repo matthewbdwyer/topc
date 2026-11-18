@@ -65,7 +65,9 @@ def topc(src, flags):
         copy = Path(d) / src.name
         shutil.copy(src, copy)
         try:
-            p = subprocess.run([str(TOPC), *flags, src.name], cwd=d, text=True,
+            # Tests already run several at once, so each topc runs one Z3
+            # at a time.
+            p = subprocess.run([str(TOPC), "--vjobs=1", *flags, src.name], cwd=d, text=True,
                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                timeout=TIMEOUT)
             return re.sub(r"\x1b\[[0-9;]*m", "", p.stdout)  # no colour codes

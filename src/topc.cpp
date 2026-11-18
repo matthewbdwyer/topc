@@ -64,6 +64,10 @@ static cl::opt<long long> vrlimitOpt(
     "vrlimit", cl::value_desc("n"),
     cl::desc("VERUTOP: Z3's resource limit for each query (default 20000000)"),
     cl::init(20000000), cl::cat(TOPcat));
+static cl::opt<int> vjobsOpt(
+    "vjobs", cl::value_desc("n"),
+    cl::desc("VERUTOP: Z3 processes to run at once (default: one per core, at most 4)"),
+    cl::init(0), cl::cat(TOPcat));
 static cl::opt<bool> overflowOpt(
     "overflow",
     cl::desc("VERUTOP: check that + - * / in code do not overflow 64 bits"),
@@ -732,6 +736,7 @@ int main(int argc, char *argv[]) {
       vopt.passive = vcMode == "passive";
       vopt.trustSpecs = trustSpecs;
       vopt.rlimit = vrlimitOpt;
+      vopt.jobs = vjobsOpt;
       vopt.overflow = overflowOpt;
       vopt.pgcl = pgclOpt;
       vopt.ppassive = ppassiveOpt;

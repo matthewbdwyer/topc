@@ -118,6 +118,9 @@ AST --lower--> guarded commands --passivize--> passive commands --> VC --> SMT q
 Any of these implies `--verify`. A TOP condition is true when it is not
 zero. Integers are mathematical (`Int`) unless `--overflow` is given, which
 adds the obligation that each `+ - * /` in code stays in 64 bits.
+Queries are independent of each other, so they are sent to several Z3
+processes at once: `--vjobs=N` (default: one per core, at most 4;
+`--vjobs=1` runs them one at a time). The report is the same either way.
 `--vrlimit=N` sets Z3's resource limit for a query (default 20000000): a
 count of Z3's own steps, not seconds, so a verdict depends much less on
 machine load than a timeout does. It is not perfectly repeatable: for
