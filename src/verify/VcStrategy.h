@@ -9,7 +9,8 @@ namespace verutop {
 // obligation is assumed.  Target -2 checks them all (for --pvc and --pwp).
 // ===========================================================================
 
-bool checked(const G &c, int target);
+// Whether this assertion is one the VC checks (and does not assume).
+bool checked(const Assert &a, int target);
 
 // wp by substitution, over guarded commands; then for the whole function,
 // with the entry values of the formals.

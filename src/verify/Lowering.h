@@ -22,6 +22,7 @@ namespace verutop {
 
 struct Proc {
   ASTFunction *fn = nullptr;
+  std::vector<std::string> formals; // in order
   G body;
   std::vector<Obligation> obs;
   std::vector<Assumption> assumptions;
@@ -108,10 +109,12 @@ private:
   bool machineInts() const;
   std::string name(const std::string &x) const;
   G havoc(std::vector<std::string> xs, int line, std::string note);
-  static G guard(T p, T cond, int line, std::string note);
-  G tracked(G g, Assumption::Kind kind, std::string what, std::string callee = "");
-  G missingClause(int line, std::string what);
-  G assertion(T p, int line, std::string what);
+  // The assume that starts a branch; `cond` is the source condition.
+  static Assume guard(T p, T cond, int line, std::string note);
+  // An assume that a proof may be found to depend on.
+  Assume tracked(Assume g, Assumption::Kind kind, std::string what, std::string callee = "");
+  Assert missingClause(int line, std::string what);
+  Assert assertion(T p, int line, std::string what);
   G stmt(ASTStmt *s);
   T callExpr(ASTFunAppExpr *call, std::vector<G> &cs, const std::string &target);
 };

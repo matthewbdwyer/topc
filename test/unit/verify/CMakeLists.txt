@@ -3,7 +3,10 @@ add_executable(verify_unit_tests)
 target_sources(
   verify_unit_tests
   PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/TermTest.cpp
-          ${CMAKE_CURRENT_SOURCE_DIR}/TermPrintTest.cpp)
+          ${CMAKE_CURRENT_SOURCE_DIR}/TermPrintTest.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/GclTest.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/PassivizeTest.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/VcStrategyTest.cpp)
 target_link_libraries(
   verify_unit_tests
   PRIVATE verify

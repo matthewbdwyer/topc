@@ -159,6 +159,7 @@ Proc Lower::proc(ASTFunction *f) {
   renames.clear();
   proc_ = Proc{};
   proc_.fn = f;
+  for (auto *p : f->getFormals()) proc_.formals.push_back(p->getName());
   auto &sorts = proc_.sorts;
   sortLookup = [this](const std::string &x) { return proc_.sortOf(x); };
   for (auto *p : f->getFormals()) sorts[p->getName()] = enc.sortOf(p);
@@ -344,29 +345,28 @@ std::string Lower::name(const std::string &x) const {
 
 // An unknown value; an int in code is still a 64-bit value.
 G Lower::havoc(std::vector<std::string> xs, int line, std::string note) {
-  G g;
-  g.kind = G::Havoc;
+  Havoc h;
   std::vector<T> rs;
   for (auto &x : xs) {
-    g.sorts.push_back(proc_.sortOf(x));
-    if (g.sorts.back() == "Int") rs.push_back(inRange(var(x)));
+    h.sorts.push_back(proc_.sortOf(x));
+    if (h.sorts.back() == "Int") rs.push_back(inRange(var(x)));
   }
-  g.vars = std::move(xs);
-  g.line = line;
-  g.note = std::move(note);
-  if (!machineInts() || rs.empty()) return g;
-  return gSeq({g, gAssume(And(rs), line, "64-bit values")});
+  h.vars = std::move(xs);
+  h.line = line;
+  h.note = std::move(note);
+  if (!machineInts() || rs.empty()) return h;
+  return gSeq({h, gAssume(And(rs), line, "64-bit values")});
 }
 
 // The assume that starts a branch; `cond` is the source condition.
-G Lower::guard(T p, T cond, int line, std::string note) {
-  G g = gAssume(std::move(p), line, std::move(note), true);
-  g.src = std::move(cond);
-  return g;
+Assume Lower::guard(T p, T cond, int line, std::string note) {
+  Assume a = gAssume(std::move(p), line, std::move(note), true);
+  a.src = std::move(cond);
+  return a;
 }
 
 // An assume that a proof may be found to depend on.
-G Lower::tracked(G g, Assumption::Kind kind, std::string what, std::string callee) {
+Assume Lower::tracked(Assume g, Assumption::Kind kind, std::string what, std::string callee) {
   if (isTrue(g.p)) return g;
   g.asmId = (int)proc_.assumptions.size();
   proc_.assumptions.push_back({kind, g.line, std::move(what), std::move(callee)});
@@ -375,16 +375,15 @@ G Lower::tracked(G g, Assumption::Kind kind, std::string what, std::string calle
 
 // An obligation that fails because a clause is missing.  It is not a fact
 // about the program, so the obligations after it do not assume it.
-G Lower::missingClause(int line, std::string what) {
-  G g = assertion(FALSE, line, std::move(what));
+Assert Lower::missingClause(int line, std::string what) {
+  Assert g = assertion(FALSE, line, std::move(what));
   g.missing = true;
   obs.back().missing = true;
   return g;
 }
 
-G Lower::assertion(T p, int line, std::string what) {
-  G g;
-  g.kind = G::Assert;
+Assert Lower::assertion(T p, int line, std::string what) {
+  Assert g;
   g.p = std::move(p);
   g.id = (int)obs.size();
   g.line = line;

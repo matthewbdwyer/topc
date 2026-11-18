@@ -36,7 +36,7 @@ private:
   Sub vals;
   int target;
 
-  static const G *first(const G &c);
+  static const Assume *guardOf(const G &c);
   std::string get(const std::string &k);
   void emit(int line, const std::string &what, const std::string &vs);
 };

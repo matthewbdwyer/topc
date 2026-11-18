@@ -42,37 +42,35 @@ Outline outline(const G &c, const T &Q, int ind) {
     for (auto &l : showCmd(c, false, ind)) o.lines.push_back(l);
     return o;
   };
-  switch (c.kind) {
-  case G::Assume: return prim(simp(Implies(c.p, Q)));
-  case G::Assert: return prim(simp(And({c.p, Q})));
-  case G::Assign: return prim(simp(subst(Q, {{c.x, c.p}})));
-  case G::Havoc: return prim(simp(forall(c.vars, c.sorts, Q)));
-  case G::Seq: {
-    std::vector<std::vector<std::string>> parts;
-    T q = Q;
-    for (auto it = c.kids.rbegin(); it != c.kids.rend(); ++it) {
-      auto o = outline(*it, q, ind);
-      parts.push_back(o.lines);
-      q = o.pre;
-    }
-    Outline o{q, {}};
-    for (auto it = parts.rbegin(); it != parts.rend(); ++it)
-      o.lines.insert(o.lines.end(), it->begin(), it->end());
-    return o;
-  }
-  case G::Choice: {
-    auto a = outline(c.kids[0], Q, ind + 2), b = outline(c.kids[1], Q, ind + 2);
-    T P = capped(simp(And({a.pre, b.pre})));
-    Outline o{P, braces(P)};
-    o.lines.push_back("{");
-    for (auto &l : a.lines) o.lines.push_back("  " + l);
-    o.lines.push_back("} [] {");
-    for (auto &l : b.lines) o.lines.push_back("  " + l);
-    o.lines.push_back("}");
-    return o;
-  }
-  }
-  return {Q, {}};
+  return match(
+      c, [&](const Assume &a) { return prim(simp(Implies(a.p, Q))); },
+      [&](const Assert &a) { return prim(simp(And({a.p, Q}))); },
+      [&](const Assign &a) { return prim(simp(subst(Q, {{a.x, a.e}}))); },
+      [&](const Havoc &h) { return prim(simp(forall(h.vars, h.sorts, Q))); },
+      [&](const Seq &s) {
+        std::vector<std::vector<std::string>> parts;
+        T q = Q;
+        for (auto it = s.kids.rbegin(); it != s.kids.rend(); ++it) {
+          auto o = outline(*it, q, ind);
+          parts.push_back(o.lines);
+          q = o.pre;
+        }
+        Outline o{q, {}};
+        for (auto it = parts.rbegin(); it != parts.rend(); ++it)
+          o.lines.insert(o.lines.end(), it->begin(), it->end());
+        return o;
+      },
+      [&](const Choice &ch) {
+        auto a = outline(ch.kids[0], Q, ind + 2), b = outline(ch.kids[1], Q, ind + 2);
+        T P = capped(simp(And({a.pre, b.pre})));
+        Outline o{P, braces(P)};
+        o.lines.push_back("{");
+        for (auto &l : a.lines) o.lines.push_back("  " + l);
+        o.lines.push_back("} [] {");
+        for (auto &l : b.lines) o.lines.push_back("  " + l);
+        o.lines.push_back("}");
+        return o;
+      });
 }
 
 } // namespace verutop

@@ -11,25 +11,29 @@ const char *PRELUDE =
     "                (ite (> b 0) (- (div (- a) b)) (div (- a) (- b)))))\n";
 
 G flagged(const G &c, int target, bool reach) {
-  G r = c;
-  switch (c.kind) {
-  case G::Assume:
-    if (c.asmId >= 0) r.p = Implies(var("A!" + std::to_string(c.asmId)), c.p);
-    break;
-  case G::Assert:
-    if (c.id == target) {
-      if (reach) r.p = FALSE;
-    } else if (!c.missing) {
-      r.p = Implies(var("O!" + std::to_string(c.id)), c.p);
-    }
-    break;
-  case G::Seq:
-  case G::Choice:
-    for (auto &k : r.kids) k = flagged(k, target, reach);
-    break;
-  default: break;
-  }
-  return r;
+  auto kids = [&](std::vector<G> ks) {
+    for (auto &k : ks) k = flagged(k, target, reach);
+    return ks;
+  };
+  return match(
+      c,
+      [&](const Assume &a) -> G {
+        Assume r = a;
+        if (a.asmId >= 0) r.p = Implies(var("A!" + std::to_string(a.asmId)), a.p);
+        return r;
+      },
+      [&](const Assert &a) -> G {
+        Assert r = a;
+        if (a.id == target) {
+          if (reach) r.p = FALSE;
+        } else if (!a.missing) {
+          r.p = Implies(var("O!" + std::to_string(a.id)), a.p);
+        }
+        return r;
+      },
+      [&](const Assign &a) -> G { return a; }, [&](const Havoc &h) -> G { return h; },
+      [&](const Seq &s) -> G { return Seq{kids(s.kids)}; },
+      [&](const Choice &ch) -> G { return Choice{kids(ch.kids), ch.line}; });
 }
 
 std::string passiveQuery(const Passive &pv, const PassiveVC &vc) {

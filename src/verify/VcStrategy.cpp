@@ -2,7 +2,7 @@
 
 namespace verutop {
 
-bool checked(const G &c, int target) { return target == -2 || c.id == target; }
+bool checked(const Assert &a, int target) { return target == -2 || a.id == target; }
 
 // wp by substitution, over guarded commands:
 //   wp(assume P, Q) = P ==> Q       wp(assert P, Q) = P && Q
@@ -11,32 +11,30 @@ bool checked(const G &c, int target) { return target == -2 || c.id == target; }
 //   wp(S1 [] S2, Q) = wp(S1, Q) && wp(S2, Q)
 // Substitution is written as a let, which Z3 expands.
 T wp(const G &c, const T &Q, int target) {
-  switch (c.kind) {
-  case G::Assume: return isTrue(c.p) ? Q : Implies(c.p, Q);
-  case G::Assert:
-    if (checked(c, target)) return And({c.p, Q});
-    return c.missing ? Q : Implies(c.p, Q);
-  case G::Assign: return let(c.x, c.p, Q);
-  case G::Havoc: return forall(c.vars, c.sorts, Q);
-  case G::Seq: {
-    T R = Q;
-    for (auto it = c.kids.rbegin(); it != c.kids.rend(); ++it) R = wp(*it, R, target);
-    return R;
-  }
-  case G::Choice: return And({wp(c.kids[0], Q, target), wp(c.kids[1], Q, target)});
-  }
-  return Q;
+  return match(
+      c, [&](const Assume &a) { return isTrue(a.p) ? Q : Implies(a.p, Q); },
+      [&](const Assert &a) {
+        if (checked(a, target)) return And({a.p, Q});
+        return a.missing ? Q : Implies(a.p, Q);
+      },
+      [&](const Assign &a) { return let(a.x, a.e, Q); },
+      [&](const Havoc &h) { return forall(h.vars, h.sorts, Q); },
+      [&](const Seq &s) {
+        T R = Q;
+        for (auto it = s.kids.rbegin(); it != s.kids.rend(); ++it) R = wp(*it, R, target);
+        return R;
+      },
+      [&](const Choice &c) { return And({wp(c.kids[0], Q, target), wp(c.kids[1], Q, target)}); });
 }
 
 // The whole function: entry values of the formals, then wp of the body.
 T wpFunction(const Proc &p, int target) {
   T Q = wp(p.body, TRUE, target);
-  auto formals = p.fn->getFormals();
-  for (auto it = formals.rbegin(); it != formals.rend(); ++it) {
+  for (auto it = p.formals.rbegin(); it != p.formals.rend(); ++it) {
     std::set<std::string> fv;
     freeVars(Q, fv);
-    auto o = "old(" + (*it)->getName() + ")";
-    if (fv.count(o)) Q = let(o, var((*it)->getName()), Q);
+    auto o = "old(" + *it + ")";
+    if (fv.count(o)) Q = let(o, var(*it), Q);
   }
   return Q;
 }
@@ -67,30 +65,29 @@ private:
     defs.push_back({n, std::move(t)});
     return var(n);
   }
-  std::pair<T, T> vc(const G &c) {
-    switch (c.kind) {
-    case G::Assume: return {TRUE, c.p};
-    case G::Assert: return {checked(c, target) ? c.p : TRUE, c.missing ? TRUE : c.p};
-    case G::Assign:
-    case G::Havoc: return {TRUE, TRUE};
-    case G::Seq: {
-      std::vector<T> oks;
-      T post = TRUE;
-      for (auto &k : c.kids) {
-        auto [okk, postk] = vc(k);
-        if (!isTrue(okk)) oks.push_back(isTrue(post) ? okk : Implies(post, okk));
-        if (isTrue(postk)) continue;
-        post = isTrue(post) ? postk : name(And({post, postk}));
-      }
-      return {And(oks), post};
-    }
-    case G::Choice: {
-      auto [ok1, p1] = vc(c.kids[0]);
-      auto [ok2, p2] = vc(c.kids[1]);
-      return {And({ok1, ok2}), name(op("or", {p1, p2}))};
-    }
-    }
-    return {TRUE, TRUE};
+  using OkPost = std::pair<T, T>;
+  OkPost vc(const G &c) {
+    return match(
+        c, [&](const Assume &a) { return OkPost{TRUE, a.p}; },
+        [&](const Assert &a) { return OkPost{checked(a, target) ? a.p : TRUE, a.missing ? TRUE : a.p}; },
+        [&](const Assign &) { return OkPost{TRUE, TRUE}; },
+        [&](const Havoc &) { return OkPost{TRUE, TRUE}; },
+        [&](const Seq &s) {
+          std::vector<T> oks;
+          T post = TRUE;
+          for (auto &k : s.kids) {
+            auto [okk, postk] = vc(k);
+            if (!isTrue(okk)) oks.push_back(isTrue(post) ? okk : Implies(post, okk));
+            if (isTrue(postk)) continue;
+            post = isTrue(post) ? postk : name(And({post, postk}));
+          }
+          return OkPost{And(oks), post};
+        },
+        [&](const Choice &c) {
+          auto [ok1, p1] = vc(c.kids[0]);
+          auto [ok2, p2] = vc(c.kids[1]);
+          return OkPost{And({ok1, ok2}), name(op("or", {p1, p2}))};
+        });
   }
 };
 } // namespace

@@ -7,41 +7,28 @@
 
 namespace verutop {
 
-G gAssume(T p, int line, std::string note, bool guard) {
-  G g;
-  g.kind = G::Assume;
-  g.p = std::move(p);
-  g.line = line;
-  g.note = std::move(note);
-  g.guard = guard;
-  return g;
+Assume gAssume(T p, int line, std::string note, bool guard) {
+  Assume a;
+  a.p = std::move(p);
+  a.line = line;
+  a.note = std::move(note);
+  a.guard = guard;
+  return a;
 }
-G gAssign(std::string x, T e, int line, std::string note) {
-  G g;
-  g.kind = G::Assign;
-  g.x = std::move(x);
-  g.p = std::move(e);
-  g.line = line;
-  g.note = std::move(note);
-  return g;
+Assign gAssign(std::string x, T e, int line, std::string note) {
+  return Assign{std::move(x), std::move(e), line, std::move(note)};
 }
 G gSeq(const std::vector<G> &ks) {
-  G g;
+  Seq s;
   for (auto &k : ks) {
-    if (k.kind == G::Seq)
-      g.kids.insert(g.kids.end(), k.kids.begin(), k.kids.end());
+    if (auto *inner = k.as<Seq>())
+      s.kids.insert(s.kids.end(), inner->kids.begin(), inner->kids.end());
     else
-      g.kids.push_back(k);
+      s.kids.push_back(k);
   }
-  return g;
+  return s;
 }
-G gChoice(G a, G b, int line) {
-  G g;
-  g.kind = G::Choice;
-  g.kids = {std::move(a), std::move(b)};
-  g.line = line;
-  return g;
-}
+G gChoice(G a, G b, int line) { return Choice{{std::move(a), std::move(b)}, line}; }
 
 std::string withComment(std::string s, const std::string &c, int ind) {
   if (c.empty()) return s;
@@ -62,34 +49,32 @@ std::vector<std::string> showCmd(const G &c, bool passive, int ind) {
       out.push_back(s);
     }
   };
-  switch (c.kind) {
-  case G::Assume: formula("assume ", c.p, c.note); break;
-  case G::Assert:
-    formula("assert ", c.p, "#" + std::to_string(c.id) + " line " + std::to_string(c.line) +
-                                ": " + c.note);
-    break;
-  case G::Assign: formula(c.x + " := ", c.p, c.note); break;
-  case G::Havoc:
-    if (passive)
-      out.push_back("// " + c.note + ": " + join(c.vars) + " are new versions");
-    else
-      out.push_back(withComment("havoc " + join(c.vars) + ";", c.note, ind));
-    break;
-  default: break;
-  }
+  match(
+      c, [&](const Assume &a) { formula("assume ", a.p, a.note); },
+      [&](const Assert &a) {
+        formula("assert ", a.p, "#" + std::to_string(a.id) + " line " + std::to_string(a.line) + ": " + a.note);
+      },
+      [&](const Assign &a) { formula(a.x + " := ", a.e, a.note); },
+      [&](const Havoc &h) {
+        if (passive)
+          out.push_back("// " + h.note + ": " + join(h.vars) + " are new versions");
+        else
+          out.push_back(withComment("havoc " + join(h.vars) + ";", h.note, ind));
+      },
+      [](const Seq &) {}, [](const Choice &) {});
   return out;
 }
 
 void printG(const G &c, int ind, std::ostream &o, bool passive) {
-  if (c.kind == G::Seq) {
-    for (auto &k : c.kids) printG(k, ind, o, passive);
+  if (auto *s = c.as<Seq>()) {
+    for (auto &k : s->kids) printG(k, ind, o, passive);
     return;
   }
-  if (c.kind == G::Choice) {
+  if (auto *ch = c.as<Choice>()) {
     o << pad(ind) << "{\n";
-    printG(c.kids[0], ind + 2, o, passive);
+    printG(ch->kids[0], ind + 2, o, passive);
     o << pad(ind) << "} [] {\n";
-    printG(c.kids[1], ind + 2, o, passive);
+    printG(ch->kids[1], ind + 2, o, passive);
     o << pad(ind) << "}\n";
     return;
   }
