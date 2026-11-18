@@ -4,15 +4,21 @@
 
 namespace verutop {
 
-std::string cycleObligation(ASTFunction *from, ASTFunction *to, bool &both) {
-  both = from->getDecreases() && to->getDecreases();
-  if (from == to)
-    return both ? "recursive call decreases the measure" : "recursive call needs a decreases clause";
-  if (both) return "mutually recursive call decreases the measure";
-  std::string missing;
-  for (auto *f : {from, to})
-    if (!f->getDecreases()) missing += (missing.empty() ? "" : " and ") + f->getName();
-  return "mutually recursive call needs a decreases clause on " + missing;
+Obligation cycleObligation(ASTFunction *from, ASTFunction *to, ASTNode *call) {
+  Obligation ob;
+  ob.line = call->getLine();
+  ob.column = call->getColumn();
+  ob.callee = to->getName();
+  bool both = from->getDecreases() && to->getDecreases();
+  if (from == to) {
+    ob.kind = both ? ObKind::CallMeasure : ObKind::MissingCallMeasure;
+    return ob;
+  }
+  ob.kind = both ? ObKind::MutualCallMeasure : ObKind::MissingMutualCallMeasure;
+  if (!both)
+    for (auto *f : {from, to})
+      if (!f->getDecreases()) ob.subject += (ob.subject.empty() ? "" : " and ") + f->getName();
+  return ob;
 }
 
 } // namespace verutop

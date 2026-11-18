@@ -78,7 +78,7 @@ public:
   // --overflow: arithmetic in code must stay in 64 bits.
   bool overflow = false;
   // Called on each spec-function call in a specification (for termination).
-  std::function<void(ASTFunction *, const std::vector<T> &, int)> onSpecCall;
+  std::function<void(ASTFunction *, const std::vector<T> &, ASTNode *)> onSpecCall;
   // The sort of a variable, for measures.
   std::function<std::string(const std::string &)> sortLookup;
 
@@ -113,8 +113,10 @@ private:
   static Assume guard(T p, T cond, int line, std::string note);
   // An assume that a proof may be found to depend on.
   Assume tracked(Assume g, Assumption::Kind kind, std::string what, std::string callee = "");
-  Assert missingClause(int line, std::string what);
-  Assert assertion(T p, int line, std::string what);
+  // A new obligation of `kind` at `at`, claiming p.  A missing clause (see
+  // ObKind) claims false, fails, and is not assumed afterwards.
+  Assert assertion(T p, ASTNode *at, ObKind kind, std::string subject = "", std::string callee = "");
+  Assert assertion(T p, Obligation ob);
   G stmt(ASTStmt *s);
   T callExpr(ASTFunAppExpr *call, std::vector<G> &cs, const std::string &target);
 };

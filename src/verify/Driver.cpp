@@ -175,7 +175,7 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
         if (c.fn == fn) {
           if (!any) heading(out, "termination");
           any = true;
-          out << "  line " << c.ob.line << ": " << c.ob.what << "\n";
+          out << "  line " << c.ob.line << ": " << c.ob.what() << "\n";
           for (auto &x : pretty(c.formula, 70)) out << "    " << x << "\n";
         }
       out << "\n";
@@ -236,7 +236,7 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
       flags += "(declare-const |A!" + std::to_string(i) + "| Bool)\n(assert (! |A!" +
                std::to_string(i) + "| :named asm!" + std::to_string(i) + "))\n";
     for (size_t j = 0; j < proc.obs.size(); ++j)
-      if ((int)j != k && !proc.obs[j].missing)
+      if ((int)j != k && !proc.obs[j].missing())
         flags += "(declare-const |O!" + std::to_string(j) + "| Bool)\n(assert (! |O!" +
                  std::to_string(j) + "| :named ob!" + std::to_string(j) + "))\n";
     std::string t = flags + passiveQuery(pv, passiveVc(flagged(pv.prog, k, reach), k)) +
@@ -245,7 +245,7 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
     // --psmt with --ptrust shows these queries too.
     if (opt.psmt && opt.ptrust && (opt.psmtLine == 0 || opt.psmtLine == proc.obs[k].line))
       out << "; ==== " << proc.fn->getName() << " #" << k << ", line " << proc.obs[k].line << ": "
-          << proc.obs[k].what << (reach ? " -- does anything reach it?" : " -- what does the proof use?")
+          << proc.obs[k].what() << (reach ? " -- does anything reach it?" : " -- what does the proof use?")
           << "\n" << full << "\n";
     auto [v, rest] = run(full);
     std::vector<std::string> names;
@@ -383,13 +383,13 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
       std::string full = preludeFor(q.text) + q.text;
       if (opt.psmt && (opt.psmtLine == 0 || opt.psmtLine == q.ob.line))
         out << "; ==== " << f->getName() << " #" << k << ", line " << q.ob.line << ": "
-            << q.ob.what << "\n"
+            << q.ob.what() << "\n"
             << full << "\n";
       std::string v = "sat", rest;
-      if (!q.ob.missing) std::tie(v, rest) = run(full);
+      if (!q.ob.missing()) std::tie(v, rest) = run(full);
       q.verdict = v;
-      q.limited = !q.ob.missing && limited;
-      if (v != "unsat" && !q.ob.missing) {
+      q.limited = !q.ob.missing() && limited;
+      if (v != "unsat" && !q.ob.missing()) {
         size_t i = 0;
         SX vals = parseSX(rest, i);
         std::vector<std::string> shown;
@@ -430,7 +430,7 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
       // false, proves everything after it.  So each proved obligation is
       // asked once more, as `false`.  (An obligation that is `false` to
       // begin with claims exactly that the point is unreachable.)
-      if (v == "unsat" && !q.ob.unreachable) {
+      if (v == "unsat" && !q.ob.unreachable()) {
         auto [unreached, why] = dependencies(proc, pv, (int)k, true);
         // Unreachable only because an obligation that failed is assumed
         // after it: the failure is already reported.
@@ -460,12 +460,12 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
   for (auto &[r, ax] : enc.rankAxioms) smtOut << ax;
   for (auto &q : queries)
     if (q.fn.rfind("spec ", 0) == 0)
-      smtOut << "\n; " << q.fn << ", line " << q.ob.line << ": " << q.ob.what << "\n(push)\n"
+      smtOut << "\n; " << q.fn << ", line " << q.ob.line << ": " << q.ob.what() << "\n(push)\n"
              << q.text << "(pop)\n";
   smtOut << "\n; definitions of the spec functions that terminate\n" << defs;
   for (auto &q : queries)
     if (q.fn.rfind("spec ", 0) != 0)
-      smtOut << "\n; " << q.fn << ", line " << q.ob.line << ": " << q.ob.what << "\n(push)\n"
+      smtOut << "\n; " << q.fn << ", line " << q.ob.line << ": " << q.ob.what() << "\n(push)\n"
              << q.text << "(pop)\n";
   auto bytes = smtOut.tellp();
   smtOut.close();
@@ -486,7 +486,7 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
       out << fn << ":\n";
     }
     out << "  " << (ok ? "proved " : (r.verdict == "sat" ? "FAILED " : "UNKNOWN")) << " line "
-        << r.ob.line << ": " << r.ob.what;
+        << r.ob.line << ": " << r.ob.what();
     if (!ok && r.trace.empty() && !r.model.empty() && r.model.find("error") == std::string::npos)
       out << "   when " << r.model;
     if (r.verdict != "sat" && r.verdict != "unsat" && r.verdict != "unknown")
@@ -525,7 +525,7 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
     if (name.rfind("asm!", 0) == 0 && i < info[fn].assumptions.size()) return info[fn].assumptions[i].what;
     if (name.rfind("ob!", 0) == 0 && i < info[fn].obs.size())
       return "the obligation at line " + std::to_string(info[fn].obs[i].line) + " (" +
-             info[fn].obs[i].what + ")";
+             info[fn].obs[i].what() + ")";
     return name;
   };
 
@@ -575,7 +575,7 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
     std::map<std::string, std::vector<std::string>> lines;
     for (auto &q : queries) {
       if (q.verdict != "unsat" || !info.count(q.fn)) continue;
-      std::string head = "  line " + std::to_string(q.ob.line) + ": " + q.ob.what;
+      std::string head = "  line " + std::to_string(q.ob.line) + ": " + q.ob.what();
       if (!q.usesKnown) {
         lines[q.fn].push_back(head);
         lines[q.fn].push_back("      Z3 did not say what this proof depends on");
@@ -593,7 +593,7 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
         if (ownProved)
           for (auto &o : queries)
             if (o.fn == q.fn && i < info[q.fn].obs.size() && o.ob.line == info[q.fn].obs[i].line &&
-                o.ob.what == info[q.fn].obs[i].what && o.verdict != "unsat")
+                o.ob.what() == info[q.fn].obs[i].what() && o.verdict != "unsat")
               ownProved = false;
         if (!q.vacuous && ((isAsm && kind == Assumption::Pre) || ownProved)) continue;
         shown.push_back(show(q.fn, u));

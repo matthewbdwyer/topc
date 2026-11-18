@@ -38,7 +38,7 @@ inline Proc procOf(std::vector<std::string> formals, G body, int obligations) {
   Proc p;
   p.formals = std::move(formals);
   p.body = std::move(body);
-  for (int i = 0; i < obligations; ++i) p.obs.push_back({1, "check"});
+  for (int i = 0; i < obligations; ++i) p.obs.emplace_back();
   return p;
 }
 

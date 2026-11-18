@@ -5,6 +5,7 @@ target_sources(
   PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/TermTest.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/TermPrintTest.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/GclTest.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/ObligationsTest.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/PassivizeTest.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/VcStrategyTest.cpp)
 target_link_libraries(

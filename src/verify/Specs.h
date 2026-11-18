@@ -32,7 +32,7 @@ public:
 private:
   void build(ASTProgram *p);
   void stmt(ASTStmt *s);
-  void termination(ASTFunction *g, const std::vector<T> &args, int line);
+  void termination(ASTFunction *g, const std::vector<T> &args, ASTNode *call);
 
   Lower &low;
   ASTFunction *current = nullptr;

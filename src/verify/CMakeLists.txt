@@ -8,6 +8,7 @@ target_sources(
           ${CMAKE_CURRENT_SOURCE_DIR}/Feedback.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/Gcl.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/Lowering.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/Obligations.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/Outline.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/Passivize.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/SmtEncode.cpp

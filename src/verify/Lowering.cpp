@@ -211,7 +211,7 @@ Proc Lower::proc(ASTFunction *f) {
   cs.push_back(gAssign("result", r, ret->getLine(), "return"));
   std::vector<T> ens;
   for (auto *e : f->getEnsures()) ens.push_back(spec(e, &old, &oldAll));
-  cs.push_back(assertion(And(ens), ret->getLine(), "postcondition"));
+  cs.push_back(assertion(And(ens), ret, ObKind::Postcondition));
   proc_.body = gSeq(cs);
   proc_.obs = obs;
   return proc_;
@@ -263,7 +263,7 @@ T Lower::I(ASTExpr *e, std::vector<G> *pre, const Sub *sub) {
     auto checked = [&](T t) {
       if (!pre || ghost || current->isLemma()) return t;
       if (overflow)
-        pre->push_back(assertion(inRange(t), e->getLine(), flat(t) + " does not overflow"));
+        pre->push_back(assertion(inRange(t), e, ObKind::NoOverflow, flat(t)));
       else
         ++proc_.arithmetic;
       return t;
@@ -275,8 +275,7 @@ T Lower::I(ASTExpr *e, std::vector<G> *pre, const Sub *sub) {
     case K::Div: {
       auto t = two("tdiv");
       if (pre)
-        pre->push_back(assertion(Not(Eq(t->args[1], num(0))), e->getLine(),
-                                 "divisor is not zero"));
+        pre->push_back(assertion(Not(Eq(t->args[1], num(0))), e, ObKind::DivisorNotZero));
       return checked(t);
     }
     default: return op("ite", {B(e, pre, sub), num(1), num(0)});
@@ -294,7 +293,7 @@ T Lower::I(ASTExpr *e, std::vector<G> *pre, const Sub *sub) {
       throw Unsupported(where(call) + "a specification may call only spec functions");
     std::vector<T> as;
     for (auto *a : call->getActuals()) as.push_back(I(a, nullptr, sub));
-    if (onSpecCall) onSpecCall(g, as, call->getLine());
+    if (onSpecCall) onSpecCall(g, as, call);
     return app(g->getName(), as);
   }
   throw Unsupported(where(e) + "unsupported expression in verification: " + text(e));
@@ -373,23 +372,24 @@ Assume Lower::tracked(Assume g, Assumption::Kind kind, std::string what, std::st
   return g;
 }
 
-// An obligation that fails because a clause is missing.  It is not a fact
-// about the program, so the obligations after it do not assume it.
-Assert Lower::missingClause(int line, std::string what) {
-  Assert g = assertion(FALSE, line, std::move(what));
-  g.missing = true;
-  obs.back().missing = true;
-  return g;
+Assert Lower::assertion(T p, ASTNode *at, ObKind kind, std::string subject, std::string callee) {
+  Obligation ob;
+  ob.kind = kind;
+  ob.line = at->getLine();
+  ob.column = at->getColumn();
+  ob.subject = std::move(subject);
+  ob.callee = std::move(callee);
+  return assertion(std::move(p), std::move(ob));
 }
 
-Assert Lower::assertion(T p, int line, std::string what) {
+Assert Lower::assertion(T p, Obligation ob) {
   Assert g;
-  g.p = std::move(p);
+  g.p = ob.missing() ? FALSE : std::move(p);
   g.id = (int)obs.size();
-  g.line = line;
-  g.note = what;
-  obs.push_back({line, std::move(what)});
-  obs.back().unreachable = isFalse(g.p);
+  g.line = ob.line;
+  g.note = ob.what();
+  g.missing = ob.missing();
+  obs.push_back(std::move(ob));
   return g;
 }
 
@@ -416,7 +416,7 @@ G Lower::stmt(ASTStmt *s) {
     if (proof->getKind() == ASTProofStmt::Kind::Assume)
       return tracked(gAssume(P, line, "assume"), Assumption::Assume,
                      "assume (line " + std::to_string(line) + ")");
-    return assertion(P, line, "assertion");
+    return assertion(P, s, ObKind::Assertion);
   }
   if (auto *blk = dynamic_cast<ASTBlockStmt *>(s)) {
     std::vector<G> cs;
@@ -494,15 +494,14 @@ G Lower::stmt(ASTStmt *s) {
     std::vector<T> inv;
     for (auto *e : w->getInvariants()) inv.push_back(spec(e));
     T J = And(inv);
-    std::vector<G> cs{assertion(J, line, "loop invariant holds on entry")};
+    std::vector<G> cs{assertion(J, s, ObKind::InvariantOnEntry)};
     // Every loop has a measure, or says with `decreases *` that it may
     // run forever.
     if (!w->getDecreases() && !w->mayDiverge())
-      cs.push_back(missingClause(line, "loop needs a decreases clause"));
+      cs.push_back(assertion(FALSE, s, ObKind::MissingLoopMeasure));
     if (w->mayDiverge()) proc_.diverges.push_back("the loop at line " + std::to_string(line));
     if (w->mayDiverge() && !current->mayDiverge())
-      cs.push_back(missingClause(line, "loop may not terminate; " + current->getName() +
-                                           " needs decreases *"));
+      cs.push_back(assertion(FALSE, s, ObKind::LoopMayNotTerminate, current->getName()));
     std::vector<std::string> mods;
     for (auto &x : writes.assigned(w->getBody())) mods.push_back(name(x));
     if (!mods.empty()) cs.push_back(havoc(mods, line, "an arbitrary iteration"));
@@ -515,10 +514,10 @@ G Lower::stmt(ASTStmt *s) {
       once.push_back(gAssign(m, measure(D), line, "measure at the start of the body"));
     }
     once.push_back(stmt(w->getBody()));
-    once.push_back(assertion(J, line, "loop invariant is preserved"));
+    once.push_back(assertion(J, s, ObKind::InvariantPreserved));
     if (auto *D = w->getDecreases())
-      once.push_back(assertion(And({op("<=", {num(0), var(m)}), op("<", {measure(D), var(m)})}),
-                               line, "loop measure decreases"));
+      once.push_back(assertion(And({op("<=", {num(0), var(m)}), op("<", {measure(D), var(m)})}), s,
+                             ObKind::LoopMeasure));
     once.push_back(gAssume(FALSE, line, "this path ends"));
     cs.push_back(gChoice(gSeq(once), guard(Not(c), c, line, "loop exit"), line));
     return gSeq(cs);
@@ -529,7 +528,7 @@ G Lower::stmt(ASTStmt *s) {
     return gSeq(cs);
   }
   if (dynamic_cast<ASTErrorStmt *>(s))
-    return gSeq({assertion(FALSE, line, "error statement is unreachable"),
+    return gSeq({assertion(FALSE, s, ObKind::ErrorUnreachable),
                  gAssume(FALSE, line, "the program stops")});
   throw Unsupported(where(s) + "unsupported statement in verification");
 }
@@ -562,18 +561,16 @@ T Lower::callExpr(ASTFunAppExpr *call, std::vector<G> &cs, const std::string &ta
   // that might not: termination has to hold across calls, or a lemma
   // could borrow `ensures false` from a function that never returns.
   if (!current->mayDiverge() && g->mayDiverge()) {
-    cs.push_back(missingClause(line, g->getName() + " may not terminate; " + current->getName() +
-                                         " needs decreases *"));
+    cs.push_back(assertion(FALSE, call, ObKind::CallMayNotTerminate, current->getName(), g->getName()));
   } else if (!current->mayDiverge() &&
              (g == current || (cycles && cycles->mutual(current->getName(), g->getName())))) {
-    bool both = false;
-    auto what = cycleObligation(current, g, both);
-    if (both) {
+    Obligation ob = cycleObligation(current, g, call);
+    T smaller = FALSE;
+    if (!ob.missing()) {
       auto now = measure(g->getDecreases(), &at), before = measure(current->getDecreases(), &oldAll);
-      cs.push_back(assertion(And({op("<=", {num(0), now}), op("<", {now, before})}), line, what));
-    } else {
-      cs.push_back(missingClause(line, what));
+      smaller = And({op("<=", {num(0), now}), op("<", {now, before})});
     }
+    cs.push_back(assertion(smaller, ob));
   }
   // The call as written, with its arguments: a contract is instantiated
   // at each call, so its obligations are named by the call.
@@ -582,7 +579,7 @@ T Lower::callExpr(ASTFunAppExpr *call, std::vector<G> &cs, const std::string &ta
   std::string site = g->getName() + "(" + join(shown) + ")";
   std::vector<T> req;
   for (auto *e : g->getRequires()) req.push_back(spec(e, &at));
-  cs.push_back(assertion(And(req), line, "precondition of " + site));
+  cs.push_back(assertion(And(req), call, ObKind::Precondition, site, g->getName()));
 
   // The in-out model needs the written places to be distinct: two borrows
   // of one variable, either of them written, is the case it cannot handle.
@@ -602,7 +599,7 @@ T Lower::callExpr(ASTFunAppExpr *call, std::vector<G> &cs, const std::string &ta
     outVars.push_back(after);
   }
 
-  if (overlap) cs.push_back(assertion(FALSE, line, "borrowed arguments do not overlap"));
+  if (overlap) cs.push_back(assertion(FALSE, call, ObKind::BorrowsDisjoint));
 
   std::set<std::string> fv2;
   for (auto &a : args) freeVars(a, fv2);

@@ -27,7 +27,7 @@ namespace verutop {
 SpecFns::SpecFns(ASTProgram *p, Lower &low) : low(low) {
   // Once to find the calls between spec functions, once knowing the cycles.
   CallEdges edges;
-  low.onSpecCall = [&](ASTFunction *g, const std::vector<T> &, int) {
+  low.onSpecCall = [&](ASTFunction *g, const std::vector<T> &, ASTNode *) {
     if (!inMeasure) edges.insert({current->getName(), g->getName()});
   };
   build(p);
@@ -38,9 +38,9 @@ SpecFns::SpecFns(ASTProgram *p, Lower &low) : low(low) {
   rhs.clear();
   checks.clear();
   skipped.clear();
-  low.onSpecCall = [&](ASTFunction *g, const std::vector<T> &args, int line) {
+  low.onSpecCall = [&](ASTFunction *g, const std::vector<T> &args, ASTNode *call) {
     if (inMeasure) return;
-    if (g == current || cycles.mutual(current->getName(), g->getName())) termination(g, args, line);
+    if (g == current || cycles.mutual(current->getName(), g->getName())) termination(g, args, call);
   };
   build(p);
   low.onSpecCall = nullptr;
@@ -169,11 +169,10 @@ void SpecFns::stmt(ASTStmt *s) {
 // On the path to a call of g on a cycle (g may be the function itself),
 // g's measure at the call is smaller than this function's at entry, and
 // not negative.
-void SpecFns::termination(ASTFunction *g, const std::vector<T> &args, int line) {
+void SpecFns::termination(ASTFunction *g, const std::vector<T> &args, ASTNode *call) {
   T P = FALSE;
-  bool both = false;
-  std::string what = cycleObligation(current, g, both);
-  if (both) {
+  Obligation ob = cycleObligation(current, g, call);
+  if (!ob.missing()) {
     Sub atCall = params0, atEntry = params0;
     auto formals = g->getFormals();
     for (size_t k = 0; k < formals.size() && k < args.size(); ++k)
@@ -189,7 +188,7 @@ void SpecFns::termination(ASTFunction *g, const std::vector<T> &args, int line) 
   for (auto *x : current->getFormals())
     q += "(declare-const |" + x->getName() + "| " + sorts[x->getName()] + ")\n";
   q += "(assert (not " + smt(F) + "))\n";
-  checks.push_back({current->getName(), {line, what}, q, F});
+  checks.push_back({current->getName(), ob, q, F});
 }
 
 namespace {

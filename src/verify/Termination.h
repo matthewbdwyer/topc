@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Obligations.h"
+
 #include <map>
 #include <set>
 #include <string>
@@ -7,6 +9,7 @@
 #include <vector>
 
 class ASTFunction;
+class ASTNode;
 
 namespace verutop {
 
@@ -43,8 +46,8 @@ using CallEdges = std::set<std::pair<std::string, std::string>>;
 
 // The obligation that a call from `from` to `to` on a cycle terminates:
 // both need a measure, and `to`'s, at the call, must be smaller than
-// `from`'s was on entry.  Returns the obligation's name; `both` says
-// whether there is anything to compare.
-std::string cycleObligation(ASTFunction *from, ASTFunction *to, bool &both);
+// `from`'s was on entry.  If either has none, the obligation is a missing
+// clause and there is nothing to compare.
+Obligation cycleObligation(ASTFunction *from, ASTFunction *to, ASTNode *call);
 
 } // namespace verutop
