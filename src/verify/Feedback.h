@@ -11,16 +11,6 @@ namespace verutop {
 // trace follows the passive program along the path the model takes.
 // ===========================================================================
 
-struct SX {
-  std::string atom;
-  std::vector<SX> kids;
-  bool list = false;
-};
-SX parseSX(const std::string &s, size_t &i);
-// A model value as text: (- 1) is -1, (|Node| 1 |Leaf| |Leaf|) is
-// Node(1, Leaf, Leaf).
-std::string valueOf(const SX &x);
-
 std::string baseName(const std::string &version);
 // The branch conditions of a passive program.
 void guards(const G &c, std::vector<T> &out);

@@ -39,6 +39,7 @@
 #include "Obligations.h"
 #include "Outline.h"
 #include "Passivize.h"
+#include "Solver.h"
 #include "Query.h"
 #include "SmtEncode.h"
 #include "Specs.h"
@@ -113,43 +114,8 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
   std::map<std::string, FnInfo> info;
   std::vector<std::string> fnOrder;
 
-  // Run one query in its own Z3 process.  (In one process, state left by an
-  // earlier query, even after push/pop, can make Z3 give up on a later one.)
-  // Returns Z3's answer and whatever it printed after it.  Z3 is also asked
-  // why, in case the answer is `unknown`: `limited` is set when it stopped at
-  // the resource limit and not because the logic is undecidable.  (The
-  // question is added here, so --psmt and the .vc.smt2 file do not show it.)
-  bool limited = false;
-  auto run = [&](const std::string &text) -> std::pair<std::string, std::string> {
-    std::string one = smtFile + ".one";
-    std::string full = text;
-    const std::string check = "(check-sat)\n";
-    if (auto at = full.find(check); at != std::string::npos)
-      full.insert(at + check.size(), "(get-info :reason-unknown)\n");
-    {
-      std::ofstream f(one);
-      f << full;
-    }
-    FILE *pipe = popen(("z3 " + one + " 2>&1").c_str(), "r");
-    std::vector<std::string> lines;
-    char buf[4096];
-    while (pipe && fgets(buf, sizeof buf, pipe)) {
-      std::string l(buf);
-      if (!l.empty() && l.back() == '\n') l.pop_back();
-      lines.push_back(l);
-    }
-    if (pipe) pclose(pipe);
-    std::remove(one.c_str());
-    limited = false;
-    if (lines.size() > 1 && lines[1].rfind("(:reason-unknown", 0) == 0) {
-      limited = lines[0] == "unknown" && (lines[1].find("canceled") != std::string::npos ||
-                                          lines[1].find("resource limit") != std::string::npos);
-      lines.erase(lines.begin() + 1);
-    }
-    std::string rest;
-    for (size_t i = 1; i < lines.size(); ++i) rest += lines[i] + "\n";
-    return {lines.empty() ? "no answer" : lines[0], rest};
-  };
+  Z3Process z3;
+  Solver &solver = z3;
   auto oneLine = [](std::string s) {
     s.erase(std::remove(s.begin(), s.end(), '\n'), s.end());
     return s;
@@ -208,20 +174,8 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
       out << "; ==== " << proc.fn->getName() << " #" << k << ", line " << proc.obs[k].line << ": "
           << proc.obs[k].what() << (reach ? " -- does anything reach it?" : " -- what does the proof use?")
           << "\n" << full << "\n";
-    auto [v, rest] = run(full);
-    std::vector<std::string> names;
-    if (v == "unsat") {
-      std::string name;
-      for (char c : rest + " ") {
-        if (c == '(' || c == ')' || isspace((unsigned char)c)) {
-          if (!name.empty()) names.push_back(name);
-          name.clear();
-        } else {
-          name += c;
-        }
-      }
-    }
-    return std::make_pair(v == "unsat", names);
+    Answer a = solver.check(bg, dq);
+    return std::make_pair(a.verdict == Verdict::Unsat, a.core);
   };
 
   // 1. Termination of spec functions, using no spec definitions at all.
@@ -229,9 +183,10 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
   std::set<std::string> unsound;
   for (auto &c : specs.checks) {
     Row q{"spec " + c.fn, c.ob, c.query};
-    auto [v, rest] = run(render(bg, q.query));
+    Answer a = solver.check(bg, q.query);
+    std::string v = a.raw;
     q.verdict = v;
-    q.limited = limited;
+    q.limited = a.limited;
     if (v != "unsat") unsound.insert(c.fn);
     queries.push_back(q);
   }
@@ -329,18 +284,17 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
         out << "; ==== " << f->getName() << " #" << k << ", line " << q.ob.line << ": "
             << q.ob.what() << "\n"
             << full << "\n";
-      std::string v = "sat", rest;
-      if (!q.ob.missing()) std::tie(v, rest) = run(full);
+      // A missing clause fails without asking.
+      Answer a = CannedSolver::sat();
+      if (!q.ob.missing()) a = solver.check(bg, q.query);
+      std::string v = a.raw;
       q.verdict = v;
-      q.limited = !q.ob.missing() && limited;
+      q.limited = a.limited;
       if (v != "unsat" && !q.ob.missing()) {
-        size_t i = 0;
-        SX vals = parseSX(rest, i);
         std::vector<std::string> shown;
-        for (size_t j = 0; j < vals.kids.size() && j < model.size(); ++j)
-          if (vals.kids[j].kids.size() == 2)
-            shown.push_back(baseName(model[j]) + " = " + valueOf(vals.kids[j].kids[1]));
-        q.model = shown.empty() ? oneLine(rest) : join(shown);
+        for (size_t j = 0; j < a.values.size() && j < model.size(); ++j)
+          shown.push_back(baseName(model[j]) + " = " + a.values[j]);
+        q.model = shown.empty() ? oneLine(a.rest) : join(shown);
       }
 
       // A trace for a failure comes from the passive query (the obligations
@@ -350,13 +304,10 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
         Query tq = traceQuery(pv, (int)k);
         std::vector<std::string> asked;
         for (auto &t : tq.values) asked.push_back(smt(t));
-        auto [tv, trest] = run(render(bg, tq));
-        if (tv == "sat") {
-          size_t i = 0;
-          SX vals = parseSX(trest, i);
+        Answer ta = solver.check(bg, tq);
+        if (ta.verdict == Verdict::Sat) {
           std::map<std::string, std::string> val;
-          for (size_t j = 0; j < vals.kids.size() && j < asked.size(); ++j)
-            if (vals.kids[j].kids.size() == 2) val[asked[j]] = valueOf(vals.kids[j].kids[1]);
+          for (size_t j = 0; j < ta.values.size() && j < asked.size(); ++j) val[asked[j]] = ta.values[j];
           Trace tr(val, (int)k);
           std::vector<std::string> vs;
           for (auto &e : pv.entry) vs.push_back(baseName(e) + " = " + val["|" + e + "|"]);
@@ -392,7 +343,7 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
 
   // rank(x) >= 1, by induction: one step per sum type.
   std::map<std::string, bool> rankProved;
-  for (auto &[r, q] : enc.rankChecks) rankProved[r] = run(render(bg, q)).first == "unsat";
+  for (auto &[r, q] : enc.rankChecks) rankProved[r] = solver.check(bg, q).verdict == Verdict::Unsat;
 
   // The same queries as one readable SMT-LIB file.
   std::ofstream smtOut(smtFile);
@@ -604,20 +555,11 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
     out << "VACUOUS: no execution reaches the obligation, so its proof says nothing "
            "(--ptrust says why)\n";
   if (opt.ptrust) {
-    std::string z3 = "Z3";
-    if (FILE *p = popen("z3 --version 2>/dev/null", "r")) {
-      char buf[256];
-      if (fgets(buf, sizeof buf, p)) {
-        z3 = buf;
-        z3 = z3.substr(0, z3.find(" - "));
-        while (!z3.empty() && isspace((unsigned char)z3.back())) z3.pop_back();
-      }
-      pclose(p);
-    }
     list("Always trusted",
          {"topc's parser, type checker, and ownership checks (the encoding relies on ownership)",
           "VERUTOP's translation of the program to verification conditions",
-          z3,
+                    solver.version(),
+
           "erasure, code generation, LLVM, and the runtime: the source is verified, not the binary",
           "input is any integer; output is not modelled"});
   }
