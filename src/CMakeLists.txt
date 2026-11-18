@@ -1,7 +1,6 @@
 # compiler binary target
 add_executable(topc)
-target_sources(topc PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/topc.cpp
-                            ${CMAKE_CURRENT_SOURCE_DIR}/verify/VCGen.cpp)
+target_sources(topc PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/topc.cpp)
 
 # Build the phase specific libraries
 add_subdirectory(error)
@@ -9,6 +8,7 @@ add_subdirectory(frontend)
 add_subdirectory(semantic)
 add_subdirectory(codegen)
 add_subdirectory(optimizer)
+add_subdirectory(verify)
 
 target_link_libraries(
   topc
@@ -17,6 +17,7 @@ target_link_libraries(
           semantic
           topc_codegen
           optimizer
+          verify
           antlr4_static
           ${llvm_libs}
           coverage_config
