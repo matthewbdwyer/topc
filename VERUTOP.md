@@ -123,7 +123,18 @@ count of Z3's own steps, not seconds, so a verdict depends much less on
 machine load than a timeout does. It is not perfectly repeatable: for
 nonlinear arithmetic Z3's count varies from run to run (`factDown`'s
 invariant in demo 11, in wp mode, between 4.7 and 33 million), so that
-obligation is occasionally `UNKNOWN` on a busy machine.
+obligation is occasionally `UNKNOWN` on a busy machine. When an `UNKNOWN`
+is caused by the limit, and not by a question Z3 cannot decide, a line
+after the verdicts names the obligation and the flag:
+
+```
+Z3 reached its resource limit (20000000) on: least0 line 90. A larger limit may decide it: --vrlimit=N.
+```
+
+"May": a larger limit settles `factDown`, but not `least0` in demo 18,
+which needs a lemma. (To tell the two causes apart, each query sent to Z3
+also has `(get-info :reason-unknown)` after its `(check-sat)`; `--psmt` and
+the `.vc.smt2` file leave that line out.)
 
 ### Guarded commands
 

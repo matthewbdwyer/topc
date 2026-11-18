@@ -2207,6 +2207,7 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
     std::string verdict, model;
     std::vector<std::string> trace;
     int order = 0;                 // of its function, in the report
+    bool limited = false;          // unknown because Z3 reached the resource limit
     bool vacuous = false;          // proved, but no execution reaches it
     bool usesKnown = false;        // Z3 said what the proof depends on
     std::vector<std::string> uses; // names from the unsat core: asm!k, ob!j, def!f, rank!T
@@ -2225,9 +2226,17 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
 
   // Run one query in its own Z3 process.  (In one process, state left by an
   // earlier query, even after push/pop, can make Z3 give up on a later one.)
-  // Returns Z3's answer and whatever it printed after it.
-  auto run = [&](const std::string &full) -> std::pair<std::string, std::string> {
+  // Returns Z3's answer and whatever it printed after it.  Z3 is also asked
+  // why, in case the answer is `unknown`: `limited` is set when it stopped at
+  // the resource limit and not because the logic is undecidable.  (The
+  // question is added here, so --psmt and the .vc.smt2 file do not show it.)
+  bool limited = false;
+  auto run = [&](const std::string &text) -> std::pair<std::string, std::string> {
     std::string one = smtFile + ".one";
+    std::string full = text;
+    const std::string check = "(check-sat)\n";
+    if (auto at = full.find(check); at != std::string::npos)
+      full.insert(at + check.size(), "(get-info :reason-unknown)\n");
     {
       std::ofstream f(one);
       f << full;
@@ -2242,6 +2251,12 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
     }
     if (pipe) pclose(pipe);
     std::remove(one.c_str());
+    limited = false;
+    if (lines.size() > 1 && lines[1].rfind("(:reason-unknown", 0) == 0) {
+      limited = lines[0] == "unknown" && (lines[1].find("canceled") != std::string::npos ||
+                                          lines[1].find("resource limit") != std::string::npos);
+      lines.erase(lines.begin() + 1);
+    }
     std::string rest;
     for (size_t i = 1; i < lines.size(); ++i) rest += lines[i] + "\n";
     return {lines.empty() ? "no answer" : lines[0], rest};
@@ -2371,6 +2386,7 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
     Query q{"spec " + c.fn, c.ob, c.query + "(check-sat)\n"};
     auto [v, rest] = run(preludeFor(q.text) + q.text);
     q.verdict = v;
+    q.limited = limited;
     if (v != "unsat") unsound.insert(c.fn);
     queries.push_back(q);
   }
@@ -2488,6 +2504,7 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
       std::string v = "sat", rest;
       if (!q.ob.missing) std::tie(v, rest) = run(full);
       q.verdict = v;
+      q.limited = !q.ob.missing && limited;
       if (v != "unsat" && !q.ob.missing) {
         size_t i = 0;
         SX vals = parseSX(rest, i);
@@ -2594,6 +2611,14 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
     out << "\n";
     for (auto &l : r.trace) out << l << "\n";
   }
+  // An UNKNOWN that more work might settle says so, and says how to allow it.
+  std::vector<std::string> atLimit;
+  for (auto &r : queries)
+    if (r.limited) atLimit.push_back(r.fn + " line " + std::to_string(r.ob.line));
+  if (!atLimit.empty())
+    out << "Z3 reached its resource limit (" << opt.rlimit << ") on: " << join(atLimit)
+        << ". A larger limit may decide " << (atLimit.size() > 1 ? "them" : "it")
+        << ": --vrlimit=N.\n";
 
   // ---- what the proofs rest on ----------------------------------------------
   auto verified = [&](const std::string &fn) {

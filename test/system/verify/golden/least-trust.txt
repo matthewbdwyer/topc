@@ -27,6 +27,7 @@ main:
   proved  line 96: precondition of least(t, 1000)
   proved  line 97: assertion
   proved  line 98: postcondition
+Z3 reached its resource limit (20000000) on: least0 line 90. A larger limit may decide it: --vrlimit=N.
 
 Trust report
 lowerBound:

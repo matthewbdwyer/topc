@@ -78,11 +78,13 @@ def verdicts(out):
 
     Lines that are neither a heading nor a verdict (a rejected spec function,
     a skipped function) are rows too, with verdict `note`.  The size line,
-    traces, and everything from the trust summary on are not part of it.
+    traces, the note on the resource limit (it repeats the UNKNOWN rows, and
+    is tested by limit_note_test), and everything from the trust summary on
+    are not part of it.
     """
     rows, fn = [], ""
     for line in out.splitlines():
-        if line.startswith(("VC (", "profiling:")) or not line.strip():
+        if line.startswith(("VC (", "profiling:", "Z3 reached its resource limit")) or not line.strip():
             continue
         if line.startswith(("Assumed without proof", "Checked", "Trust report")):
             break
@@ -262,6 +264,20 @@ def mutation_tests(src, survivors, seen):
     return results
 
 
+def limit_note_test():
+    """An UNKNOWN caused by the resource limit is named in a note that says
+    how to raise the limit; a run that stays within the limit has no note."""
+    src = DEMOS / "11-factorial-variants.top"
+    out = topc(src, ["--verify", "--vrlimit=1000"])
+    note = [l for l in out.splitlines() if l.startswith("Z3 reached its resource limit (1000)")]
+    unknown = [(fn, line) for fn, line, verdict, _ in verdicts(out) if verdict == "UNKNOWN"]
+    ok = len(note) == 1 and bool(unknown) and "--vrlimit=N" in note[0] and \
+        all(f"{fn} line {line}" in note[0] for fn, line in unknown)
+    quiet = "resource limit" not in topc(DEMOS / "01-abs.top", ["--verify"])
+    return [Result("limit/note", ok and quiet,
+                   f"note: {note}\nUNKNOWN rows: {unknown}\nno note for demo 01: {quiet}")]
+
+
 def agreement_self_check():
     """The harness must be able to fail: half's contract in demo 06 is false
     at -1 (and its proof fails).  Told that half is verified, the run-time
@@ -304,6 +320,7 @@ def main():
         jobs.append((f"verdicts/{src.name}", lambda s=src: verdict_test(s, args.update)))
     for src in sorted(LIARS.glob("*.top")):
         jobs.append((f"liars/{src.name}", lambda s=src: liar_test(s, known)))
+    jobs.append(("limit/note", limit_note_test))
     for g in golden_tests(args.update):
         jobs.append(("golden/", g))
     if os.environ.get("TOPCLANG"):
