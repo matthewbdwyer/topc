@@ -17,6 +17,17 @@ bool byPassive(const Proc &p, int target) {
   return valid(vc.ok, pv.versions, defs);
 }
 
+G withoutHavocs(const G &g) {
+  auto kids = [](std::vector<G> ks) {
+    for (auto &k : ks) k = withoutHavocs(k);
+    return ks;
+  };
+  if (g.as<Havoc>()) return gSeq({});
+  if (auto *s = g.as<Seq>()) return gSeq(kids(s->kids));
+  if (auto *c = g.as<Choice>()) return Choice{kids(c->kids), c->line};
+  return g;
+}
+
 // abs: if (x < 0) r := 0 - x else r := x; assert r >= 0 (#0); assert r == x (#1, false for x < 0)
 Proc absProc() {
   T x = v("x"), r = v("r");
@@ -50,6 +61,37 @@ TEST_CASE("the target assertion is checked, every other one is assumed", "[verif
   m.missing = true;
   REQUIRE(flat(wp(m, Q, 4)) == "Q");
   REQUIRE(flat(wp(m, Q, 3)) == "false && Q");
+}
+
+TEST_CASE("the passive VC is the weakest precondition of the passive program", "[verify][VcStrategy]") {
+  // For a passive command S: wp(S, Q) == ok(S) && (post(S) ==> Q).  With
+  // Q = true, the passive VC ok(S) is wp(S, true).  Checked here on each
+  // obligation of two programs, by evaluating both formulas for every
+  // value of every version.
+  T i = v("i"), n = v("n");
+  Havoc h;
+  h.vars = {"i"};
+  h.sorts = {"Int"};
+  T c = bin("<", i, n);
+  G body = gSeq({guard(c), gAssign("i", bin("+", i, num(1)), 3), check(bin("<=", i, n), 1), gAssume(FALSE, 3, "")});
+  Proc loop = procOf({"n"},
+                     gSeq({gAssume(bin(">=", n, num(0)), 1, "requires"), gAssign("i", num(0), 2),
+                           check(bin("<=", i, n), 0), h, gAssume(bin("<=", i, n), 3, "loop invariant"),
+                           gChoice(body, guard(Not(c)), 3), check(Eq(i, n), 2)}),
+                     3);
+  for (const Proc &p : {absProc(), loop}) {
+    Passive pv = passivize(p);
+    for (int target = 0; target < (int)p.obs.size(); ++target) {
+      INFO("obligation " << target);
+      PassiveVC vc = passiveVc(pv.prog, target);
+      std::map<std::string, T> defs(vc.defs.begin(), vc.defs.end());
+      // In a passive program a havoc only records that new versions
+      // start; they are free constants, so it is no command at all.
+      T byWp = wp(withoutHavocs(pv.prog), TRUE, target);
+      T same = op("and", {Implies(byWp, vc.ok), Implies(vc.ok, byWp)});
+      REQUIRE(valid(same, pv.versions, defs));
+    }
+  }
 }
 
 TEST_CASE("the passive VC names each post and refers to it by name", "[verify][VcStrategy]") {
@@ -126,7 +168,7 @@ TEST_CASE("the loop cut: both strategies agree after a havoc", "[verify][VcStrat
 TEST_CASE("both strategies answer through one interface", "[verify][VcStrategy]") {
   Proc p = absProc();
   Passive pv = passivize(p);
-  WpVc wpS;
+  SubstVc wpS;
   PassiveVc passiveS;
   std::vector<const VcStrategy *> both{&wpS, &passiveS};
   for (auto *s : both)

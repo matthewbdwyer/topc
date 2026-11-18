@@ -54,7 +54,9 @@ static cl::opt<bool> verifyOpt("verify",
                                cl::desc("VERUTOP: verify contracts with Z3"),
                                cl::cat(TOPcat));
 static cl::opt<std::string>
-    vcMode("vcmode", cl::desc("VERUTOP: wp (substitution) or passive (versioned)"),
+    vcMode("vcmode",
+           cl::desc("VERUTOP: how the weakest precondition is computed: passive (after "
+                    "versioning; the default) or subst (by substitution; wp is an old name for it)"),
            cl::init("passive"), cl::cat(TOPcat));
 static cl::opt<bool> trustSpecs(
     "trust-specs",
@@ -733,6 +735,11 @@ int main(int argc, char *argv[]) {
       // check first; then the verifier reads the checked AST.
       // Any VERUTOP view implies --verify.
       VCGen::Options vopt;
+      if (vcMode != "passive" && vcMode != "subst" && vcMode != "wp") {
+        std::cerr << "topc: error: invalid --vcmode '" << vcMode.getValue()
+                  << "' (use passive or subst)\n";
+        std::exit(EXIT_FAILURE);
+      }
       vopt.passive = vcMode == "passive";
       vopt.trustSpecs = trustSpecs;
       vopt.rlimit = vrlimitOpt;

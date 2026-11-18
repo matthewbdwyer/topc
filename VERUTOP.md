@@ -282,9 +282,24 @@ factUp(n)
 
 ## Two VC generators: substitution and versioning
 
-`--vcmode=wp` is the substitution form above. `--vcmode=passive`, the
-default, follows Flanagan and Saxe ("Avoiding exponential explosion", POPL 2001), as
-Boogie does. Both start from the same guarded commands.
+The VC is always a weakest precondition. `--vcmode` chooses how it is
+computed: `subst`, by substitution over the guarded commands as above
+(`wp` is an older name for this mode and still works), or `passive`, the
+default, which first makes the program passive and then needs no
+substitution. The second follows Flanagan and Saxe ("Avoiding exponential
+explosion", POPL 2001), as Boogie and Verus do. Both start from the same
+guarded commands, and the two formulas are equivalent: for a passive
+command `S`,
+
+```
+wp(S, Q)  =  ok(S) ∧ (post(S) ⇒ Q)
+```
+
+where `ok` and `post` are defined in step 4 below, and the passive VC is
+`ok(body)`, that is, `wp(body, true)`. Passivization is what makes this
+factoring possible: once nothing is assigned, `Q` does not change as it
+moves backward through the program, so it can be written once instead of
+once under every branch.
 
 1. **Version every variable.** `x := e` becomes `assume x@k == e` for a fresh
    constant `x@k`; the program now assigns nothing (it is passive).
@@ -446,7 +461,7 @@ AST, types, ownership                       the front end
 guarded commands        Gcl                 --pgcl
   │  Passivize
 passive commands        Gcl                 --ppassive
-  │  VcStrategy: WpVc | PassiveVc
+  │  VcStrategy: SubstVc | PassiveVc
 a formula               Term                --pvc, --pwp
   │  SmtEncode
 queries                 Query               --psmt
@@ -466,7 +481,7 @@ results                 VerifyResult        the report, --pcex, --ptrust
 | `Lowering` | AST to guarded commands: `Lowering.cpp` (a function), `LowerExpr.cpp`, `LowerStmt.cpp`, `LowerCall.cpp`. |
 | `Specs` | Spec functions as definitions (`Axiom`) with termination checks; the rule that code may not use them. |
 | `Passivize` | Guarded commands to passive form (Flanagan and Saxe). |
-| `VcStrategy` | Two interchangeable ways to compute a VC: `WpVc` and `PassiveVc`. |
+| `VcStrategy` | Two interchangeable ways to compute a VC: `SubstVc` and `PassiveVc`. |
 | `Outline` | The `--pwp` proof outline. |
 | `Query`, `SmtEncode` | A query as data (`Query`, `Axiom`, `Background`) and its one renderer; the queries asked about an obligation: its verdict, a trace, what the proof uses, whether anything reaches it. |
 | `Solver` | `Solver::check(Background, Query) -> Answer`. `Z3Process` pipes SMT-LIB to `z3 -in`; `CannedSolver` answers by rule, for tests; `checkAll` runs a batch on several processes. |

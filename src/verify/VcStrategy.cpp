@@ -94,7 +94,7 @@ private:
 
 PassiveVC passiveVc(const G &prog, int target) { return PassiveVCGen().run(prog, target); }
 
-Vc WpVc::vc(const Proc &proc, const Passive &, int target) const {
+Vc SubstVc::vc(const Proc &proc, const Passive &, int target) const {
   Vc v;
   for (auto &x : proc.formals) v.consts.push_back({x, proc.sortOf(x)});
   v.formula = wpFunction(proc, target);

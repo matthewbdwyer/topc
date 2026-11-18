@@ -41,22 +41,31 @@ struct Vc {
   std::vector<std::string> entry; // the constants that hold the arguments
 };
 
-// The two ways to compute one.  They are interchangeable: every obligation
-// gets the same verdict from both.
+// Both strategies compute the weakest precondition of the function's body.
+// They differ in the program they compute it from and in how the formula is
+// written, and so in its size: every obligation gets the same verdict from
+// both.
 class VcStrategy {
 public:
   virtual ~VcStrategy() = default;
   virtual std::string name() const = 0;
   virtual Vc vc(const Proc &proc, const Passive &passive, int target) const = 0;
 };
-// wp by substitution, over the guarded commands.  The formula can be
+// wp by substitution, over the guarded commands as lowered: an assignment
+// substitutes into everything after it, and the rest of the function is
+// repeated under both branches of every choice.  The formula can be
 // exponential in the number of branches.
-class WpVc : public VcStrategy {
+class SubstVc : public VcStrategy {
 public:
   std::string name() const override { return "wp"; }
   Vc vc(const Proc &proc, const Passive &passive, int target) const override;
 };
-// ok/post over the passive commands (Flanagan and Saxe): linear.
+// wp of the passive commands.  With nothing assigned there is nothing to
+// substitute, and for a passive command S
+//     wp(S, Q)  =  ok(S) && (post(S) ==> Q)
+// so Q, the rest of the function, is written once, and each post is given
+// a name.  The formula is linear in the program (Flanagan and Saxe).  The
+// VC is ok(body), which is wp(body, true).
 class PassiveVc : public VcStrategy {
 public:
   std::string name() const override { return "passive"; }
