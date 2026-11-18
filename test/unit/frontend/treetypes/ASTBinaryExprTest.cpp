@@ -73,9 +73,16 @@ TEST_CASE("ASTBinaryExpr: getOpKind returns correct BinaryOp enum value",
   REQUIRE(ASTBinaryExpr(">",  lhs(), rhs()).getOpKind() == Op::Gt);
   REQUIRE(ASTBinaryExpr("==", lhs(), rhs()).getOpKind() == Op::Eq);
   REQUIRE(ASTBinaryExpr("!=", lhs(), rhs()).getOpKind() == Op::Neq);
+  // VERUTOP: the comparisons and connectives of specifications.
+  REQUIRE(ASTBinaryExpr("<",   lhs(), rhs()).getOpKind() == Op::Lt);
+  REQUIRE(ASTBinaryExpr(">=",  lhs(), rhs()).getOpKind() == Op::Ge);
+  REQUIRE(ASTBinaryExpr("<=",  lhs(), rhs()).getOpKind() == Op::Le);
+  REQUIRE(ASTBinaryExpr("&&",  lhs(), rhs()).getOpKind() == Op::And);
+  REQUIRE(ASTBinaryExpr("||",  lhs(), rhs()).getOpKind() == Op::Or);
+  REQUIRE(ASTBinaryExpr("==>", lhs(), rhs()).getOpKind() == Op::Implies);
 }
 
 TEST_CASE("ASTBinaryExpr: unknown operator throws InternalError at construction",
           "[ASTBinaryExpr]") {
-  REQUIRE_THROWS_AS(ASTBinaryExpr("<", lhs(), rhs()), InternalError);
+  REQUIRE_THROWS_AS(ASTBinaryExpr("%", lhs(), rhs()), InternalError);
 }

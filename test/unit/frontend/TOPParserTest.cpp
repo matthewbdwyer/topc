@@ -408,10 +408,28 @@ TEST_CASE("TOP Parser: keywords as ids", "[TOP Parser]") {
 TEST_CASE("TOP Lexer: illegal comparison token", "[TOP Lexer]") {
   std::stringstream stream;
   stream << R"(
-      operators() { var x; if (x <= 0) x = x + 1; return x; }
+      operators() { var x; if (x =< 0) x = x + 1; return x; }
     )";
 
   REQUIRE_FALSE(ParserHelper::is_parsable(stream));
+}
+
+// VERUTOP added the comparisons and connectives specifications need.
+TEST_CASE("TOP Parser: every comparison and connective", "[TOP Parser]") {
+  std::stringstream stream;
+  stream << R"(
+      operators(x, y) {
+        var r;
+        r = 0;
+        if (x < y) r = 1;
+        if (x <= y) r = 2;
+        if (x >= y) r = 3;
+        if (x > y && y > 0 || x == 0) r = 4;
+        return r;
+      }
+    )";
+
+  REQUIRE(ParserHelper::is_parsable(stream));
 }
 
 // The whole file must parse: text after the last function is an error,
@@ -421,6 +439,18 @@ TEST_CASE("TOP Parser: text after the last function is rejected", "[TOP Parser]"
   stream << R"(
       main() { return 0; }
       )))) junk
+    )";
+
+  REQUIRE_FALSE(ParserHelper::is_parsable(stream));
+}
+
+TEST_CASE("TOP Parser: a keyword is not a function name", "[TOP Parser]") {
+  // Before the grammar required EOF, everything from `use` on was dropped
+  // without a message and the rest compiled.
+  std::stringstream stream;
+  stream << R"(
+      main() { return 0; }
+      use(x) { return x; }
     )";
 
   REQUIRE_FALSE(ParserHelper::is_parsable(stream));

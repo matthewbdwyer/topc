@@ -100,16 +100,16 @@ TEST_CASE("BorrowChecker: multipleBorrowArgOk — two borrow args in one call",
 
 TEST_CASE("BorrowChecker: nestedCallBorrowOk — borrow as arg to inner call",
           "[BorrowChecker]") {
-  // use(wrap(&p)) — &p is an immediate arg of wrap, which is fine.
+  // consume(wrap(&p)) — &p is an immediate arg of wrap, which is fine.
   std::stringstream program;
   program << R"(
     type Flag = On | Off;
     wrap(x) { return x; }
-    use(x)  { return 0; }
+    consume(x)  { return 0; }
     main() {
       var p, dummy;
       p = alloc 3;
-      dummy = use(wrap(&p));
+      dummy = consume(wrap(&p));
       return 0;
     }
   )";
@@ -122,12 +122,12 @@ TEST_CASE("BorrowChecker: rejectBorrowStoredInVar — b = &p is an error",
   std::stringstream program;
   program << R"(
     type Flag = On | Off;
-    use(x) { return x; }
+    consume(x) { return x; }
     main() {
       var p, b, dummy;
       p = alloc 5;
       b = &p;
-      dummy = use(b);
+      dummy = consume(b);
       return 0;
     }
   )";
@@ -157,18 +157,18 @@ TEST_CASE("BorrowChecker: rejectBorrowInIfCond — if (&p) is an error",
 TEST_CASE("BorrowChecker: rejectMoveWhileBorrowedStored — b=&p then q=p is error",
           "[BorrowChecker]") {
   // b = &p already causes an error (borrow stored in variable).
-  // Confirms that the sequence b = &p; q = p; use(b) is caught at the
+  // Confirms that the sequence b = &p; q = p; consume(b) is caught at the
   // borrow-stored step.
   std::stringstream program;
   program << R"(
     type Flag = On | Off;
-    use(x) { return x; }
+    consume(x) { return x; }
     main() {
       var p, q, b, dummy;
       p = alloc 5;
       b = &p;
       q = p;
-      dummy = use(b);
+      dummy = consume(b);
       return 0;
     }
   )";
@@ -236,11 +236,11 @@ TEST_CASE("BorrowChecker: provenance orders multiple pass-through calls",
     type Flag = On | Off;
     first(x) { return x; }
     second(x) { return x; }
-    use(x) { return 0; }
+    consume(x) { return 0; }
     main() {
       var value, ignored;
       value = 23;
-      ignored = use(second(first(&value)));
+      ignored = consume(second(first(&value)));
       return 0;
     }
   )";
@@ -257,7 +257,7 @@ TEST_CASE("BorrowChecker: provenance orders multiple pass-through calls",
   CHECK(provenance[1].callee == "second");
   CHECK(provenance[2].hop == 2);
   CHECK(provenance[2].expression == "second(first(&value))");
-  CHECK(provenance[2].callee == "use");
+  CHECK(provenance[2].callee == "consume");
 }
 
 TEST_CASE("BorrowChecker: fresh ownership terminates borrow provenance",
@@ -266,11 +266,11 @@ TEST_CASE("BorrowChecker: fresh ownership terminates borrow provenance",
   program << R"(
     type Flag = On | Off;
     make(seed) { return alloc *seed; }
-    use(value) { return *value; }
+    consume(value) { return *value; }
     main() {
       var value, result;
       value = 23;
-      result = use(make(&value));
+      result = consume(make(&value));
       return result;
     }
   )";
@@ -289,11 +289,11 @@ TEST_CASE("BorrowChecker: retained provenance is replaced between analyses",
   std::stringstream withBorrow;
   withBorrow << R"(
     type Flag = On | Off;
-    use(value) { return *value; }
+    consume(value) { return *value; }
     main() {
       var value, result;
       value = 23;
-      result = use(&value);
+      result = consume(&value);
       return result;
     }
   )";
@@ -335,11 +335,11 @@ TEST_CASE("BorrowChecker: borrow-derived call result may be immediate argument",
   program << R"(
     type Flag = On | Off;
     ident(x) { return x; }
-    use(x) { return 0; }
+    consume(x) { return 0; }
     main() {
       var p, dummy;
       p = alloc 7;
-      dummy = use(ident(&p));
+      dummy = consume(ident(&p));
       return 0;
     }
   )";
