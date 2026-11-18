@@ -53,6 +53,11 @@ written to `prog.top.vc.smt2`, which is readable SMT-LIB.
 | Entry value | `old(E)` in `ensures`: `*p == old(*q)` |
 | Lemma | `lemma f(x) requires ... ensures ... decreases ... { ... }`, applied with `use f(args);` |
 
+The extension reserves eleven words that were identifiers in TOP:
+`requires`, `ensures`, `invariant`, `decreases`, `assert`, `assume`,
+`spec`, `lemma`, `use`, `old`, `rank`. A program that names a function or
+variable with one of them no longer parses.
+
 `!E` is built as `E == 0`. The other operators are new binary operators.
 `<`, `<=`, `>=`, `&&`, and `\|\|` also work in code, where the connectives do
 not short-circuit.
