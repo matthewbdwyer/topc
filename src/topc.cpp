@@ -55,8 +55,10 @@ static cl::opt<bool> verifyOpt("verify",
                                cl::cat(TOPcat));
 static cl::opt<std::string>
     vcMode("vcmode",
-           cl::desc("VERUTOP: how the weakest precondition is computed: passive (after "
-                    "versioning; the default) or subst (by substitution; wp is an old name for it)"),
+           cl::desc("VERUTOP: how the weakest precondition is computed: passive (of the "
+                    "versioned program, the default), passive-copy (the same, with the rest of "
+                    "the function copied under each branch), or subst (by substitution; wp is "
+                    "an old name for it)"),
            cl::init("passive"), cl::cat(TOPcat));
 static cl::opt<bool> trustSpecs(
     "trust-specs",
@@ -735,12 +737,17 @@ int main(int argc, char *argv[]) {
       // check first; then the verifier reads the checked AST.
       // Any VERUTOP view implies --verify.
       VCGen::Options vopt;
-      if (vcMode != "passive" && vcMode != "subst" && vcMode != "wp") {
+      if (vcMode == "passive") {
+        vopt.mode = VCGen::VcMode::Passive;
+      } else if (vcMode == "passive-copy") {
+        vopt.mode = VCGen::VcMode::PassiveCopy;
+      } else if (vcMode == "subst" || vcMode == "wp") {
+        vopt.mode = VCGen::VcMode::Subst;
+      } else {
         std::cerr << "topc: error: invalid --vcmode '" << vcMode.getValue()
-                  << "' (use passive or subst)\n";
+                  << "' (use passive, passive-copy, or subst)\n";
         std::exit(EXIT_FAILURE);
       }
-      vopt.passive = vcMode == "passive";
       vopt.trustSpecs = trustSpecs;
       vopt.rlimit = vrlimitOpt;
       vopt.jobs = vjobsOpt;

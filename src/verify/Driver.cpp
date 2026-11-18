@@ -7,7 +7,7 @@
 //   guarded commands (Gcl)           --pgcl
 //     | Passivize
 //   passive commands                 --ppassive
-//     | VcStrategy: SubstVc or PassiveVc
+//     | VcStrategy: SubstVc, PassiveCopyVc or PassiveVc
 //   a verification condition (Term)  --pvc, --pwp (Outline)
 //     | SmtEncode
 //   queries (Query)                  --psmt
@@ -52,9 +52,7 @@ VerifyResult verify(ASTProgram *program, TypeInference *types, Solver &solver, c
   enc.build(program, types);
   Lower low(program, enc, opt.overflow);
   SpecFns specs(program, low);
-  std::unique_ptr<VcStrategy> strategy;
-  if (opt.passive) strategy = std::make_unique<PassiveVc>();
-  else strategy = std::make_unique<SubstVc>();
+  std::unique_ptr<VcStrategy> strategy = makeStrategy(opt.mode);
   auto wanted = [&](const std::string &fn) { return opt.fn.empty() || opt.fn == fn; };
 
   res.rejected = specs.skipped;

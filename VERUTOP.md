@@ -113,7 +113,7 @@ AST --lower--> guarded commands --passivize--> passive commands --> VC --> SMT q
 | `--pgcl` | each function as guarded commands |
 | `--ppassive` | the passive form: every variable versioned, merges at joins |
 | `--pwp` | a proof outline: the weakest precondition before every command, substituted and simplified (a formula over 4000 nodes is shown as a placeholder) |
-| `--pvc` | the function's VC in infix, every obligation checked, in the selected `--vcmode` |
+| `--pvc` | the function's VC in infix, every obligation checked, as the selected `--vcmode` writes it (`subst`, `passive-copy`, or `passive`) |
 | `--psmt[=line]` | the SMT-LIB queries sent to Z3, or only those for one line |
 | `--pspec` | each spec function's definition, its axiom, and its termination obligations |
 | `--pcex` | a trace for each failure: entry values, each assignment with its value, each branch taken, and the failing assertion with the values substituted |
@@ -130,7 +130,7 @@ processes at once: `--vjobs=N` (default: one per core, at most 4;
 count of Z3's own steps, not seconds, so a verdict depends much less on
 machine load than a timeout does. It is not perfectly repeatable: for
 nonlinear arithmetic Z3's count varies from run to run (`factDown`'s
-invariant in demo 11, in wp mode, between 4.7 and 33 million), so that
+invariant in demo 11, in `subst` mode, between 4.7 and 33 million), so that
 obligation is occasionally `UNKNOWN` on a busy machine. When an `UNKNOWN`
 is caused by the limit, and not by a question Z3 cannot decide, a line
 after the verdicts names the obligation and the flag:
@@ -283,35 +283,40 @@ factUp(n)
 ## Two VC generators: substitution and versioning
 
 The VC is always a weakest precondition. `--vcmode` chooses how it is
-computed: `subst`, by substitution over the guarded commands as above
-(`wp` is an older name for this mode and still works), or `passive`, the
-default, which first makes the program passive and then needs no
-substitution. The second follows Flanagan and Saxe ("Avoiding exponential
-explosion", POPL 2001), as Boogie and Verus do. Both start from the same
-guarded commands, and the two formulas are equivalent: for a passive
-command `S`,
+computed, and there are three ways, so that the reason for the third can
+be seen:
 
-```
-wp(S, Q)  =  ok(S) ∧ (post(S) ⇒ Q)
-```
+| `--vcmode` | Computed from | The rest of the function, `Q`, under a choice | Size in n `if`s |
+|---|---|---|---|
+| `subst` | the guarded commands as lowered | copied under both branches, each copy rewritten by that branch's assignments | exponential |
+| `passive-copy` | the passive commands | copied under both branches, unchanged | exponential |
+| `passive` (default) | the passive commands | written once, after the join | linear |
 
-where `ok` and `post` are defined in step 4 below, and the passive VC is
-`ok(body)`, that is, `wp(body, true)`.
-
-The difference is where `Q`, the rest of the function, is written. By
-substitution it is copied under both branches of every choice, and each
-copy is rewritten by that branch's assignments: `wp(S1, Q) ∧ wp(S2, Q)`.
-In a passive program nothing is assigned, so `Q` is the same formula
-under both branches and can be written once, after the join, by
+(`wp` is an older name for `subst` and still works.) `subst` is the
+substitution form above. `passive` follows Flanagan and Saxe ("Avoiding
+exponential explosion", POPL 2001), as Boogie and Verus do.
+`passive-copy` is only for comparison: it applies the same wp rules to
+the passive program, and shows that versioning by itself does not make
+the VC small. What versioning does is make `Q` the same formula under
+both branches, and then it can be written once, by
 
 ```
 (A ⇒ Q) ∧ (B ⇒ Q)  =  (A ∨ B) ⇒ Q
 ```
 
-where `A` and `B` are what the two branches establish (their `post`).
-That is why versioning comes first: with `r := x` in one branch and
-`r := 0 - x` in the other, the two copies of `Q` are different formulas
-and there is nothing common to write once.
+where `A` and `B` are what the two branches establish. With `r := x` in
+one branch and `r := 0 - x` in the other, substitution makes the two
+copies of `Q` different formulas and there is nothing common to write
+once; with `r@1 == x@0`, `r@2 == 0 - x@0` and a merged `r@3`, both copies
+mention `r@3` and are identical. In general, for a passive command `S`,
+
+```
+wp(S, Q)  =  ok(S) ∧ (post(S) ⇒ Q)
+```
+
+where `ok` and `post` are defined in step 4 below, and the `passive` VC
+is `ok(body)`, that is, `wp(body, true)`. `--pvc` with each mode shows
+the three formulas for one function.
 
 1. **Version every variable.** `x := e` becomes `assume x@k == e` for a fresh
    constant `x@k`; the program now assigns nothing (it is passive).
@@ -337,23 +342,25 @@ The `abs` query in passive form:
 (assert (not (=> |N!4| (and (>= |r@2| 0) (or (= |r@2| |x@0|) (= |r@2| (- 0 |x@0|)))))))
 ```
 
-`--ppassive` shows steps 1 to 3, and `--pvc` shows step 4. Both modes give
-the same verdicts on every example. They differ in size. A
+`--ppassive` shows steps 1 to 3, and `--pvc` shows step 4. The three
+modes give the same verdicts on every example. They differ in size. A
 function with n consecutive `if (y > i) { y = y - 1; } else { y = y + 1; }`
-statements, `ensures result >= 0`:
+statements, `ensures result >= 0` (bytes of the `.vc.smt2` file, and
+seconds for the whole `--verify` run):
 
-| n | wp bytes | wp seconds | passive bytes | passive seconds |
-|---:|---:|---:|---:|---:|
-| 4 | 2,567 | 0.05 | 2,224 | 0.05 |
-| 8 | 36,167 | 0.05 | 3,992 | 0.06 |
-| 12 | 580,935 | 0.07 | 5,766 | 0.06 |
-| 16 | 9,305,415 | 0.46 | 7,542 | 0.06 |
-| 20 | 148,897,095 | 8.33 | 9,362 | 0.07 |
+| n | `subst` bytes | s | `passive-copy` bytes | s | `passive` bytes | s |
+|---:|---:|---:|---:|---:|---:|---:|
+| 4 | 2,416 | 0.03 | 3,692 | 0.04 | 2,265 | 0.03 |
+| 8 | 33,377 | 0.05 | 51,297 | 0.15 | 4,034 | 0.04 |
+| 12 | 535,905 | 0.12 | 815,269 | 0.22 | 5,808 | 0.04 |
+| 16 | 8,584,545 | 1.08 | 13,042,153 | 1.19 | 7,584 | 0.04 |
+| 20 | 137,362,785 | 17.6 | 208,667,437 | 16.8 | 9,402 | 0.05 |
 
-Substitution copies the rest of the function into both branches of every
-`if`, so the VC grows 16 times for every 4 `if`s; versioning grows by about
-440 bytes per `if`. (The first passive measurements, before removing
-`(and true ...)` noise, were about twice these sizes.)
+Copying the rest of the function into both branches of every `if`
+multiplies the VC by 16 for every 4 `if`s, with substitution or without
+it: `passive-copy` is in fact larger than `subst`, since it also carries
+the merge equations. Writing the rest once grows by about 440 bytes per
+`if`.
 
 ## Heap data: what ownership buys
 
@@ -555,7 +562,7 @@ the README there.
 
 1. Lowering to guarded commands (`--pgcl`): five commands are enough.
 2. wp of assignment as substitution; the `abs` proof outline (`--pwp`), then
-   its VC (`--pvc --vcmode=wp`) and query (`--psmt`).
+   its VC (`--pvc --vcmode=subst`) and query (`--psmt`).
 3. Loops need an invariant; the loop cut in `--pgcl`; a too-weak invariant
    and its trace (`--pcex`).
 4. Calls: modularity; `assert t == 55` proved from `sum`'s contract alone.

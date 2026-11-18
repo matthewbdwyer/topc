@@ -17,17 +17,6 @@ bool byPassive(const Proc &p, int target) {
   return valid(vc.ok, pv.versions, defs);
 }
 
-G withoutHavocs(const G &g) {
-  auto kids = [](std::vector<G> ks) {
-    for (auto &k : ks) k = withoutHavocs(k);
-    return ks;
-  };
-  if (g.as<Havoc>()) return gSeq({});
-  if (auto *s = g.as<Seq>()) return gSeq(kids(s->kids));
-  if (auto *c = g.as<Choice>()) return Choice{kids(c->kids), c->line};
-  return g;
-}
-
 // abs: if (x < 0) r := 0 - x else r := x; assert r >= 0 (#0); assert r == x (#1, false for x < 0)
 Proc absProc() {
   T x = v("x"), r = v("r");
@@ -85,9 +74,7 @@ TEST_CASE("the passive VC is the weakest precondition of the passive program", "
       INFO("obligation " << target);
       PassiveVC vc = passiveVc(pv.prog, target);
       std::map<std::string, T> defs(vc.defs.begin(), vc.defs.end());
-      // In a passive program a havoc only records that new versions
-      // start; they are free constants, so it is no command at all.
-      T byWp = wp(withoutHavocs(pv.prog), TRUE, target);
+      T byWp = wpPassive(pv.prog, target);
       T same = op("and", {Implies(byWp, vc.ok), Implies(vc.ok, byWp)});
       REQUIRE(valid(same, pv.versions, defs));
     }
@@ -107,19 +94,31 @@ TEST_CASE("the passive VC names each post and refers to it by name", "[verify][V
   REQUIRE(all.defs.size() >= vc.defs.size());
 }
 
-TEST_CASE("the passive VC grows linearly with the number of ifs", "[verify][VcStrategy]") {
-  // n ifs in a row, each assigning y; one assertion at the end.
-  auto size = [](int n) {
+TEST_CASE("versioning alone does not make the VC small, writing the rest once does", "[verify][VcStrategy]") {
+  // n ifs in a row, each assigning y; one assertion at the end.  The size
+  // of the query text, by each strategy.
+  auto size = [](const VcStrategy &strategy, int n) {
     std::vector<G> cs;
     for (int k = 0; k < n; ++k)
       cs.push_back(ifElse(bin(">", v("x"), num(k)), gAssign("y", num(1), 1), gAssign("y", num(2), 1)));
     cs.push_back(check(bin(">", v("y"), num(0)), 0));
-    Passive pv = passivize(procOf({"x"}, gSeq(cs), 1));
-    return renderBody(obligationQuery(PassiveVc().vc(Proc{}, pv, 0))).size();
+    Proc p = procOf({"x"}, gSeq(cs), 1);
+    Passive pv = passivize(p);
+    return renderBody(obligationQuery(strategy.vc(p, pv, 0))).size();
   };
-  size_t s4 = size(4), s8 = size(8), s16 = size(16);
-  // Doubling the program adds about twice as much text, not the square.
-  REQUIRE(s16 - s8 < (s8 - s4) * 5 / 2);
+  SubstVc subst;
+  PassiveCopyVc copied;
+  PassiveVc once;
+  // Written once: doubling the program adds about twice as much text.
+  REQUIRE(size(once, 16) - size(once, 8) < (size(once, 8) - size(once, 4)) * 5 / 2);
+  // Copied under each branch, with or without substitution: every further
+  // if doubles the text, so four more multiply it by about sixteen.
+  for (const VcStrategy *s : std::vector<const VcStrategy *>{&subst, &copied}) {
+    INFO(s->name());
+    REQUIRE(size(*s, 12) > 10 * size(*s, 8));
+    REQUIRE(size(*s, 8) > 10 * size(*s, 4));
+  }
+  REQUIRE(size(once, 12) < size(copied, 12) / 100);
 }
 
 TEST_CASE("wp and passive VCs agree on every obligation", "[verify][VcStrategy]") {
@@ -165,12 +164,13 @@ TEST_CASE("the loop cut: both strategies agree after a havoc", "[verify][VcStrat
   REQUIRE_FALSE(byPassive(weak, 0));
 }
 
-TEST_CASE("both strategies answer through one interface", "[verify][VcStrategy]") {
+TEST_CASE("the three strategies answer through one interface", "[verify][VcStrategy]") {
   Proc p = absProc();
   Passive pv = passivize(p);
   SubstVc wpS;
+  PassiveCopyVc copyS;
   PassiveVc passiveS;
-  std::vector<const VcStrategy *> both{&wpS, &passiveS};
+  std::vector<const VcStrategy *> both{&wpS, &copyS, &passiveS};
   for (auto *s : both)
     for (int target = 0; target < 2; ++target) {
       INFO(s->name() << " #" << target);
@@ -184,6 +184,12 @@ TEST_CASE("both strategies answer through one interface", "[verify][VcStrategy]"
   // the constants that hold the arguments, for the counterexample.
   REQUIRE(wpS.vc(p, pv, 0).entry == std::vector<std::string>{"x"});
   REQUIRE(passiveS.vc(p, pv, 0).entry == std::vector<std::string>{"x@0"});
+  REQUIRE(copyS.vc(p, pv, 0).entry == std::vector<std::string>{"x@0"});
+  // Only the last names anything: the other two write the rest of the function in place.
+  REQUIRE(wpS.vc(p, pv, 0).defs.empty());
+  REQUIRE(copyS.vc(p, pv, 0).defs.empty());
+  REQUIRE(!passiveS.vc(p, pv, 0).defs.empty());
+  REQUIRE(makeStrategy(VCGen::VcMode::PassiveCopy)->name() == "wp, passive, rest copied");
 }
 
 TEST_CASE("flags mark tracked assumptions and the other obligations", "[verify][SmtEncode]") {

@@ -29,9 +29,9 @@ TIMEOUT = 300
 # Z3's resource count for one query is not the same on every run when the
 # query is nonlinear arithmetic: for this one it was measured between 4.7
 # and 33 million steps for identical input, higher on a loaded machine, and
-# the limit is 20 million.  So this row may be `proved` or `UNKNOWN` in wp
+# the limit is 20 million.  So this row may be `proved` or `UNKNOWN` in subst
 # mode, and the comparison accepts either.  Every other row is exact.
-UNSTABLE = {("11-factorial-variants.top", "wp"): ("factDown", "loop invariant is preserved")}
+UNSTABLE = {("11-factorial-variants.top", "subst"): ("factDown", "loop invariant is preserved")}
 
 # Demo 10 exists to make a large VC; its contract (the result is in a range)
 # says almost nothing about its sixteen branches, so nearly every mutant
@@ -51,7 +51,7 @@ MARK = re.compile(r"\s{3}([A-Z]{4,})\b.*$")
 
 def directives(src):
     """`// flags: ...` and `// modes: passive` lines at the top of a test."""
-    d = {"flags": [], "modes": ["passive", "wp"]}
+    d = {"flags": [], "modes": ["passive", "passive-copy", "subst"]}
     for line in src.read_text().splitlines():
         m = re.match(r"//\s*(flags|modes):\s*(.*)$", line)
         if m:

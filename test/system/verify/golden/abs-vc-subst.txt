@@ -1,5 +1,5 @@
 == abs(x)
--- VC (wp), every obligation checked: it must be valid
+-- VC (wp by substitution), every obligation checked: it must be valid
   let r = 0 in
   (x > 0 ==>
      (let r = x in

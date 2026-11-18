@@ -93,7 +93,7 @@ TEST_CASE("a counterexample names the arguments", "[verify][Driver]") {
 TEST_CASE("both strategies ask about the same obligation", "[verify][Driver]") {
   CannedSolver passive(agreeable), wp(agreeable);
   VCGen::Options o;
-  o.passive = false;
+  o.mode = VCGen::VcMode::Subst;
   Run a(ABS, passive), b(ABS, wp, o);
   // Passive declares every version and names each post; wp declares the formal.
   REQUIRE(passive.asked[0].consts.size() > 1);
@@ -335,7 +335,7 @@ main()
                                    "  proved  line 11: precondition of half(4)\n"
                                    "  proved  line 12: assertion\n"
                                    "  proved  line 13: postcondition\n", 0) == 0);
-  REQUIRE(report.find("VC (passive): 5 queries, 0 bytes in p.top.vc.smt2\n") != std::string::npos);
+  REQUIRE(report.find("VC (wp, passive): 5 queries, 0 bytes in p.top.vc.smt2\n") != std::string::npos);
 }
 
 TEST_CASE("the result does not depend on the number of jobs", "[verify][Driver]") {

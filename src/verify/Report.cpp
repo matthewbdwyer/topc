@@ -68,19 +68,23 @@ struct Printer {
       for (auto &l : braces(TRUE)) out << "  " << l << "\n";
     }
     if (opt.pvc) {
-      if (opt.passive) {
-        auto vc = passiveVc(f.passive.prog, -2);
-        heading(out, "VC (passive), every obligation checked: VC must be valid");
+      // The VC with every obligation checked, as the chosen strategy writes
+      // it.  The passive one is a list of named definitions and a formula
+      // that uses them; the other two are one formula.
+      auto strategy = makeStrategy(opt.mode);
+      Vc vc = strategy->vc(f.proc, f.passive, -2);
+      if (opt.mode == VCGen::VcMode::Passive) {
+        heading(out, "VC (" + strategy->name() + "), every obligation checked: VC must be valid");
         for (auto &[n, t] : vc.defs) {
           auto L = pretty(t, 66);
           for (size_t i = 0; i < L.size(); ++i)
             out << "  " << (i ? pad(n.size() + 4) : n + " := ") << L[i] << "\n";
         }
-        auto L = pretty(vc.ok, 66);
+        auto L = pretty(vc.formula, 66);
         for (size_t i = 0; i < L.size(); ++i) out << "  " << (i ? "    " : "VC: ") << L[i] << "\n";
       } else {
-        heading(out, "VC (wp), every obligation checked: it must be valid");
-        for (auto &l : pretty(wpFunction(f.proc, -2), 74)) out << "  " << l << "\n";
+        heading(out, "VC (" + strategy->name() + "), every obligation checked: it must be valid");
+        for (auto &l : pretty(vc.formula, 74)) out << "  " << l << "\n";
       }
     }
     if (dumps) out << "\n";
@@ -217,7 +221,7 @@ void printReport(std::ostream &out, const VerifyResult &res, const TrustReport &
 
   size_t queries = res.specChecks.size();
   for (auto &f : res.functions) queries += f.obligations.size();
-  out << "VC (" << (opt.passive ? "passive" : "wp") << "): " << queries << " queries, " << smtBytes
+  out << "VC (" << makeStrategy(opt.mode)->name() << "): " << queries << " queries, " << smtBytes
       << " bytes in " << smtFile << "\n";
   p.verdicts();
   p.trust(trust, solverVersion);

@@ -2,7 +2,8 @@
 abs-gcl:         verutop-demos/01-abs.top --pgcl --vfn=abs
 abs-passive:     verutop-demos/01-abs.top --ppassive --vfn=abs
 abs-outline:     verutop-demos/01-abs.top --pwp --vfn=abs
-abs-vc-wp:       verutop-demos/01-abs.top --pvc --vcmode=wp --vfn=abs
+abs-vc-subst:    verutop-demos/01-abs.top --pvc --vcmode=subst --vfn=abs
+abs-vc-copy:     verutop-demos/01-abs.top --pvc --vcmode=passive-copy --vfn=abs
 abs-vc-passive:  verutop-demos/01-abs.top --pvc --vfn=abs
 abs-smt:         verutop-demos/01-abs.top --psmt --vfn=abs
 multiply-gcl:    verutop-demos/02-multiply.top --pgcl --vfn=mult

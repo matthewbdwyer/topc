@@ -16,7 +16,7 @@ cmake --build build --target verify_unit_tests
 | `ObligationsTest` | every kind's message, pinned to the wording the demos use | |
 | `LoweringTest` | the guarded commands of small functions: a loop cut, a call, recursion, a written borrow, `--overflow` | parsed programs, compared as `--pgcl` text |
 | `PassivizeTest` | versions, merges after a choice, dead branches, `old` | commands built by hand |
-| `VcStrategyTest` | the wp rules; that `SubstVc` and `PassiveVc` agree; linear growth of the passive VC | VCs evaluated over a small domain (`GclHelpers.h`) |
+| `VcStrategyTest` | the wp rules; that the three strategies agree; that the passive VC is wp of the passive program; that copying is exponential with or without substitution, and writing the rest once is linear | VCs evaluated over a small domain (`GclHelpers.h`) |
 | `QueryTest` | the dependency closure; rendering; the flag encoding; the trace query | |
 | `SolverTest` | reading Z3's output; the text sent; batches answered in order whatever the number of jobs | text, and `CannedSolver` |
 | `TrustTest` | verdicts and what they rest on: unverified callees, inheritance, recursion, vacuity | results built by hand |

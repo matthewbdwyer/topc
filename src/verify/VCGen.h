@@ -15,8 +15,15 @@ class TypeInference;
  * every obligation is proved.
  */
 namespace VCGen {
+// The VC is always a weakest precondition; this is how it is computed.
+enum class VcMode {
+  Subst,       // --vcmode=subst: by substitution, over the guarded commands as lowered
+  PassiveCopy, // --vcmode=passive-copy: of the passive program, the rest of the function
+               // still copied under each branch
+  Passive      // --vcmode=passive (default): of the passive program, the rest written once
+};
 struct Options {
-  bool passive = true;    // --vcmode=passive (default) or wp
+  VcMode mode = VcMode::Passive;
   bool trustSpecs = false;
   long long rlimit = 20000000; // --vrlimit: Z3's resource limit for each query
   int jobs = 0;           // --vjobs: Z3 processes at once (0: one per core, at most 4)

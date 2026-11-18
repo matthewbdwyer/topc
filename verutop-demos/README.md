@@ -1,7 +1,7 @@
 # VERUTOP demonstrations
 
 Run each with `topc --verify prog.top`. The VC is the versioned (passive)
-one by default; `--vcmode=wp` gives the substitution form. The queries are written to `prog.top.vc.smt2`.
+one by default; `--vcmode=subst` gives the substitution form, and `--vcmode=passive-copy` the passive program with the rest of the function still copied under each branch. The queries are written to `prog.top.vc.smt2`.
 
 Each stage can be printed; any of these flags implies `--verify`, and
 `--vfn=f` limits the output to one function:
@@ -71,7 +71,7 @@ all, and code may not call one. The last column is the run.
 | `07-error.top` | `error` is an obligation that it cannot run; a precondition makes it unreachable | `lookup` proved; `main` fails at `i = -1` |
 | `08-assume.top` | `assume` is trusted: `assume x > x` proves `result == 42` | "proved", and marked `VACUOUS`: nothing reaches the postcondition |
 | `09-overflow.top` | mathematical integers are not 64-bit integers: `result > x` is proved, yet `./09-overflow 9223372036854775807` prints 0 for `y > x` | proved, and wrong at run time; with `--overflow`, `x + 1 does not overflow` fails at that value |
-| `10-many-ifs.top` | 16 consecutive `if`s: the wp query is 9.3 MB, the passive one 7.5 KB | proved in both modes |
+| `10-many-ifs.top` | 16 consecutive `if`s: with `--vcmode=subst` the queries are 8.6 MB, with `passive-copy` 13 MB, with `passive` 7.9 KB | proved in every mode |
 | `11-factorial-variants.top` | a spec function `factorial` states exactly what is computed; five implementations (recursion, a loop up, a loop down, tail recursion with an accumulator, and a loop that multiplies by repeated addition) are each proved equal to it, with termination | all 34 proved |
 | `12-termination.top` | a recursive call with no measure, a measure that does not decrease, a loop measure that increases; and `bad(n) = bad(n) + 1`, a spec function whose definition is false | each fails with a counterexample; `bad`'s definition is not used, so `liar` fails; with `--trust-specs` the false definition is used and `liar` "proves" `result == 42` |
 | `13-factorial-total.top` | total correctness in one function: `requires n >= 0`, `ensures result == factorial(n)`, `decreases n`; the same body without the precondition | `fact` proved; `factAny` fails termination at `n = -1` |

@@ -102,6 +102,38 @@ Vc SubstVc::vc(const Proc &proc, const Passive &, int target) const {
   return v;
 }
 
+namespace {
+G withoutHavocs(const G &g) {
+  auto kids = [](std::vector<G> ks) {
+    for (auto &k : ks) k = withoutHavocs(k);
+    return ks;
+  };
+  if (g.as<Havoc>()) return gSeq({});
+  if (auto *s = g.as<Seq>()) return gSeq(kids(s->kids));
+  if (auto *ch = g.as<Choice>()) return Choice{kids(ch->kids), ch->line};
+  return g;
+}
+} // namespace
+
+T wpPassive(const G &passiveProg, int target) { return wp(withoutHavocs(passiveProg), TRUE, target); }
+
+Vc PassiveCopyVc::vc(const Proc &, const Passive &passive, int target) const {
+  Vc v;
+  for (auto &x : passive.versions) v.consts.push_back({x, passive.sorts.at(x)});
+  v.formula = wpPassive(passive.prog, target);
+  v.entry = passive.entry;
+  return v;
+}
+
+std::unique_ptr<VcStrategy> makeStrategy(VCGen::VcMode mode) {
+  switch (mode) {
+  case VCGen::VcMode::Subst: return std::make_unique<SubstVc>();
+  case VCGen::VcMode::PassiveCopy: return std::make_unique<PassiveCopyVc>();
+  case VCGen::VcMode::Passive: break;
+  }
+  return std::make_unique<PassiveVc>();
+}
+
 Vc passiveVcOf(const Passive &passive, const G &prog, int target) {
   PassiveVC pvc = passiveVc(prog, target);
   Vc v;

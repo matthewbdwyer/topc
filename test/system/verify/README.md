@@ -20,7 +20,7 @@ as for the system tests) it also compiles and runs the verified functions.
 | Kind | Programs | Passes when |
 | --- | --- | --- |
 | verdicts | `verutop-demos/*.top`, `cases/*.top` | the report's rows (function, line, verdict, obligation) equal `expected/<name>.verdicts` |
-| modes | the same | `--vcmode=wp` gives the same rows as passive: the two VC generators check each other |
+| modes | the same | `--vcmode=passive-copy` and `--vcmode=subst` give the same rows as `passive`: the three VC generators check each other |
 | liars | `liars/*.top` | every function named `liar*`, whose contract is false, has an obligation that is not plainly `proved` |
 | golden | `golden/MANIFEST` | a view's text equals `golden/<name>.txt` |
 | runtime | the same programs as verdicts | each function reported `=> verified` checks its own `ensures` when run on sample arguments, and none is false (`agree.py`) |
@@ -34,7 +34,7 @@ reason.
 
 One row is not exact. Z3's resource count for a query is supposed to be
 the same on every run, and for nonlinear arithmetic it is not: demo 11's
-`factDown` invariant, in wp mode, was measured between 4.7 and 33 million
+`factDown` invariant, in `subst` mode, was measured between 4.7 and 33 million
 steps for the same input, against a limit of 20 million. That row may be
 `proved` or `UNKNOWN` (`UNSTABLE` in `runner.py`).
 

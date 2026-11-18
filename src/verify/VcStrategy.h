@@ -3,6 +3,9 @@
 #include "Lowering.h"
 #include "Passivize.h"
 #include "Query.h"
+#include "VCGen.h"
+
+#include <memory>
 
 namespace verutop {
 
@@ -41,36 +44,56 @@ struct Vc {
   std::vector<std::string> entry; // the constants that hold the arguments
 };
 
-// Both strategies compute the weakest precondition of the function's body.
-// They differ in the program they compute it from and in how the formula is
-// written, and so in its size: every obligation gets the same verdict from
-// both.
+// wp of a passive program, by the same rules as wp above.  Nothing is
+// assigned, so nothing is substituted; a havoc there only records that new
+// versions start, and is no command.  Q is still copied under both
+// branches of every choice.
+T wpPassive(const G &passiveProg, int target);
+
+// Three ways to compute the weakest precondition of a function's body.
+// Every obligation gets the same verdict from all of them; they differ in
+// the program they start from and in where the rest of the function, Q,
+// is written, and so in size:
+//
+//                    program       Q under a choice      size in n ifs
+//   SubstVc          as lowered    copied, substituted   exponential
+//   PassiveCopyVc    passive       copied                exponential
+//   PassiveVc        passive       written once          linear
+//
+// The middle one exists to show that versioning alone does not make the VC
+// small.  What it does is make Q the same formula under both branches, so
+// that it can be written once: (A ==> Q) && (B ==> Q) is (A || B) ==> Q.
 class VcStrategy {
 public:
   virtual ~VcStrategy() = default;
+  // As the report names it: "VC (wp by substitution)".
   virtual std::string name() const = 0;
   virtual Vc vc(const Proc &proc, const Passive &passive, int target) const = 0;
 };
-// wp by substitution, over the guarded commands as lowered: an assignment
-// substitutes into everything after it, and the rest of the function is
-// repeated under both branches of every choice.  The formula can be
-// exponential in the number of branches.
+// wp over the guarded commands as lowered: an assignment substitutes into
+// everything after it.
 class SubstVc : public VcStrategy {
 public:
-  std::string name() const override { return "wp"; }
+  std::string name() const override { return "wp by substitution"; }
   Vc vc(const Proc &proc, const Passive &passive, int target) const override;
 };
-// wp of the passive commands.  With nothing assigned there is nothing to
-// substitute, and for a passive command S
+// wpPassive: no substitution, Q copied.
+class PassiveCopyVc : public VcStrategy {
+public:
+  std::string name() const override { return "wp, passive, rest copied"; }
+  Vc vc(const Proc &proc, const Passive &passive, int target) const override;
+};
+// For a passive command S
 //     wp(S, Q)  =  ok(S) && (post(S) ==> Q)
-// so Q, the rest of the function, is written once, and each post is given
-// a name.  The formula is linear in the program (Flanagan and Saxe).  The
-// VC is ok(body), which is wp(body, true).
+// so Q is written once, and each post is given a name (Flanagan and Saxe).
+// The VC is ok(body), which is wp(body, true).
 class PassiveVc : public VcStrategy {
 public:
-  std::string name() const override { return "passive"; }
+  std::string name() const override { return "wp, passive"; }
   Vc vc(const Proc &proc, const Passive &passive, int target) const override;
 };
+std::unique_ptr<VcStrategy> makeStrategy(VCGen::VcMode mode);
+
 // The passive VC of a passive program that has been transformed (flagged).
 Vc passiveVcOf(const Passive &passive, const G &prog, int target);
 
