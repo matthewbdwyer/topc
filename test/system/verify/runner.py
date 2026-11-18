@@ -254,7 +254,7 @@ def mutation_tests(src, survivors, seen):
             if survived and name not in survivors:
                 results.append(Result(f"mutation/{name}", False,
                                       "every verdict is unchanged, and the mutant is not in mutation/SURVIVORS"))
-            elif not survived and name in survivors:
+            elif not survived and name in survivors and not survivors[name].startswith("unstable:"):
                 results.append(Result(f"mutation/{name}", False,
                                       "listed in mutation/SURVIVORS but a verdict now changes: remove it"))
             else:

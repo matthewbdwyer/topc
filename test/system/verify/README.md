@@ -80,7 +80,9 @@ the mutant is equivalent or the contract is weak, and each such mutant is
 recorded with its reason in `mutation/SURVIVORS`. An unlisted survivor
 fails the run: look at it, and either list it or find out why the verifier
 accepted it. Mutants run with `--vrlimit=10000000` so that one Z3 cannot
-decide does not cost the full limit.
+decide does not cost the full limit. One listed mutant is marked
+`unstable:`: it is equivalent, but its proof is nonlinear and Z3 finds it
+in some runs only, so it may survive or not.
 
 ## Changing expected output
 

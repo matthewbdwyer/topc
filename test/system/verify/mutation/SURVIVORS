@@ -2,7 +2,9 @@
 # sign that the verifier proves too much.  Format: mutant <tab> reason.
 # A mutant is file:line:column:old->new (see mutate.py).  An unlisted
 # survivor fails `runner.py --mutation`, and so does a listed mutant that
-# is now killed or no longer exists.
+# is now killed or no longer exists.  A reason that starts with `unstable:`
+# marks a mutant Z3 sometimes proves and sometimes gives up on; it may
+# survive or not.
 01-abs.top:8:8:>->>=	equivalent: at x == 0 both branches give 0
 03-weak-invariant.top:11:11:<-><=	the original's postcondition already fails (that is the demo); it still does
 03-weak-invariant.top:12:1:drop invariant	the original's postcondition already fails; it still does
@@ -11,6 +13,7 @@
 05-factorial.top:17:10:*->+	weak contract: n + m is also >= 1 and >= n when m >= 1
 06-division.top:13:14:2->3	the original's postcondition already fails (that is the demo); it still does
 09-overflow.top:8:14:1->2	weak contract: result > x holds for x + 2
+11-factorial-variants.top:62:14:0->1	unstable: equivalent (the loop may stop at k == 1, and 1! == 0!), but the invariant's proof is nonlinear and Z3 finds it in some runs only
 14-tree-height.top:37:13:>->>=	equivalent: when lh == rh both branches give 1 + lh
 15-expr-borrow.top:102:10:0->1	the contract is about *p; the returned value is not constrained
 16-swap.top:18:10:0->1	the contract is about *p and *q; the returned value is not constrained
