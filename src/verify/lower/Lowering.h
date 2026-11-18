@@ -3,6 +3,7 @@
 #include "Encoding.h"
 #include "Gcl.h"
 #include "Obligations.h"
+#include "Proc.h"
 #include "Term.h"
 #include "Termination.h"
 
@@ -19,21 +20,6 @@ namespace verutop {
 // ===========================================================================
 // Lowering: AST to guarded commands.
 // ===========================================================================
-
-struct Proc {
-  ASTFunction *fn = nullptr;
-  std::vector<std::string> formals; // in order
-  G body;
-  std::vector<Obligation> obs;
-  std::vector<Assumption> assumptions;
-  std::vector<std::string> diverges;        // what `decreases *` leaves unproved
-  int arithmetic = 0;                       // + - * / in code that no obligation checks
-  std::map<std::string, std::string> sorts; // every variable's sort
-  std::string sortOf(const std::string &x) const {
-    auto it = sorts.find(x);
-    return it == sorts.end() ? "Int" : it->second;
-  }
-};
 
 std::string where(ASTNode *n);
 std::string text(ASTNode *n);

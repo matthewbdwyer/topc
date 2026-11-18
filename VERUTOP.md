@@ -490,25 +490,33 @@ answers                 Answer
 results                 VerifyResult        the report, --pcex, --ptrust
 ```
 
-| Module | What it is |
-|---|---|
-| `Term`, `TermPrint` | The logic: one representation of formulas, printed as SMT-LIB for Z3 and in infix for people. Substitution, free variables, and a simplifier used only for display. |
-| `Encoding` | How a TOP value becomes a logical one: sorts, a reference as its referent, a written borrow as an in-out parameter, `case` as constructor tests, `rank`, the range of a machine integer. Its header is the statement of the heap-free encoding. |
-| `Gcl` | Guarded commands: a variant of `Assume`, `Assert`, `Assign`, `Havoc`, `Seq`, `Choice`. Every traversal is a `match` with one function per kind. |
-| `Obligations` | `Obligation` (a kind, a position, a subject; its message is derived) and `Assumption` (what a proof may use that the function does not establish). |
-| `Termination` | The call graph's cycles, and the obligation that a call on a cycle decreases the measure. |
-| `Lowering` | AST to guarded commands: `Lowering.cpp` (a function), `LowerExpr.cpp`, `LowerStmt.cpp`, `LowerCall.cpp`. |
-| `Specs` | Spec functions as definitions (`Axiom`) with termination checks; the rule that code may not use them. |
-| `Passivize` | Guarded commands to passive form (Flanagan and Saxe). |
-| `VcStrategy` | Two interchangeable ways to compute a VC: `SubstVc` and `PassiveVc`. |
-| `Outline` | The `--pwp` proof outline. |
-| `Query`, `SmtEncode` | A query as data (`Query`, `Axiom`, `Background`) and its one renderer; the queries asked about an obligation: its verdict, a trace, what the proof uses, whether anything reaches it. |
-| `Solver` | `Solver::check(Background, Query) -> Answer`. `Z3Process` pipes SMT-LIB to `z3 -in`; `CannedSolver` answers by rule, for tests; `checkAll` runs a batch on several processes. |
-| `Feedback` | From an answer back to the program: the counterexample's arguments, and the trace. |
-| `Results` | What a run found, as data: `VerifyResult`. |
-| `Trust` | From the results alone: what is assumed and checked, and each function's verdict with what it rests on. |
-| `Report` | Presentation only: every view, the verdicts, the trust report, the `.vc.smt2` file. |
-| `Driver` | Wires the stages: `verify(program, types, solver, options) -> VerifyResult`. Prints nothing. |
+The directories follow the pipeline, and a file includes only from its
+own directory or one listed before it:
+
+| Directory | Module | What it is |
+|---|---|---|
+| `logic/` | `Term`, `TermPrint` | One representation of formulas, printed as SMT-LIB for Z3 and in infix for people. Substitution, free variables, and a simplifier used only for display. |
+| | `Query` | A query as data (`Query`, `Axiom`, `Background`) and its one renderer. |
+| `ir/` | `Gcl` | Guarded commands: a variant of `Assume`, `Assert`, `Assign`, `Havoc`, `Seq`, `Choice`. Every traversal is a `match` with one function per kind. |
+| | `Obligations` | `Obligation` (a kind, a position, a subject; its message is derived) and `Assumption` (what a proof may use that the function does not establish). |
+| | `Proc` | A function in the IR: its commands, obligations and assumptions. |
+| | `Passivize` | Guarded commands to passive form (Flanagan and Saxe). |
+| `lower/` | `Encoding` | How a TOP value becomes a logical one: sorts, a reference as its referent, a written borrow as an in-out parameter, `case` as constructor tests, `rank`, the range of a machine integer. Its header is the statement of the heap-free encoding. |
+| | `Lowering` | AST to guarded commands: `Lowering.cpp` (a function), `LowerExpr.cpp`, `LowerStmt.cpp`, `LowerCall.cpp`. |
+| | `Specs` | Spec functions as definitions with termination checks; the rule that code may not use them. |
+| | `Termination` | The call graph's cycles, and the obligation that a call on a cycle decreases the measure. |
+| `vc/` | `VcStrategy` | Three ways to compute the weakest precondition: `SubstVc`, `PassiveCopyVc`, `PassiveVc`. |
+| | `Outline` | The `--pwp` proof outline. |
+| | `SmtEncode` | The queries asked about an obligation: its verdict, a trace, what the proof uses, whether anything reaches it. |
+| `solver/` | `Solver` | `Solver::check(Background, Query) -> Answer`. `Z3Process` pipes SMT-LIB to `z3 -in`; `CannedSolver` answers by rule, for tests; `checkAll` runs a batch on several processes. |
+| `report/` | `Results` | What a run found, as data: `VerifyResult`. |
+| | `Feedback` | From an answer back to the program: the counterexample's arguments, and the trace. |
+| | `Trust` | From the results alone: what is assumed and checked, and each function's verdict with what it rests on. |
+| | `Report` | Presentation only: every view, the verdicts, the trust report, the `.vc.smt2` file. |
+| (top) | `Driver` | Wires the stages: `verify(program, types, solver, options) -> VerifyResult`. Prints nothing. `VCGen.h` is the interface the compiler uses. |
+
+Only `lower/` reads the AST. As elsewhere in the compiler, headers are
+included by name, with each directory on the include path.
 
 Three rules keep the boundaries honest:
 
@@ -524,8 +532,8 @@ Three rules keep the boundaries honest:
   from the vacuity check.
 
 To add a kind of obligation: a value of `ObKind`, its message in
-`Obligations.cpp`, and the `assertion(...)` call in lowering that creates
-it. To use another solver: implement `Solver`.
+`ir/Obligations.cpp`, and the `assertion(...)` call in `lower/` that
+creates it. To use another solver: implement `Solver`, in `solver/`.
 
 ## Tests
 

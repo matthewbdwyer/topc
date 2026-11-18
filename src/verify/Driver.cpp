@@ -16,6 +16,12 @@
 //     | Feedback, Trust
 //   results (Results)                the report, --pcex, --ptrust
 //
+// The directories follow the pipeline: logic/ (Term, Query), ir/ (Gcl,
+// Obligations, Proc, Passivize), lower/ (Encoding, Lowering, Specs,
+// Termination), vc/ (VcStrategy, Outline, SmtEncode), solver/, report/
+// (Results, Feedback, Trust, Report).  A file includes only from its own
+// directory or an earlier one.
+//
 // This file wires the stages.  It prints nothing and knows nothing about
 // Z3 beyond the Solver interface.
 //

@@ -1,32 +1,47 @@
-# VERUTOP: deductive verification for TOP.  One module per stage; see
-# VERUTOP.md, "Architecture".
+# VERUTOP: deductive verification for TOP.  One library; the directories
+# follow the pipeline, and each uses only those listed before it:
+#
+#   logic/   formulas and queries (nothing of TOP)
+#   ir/      guarded commands, obligations, the passive form
+#   lower/   AST to IR: the encoding, lowering, spec functions, termination
+#   vc/      IR to verification conditions to queries
+#   solver/  the back end
+#   report/  answers to results to text
+#
+# Driver.cpp wires them.  See VERUTOP.md, "Architecture".
 add_library(verify)
 target_sources(
   verify
   PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/Driver.cpp
-          ${CMAKE_CURRENT_SOURCE_DIR}/Encoding.cpp
-          ${CMAKE_CURRENT_SOURCE_DIR}/Feedback.cpp
-          ${CMAKE_CURRENT_SOURCE_DIR}/Gcl.cpp
-          ${CMAKE_CURRENT_SOURCE_DIR}/LowerCall.cpp
-          ${CMAKE_CURRENT_SOURCE_DIR}/LowerExpr.cpp
-          ${CMAKE_CURRENT_SOURCE_DIR}/LowerStmt.cpp
-          ${CMAKE_CURRENT_SOURCE_DIR}/Lowering.cpp
-          ${CMAKE_CURRENT_SOURCE_DIR}/Obligations.cpp
-          ${CMAKE_CURRENT_SOURCE_DIR}/Outline.cpp
-          ${CMAKE_CURRENT_SOURCE_DIR}/Passivize.cpp
-          ${CMAKE_CURRENT_SOURCE_DIR}/Query.cpp
-          ${CMAKE_CURRENT_SOURCE_DIR}/Report.cpp
-          ${CMAKE_CURRENT_SOURCE_DIR}/SmtEncode.cpp
-          ${CMAKE_CURRENT_SOURCE_DIR}/Solver.cpp
-          ${CMAKE_CURRENT_SOURCE_DIR}/Specs.cpp
-          ${CMAKE_CURRENT_SOURCE_DIR}/Term.cpp
-          ${CMAKE_CURRENT_SOURCE_DIR}/TermPrint.cpp
-          ${CMAKE_CURRENT_SOURCE_DIR}/Trust.cpp
-          ${CMAKE_CURRENT_SOURCE_DIR}/Termination.cpp
-          ${CMAKE_CURRENT_SOURCE_DIR}/VcStrategy.cpp)
+          ${CMAKE_CURRENT_SOURCE_DIR}/logic/Query.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/logic/Term.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/logic/TermPrint.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/ir/Gcl.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/ir/Obligations.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/ir/Passivize.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/lower/Encoding.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/lower/LowerCall.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/lower/LowerExpr.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/lower/LowerStmt.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/lower/Lowering.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/lower/Specs.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/lower/Termination.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/vc/Outline.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/vc/SmtEncode.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/vc/VcStrategy.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/solver/Solver.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/report/Feedback.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/report/Report.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/report/Trust.cpp)
 target_include_directories(
   verify
   PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
+         ${CMAKE_CURRENT_SOURCE_DIR}/logic
+         ${CMAKE_CURRENT_SOURCE_DIR}/ir
+         ${CMAKE_CURRENT_SOURCE_DIR}/lower
+         ${CMAKE_CURRENT_SOURCE_DIR}/vc
+         ${CMAKE_CURRENT_SOURCE_DIR}/solver
+         ${CMAKE_CURRENT_SOURCE_DIR}/report
   PRIVATE ${CMAKE_SOURCE_DIR}/src/error
           ${CMAKE_SOURCE_DIR}/src/frontend
           ${CMAKE_SOURCE_DIR}/src/frontend/ast

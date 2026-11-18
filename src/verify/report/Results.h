@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Lowering.h"
+#include "Proc.h"
 #include "Obligations.h"
 #include "Passivize.h"
 #include "Query.h"
