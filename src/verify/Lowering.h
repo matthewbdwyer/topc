@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Encoding.h"
 #include "Gcl.h"
 #include "Obligations.h"
 #include "Term.h"
@@ -45,7 +46,7 @@ class Writes {
 public:
   std::set<std::pair<std::string, int>> written; // (function, parameter index)
 
-  explicit Writes(ASTProgram *p);
+  Writes(ASTProgram *p, const Encoding &enc);
   bool isWritten(const std::string &f, int k) const { return written.count({f, k}); }
   // The variables a statement may change: assignment targets, and variables
   // lent to a parameter that is written.
@@ -56,14 +57,17 @@ private:
 };
 
 // A case arm as a condition on the scrutinee t, and the binder values.
-T matchPattern(ASTPattern *p, const T &t, std::vector<std::pair<ASTDeclNode *, T>> &binds);
-T matchCtor(const std::string &tag, const std::vector<ASTPattern *> &subs, const T &t,
-            std::vector<std::pair<ASTDeclNode *, T>> &binds);
+T matchPattern(const Encoding &enc, ASTPattern *p, const T &t,
+               std::vector<std::pair<ASTDeclNode *, T>> &binds);
+T matchCtor(const Encoding &enc, const std::string &tag, const std::vector<ASTPattern *> &subs,
+            const T &t, std::vector<std::pair<ASTDeclNode *, T>> &binds);
 std::string showArm(ASTCaseArm *a);
 
 class Lower {
 public:
-  Lower(ASTProgram *p, const Writes &w);
+  Lower(ASTProgram *p, const Encoding &enc, const Writes &w);
+
+  const Encoding &enc;
 
   std::map<std::string, ASTFunction *> fns;
   // The first pass over the program records its calls here; the second

@@ -22,7 +22,7 @@
 
 namespace verutop {
 
-std::string Types::sortOf(const std::shared_ptr<TopType> &t) const {
+std::string Encoding::sortOf(const std::shared_ptr<TopType> &t) const {
   if (!t || dynamic_cast<TopInt *>(t.get())) return "Int";
   if (auto *r = dynamic_cast<ReferenceType *>(t.get())) return sortOf(r->getReferencedType());
   if (auto *s = dynamic_cast<TopSumType *>(t.get())) return "|" + s->getTypeName() + "|";
@@ -31,14 +31,14 @@ std::string Types::sortOf(const std::shared_ptr<TopType> &t) const {
   return "Int"; // an unconstrained type variable
 }
 
-bool Types::isBorrow(const std::shared_ptr<TopType> &t) {
+bool Encoding::isBorrow(const std::shared_ptr<TopType> &t) {
   auto *r = dynamic_cast<ReferenceType *>(t.get());
   if (!r) return false;
   auto m = std::dynamic_pointer_cast<ReferenceMode>(r->getMode());
   return m && m->getMode() == ReferenceMode::Mode::Borrow;
 }
 
-void Types::build(ASTProgram *p, TypeInference *types) {
+void Encoding::build(ASTProgram *p, TypeInference *types) {
   ti = types;
   std::string dts, ctors;
   for (auto *td : p->getTypedecls()) {
@@ -100,23 +100,32 @@ void Types::build(ASTProgram *p, TypeInference *types) {
   }
 }
 
-T Types::rank(T t, const std::string &sort) {
+T Encoding::rank(T t, const std::string &sort) {
   return app("rank#" + sort.substr(1, sort.size() - 2), {std::move(t)});
 }
 
-Types TY;
-
 // The sort of a term; `lookup` gives the sort of a variable.
-std::string sortOfTerm(const T &t, const std::function<std::string(const std::string &)> &lookup) {
+std::string Encoding::resultSort(const std::string &fn) const {
+  auto it = fnSort.find(fn);
+  return it == fnSort.end() ? "" : it->second;
+}
+
+const std::vector<std::pair<std::string, std::string>> &Encoding::fieldsOf(const std::string &tag) const {
+  static const std::vector<std::pair<std::string, std::string>> none;
+  auto it = fields.find(tag);
+  return it == fields.end() ? none : it->second;
+}
+
+std::string Encoding::sortOfTerm(const T &t, const std::function<std::string(const std::string &)> &lookup) const {
   switch (t->kind) {
   case Term::Num: return "Int";
   case Term::Var: return lookup(t->name);
   case Term::Fn: {
-    auto it = TY.fnSort.find(t->name);
-    return it == TY.fnSort.end() ? "Int" : it->second;
+    auto it = fnSort.find(t->name);
+    return it == fnSort.end() ? "Int" : it->second;
   }
-  case Term::Ctor: return TY.ctorSort.count(t->name) ? TY.ctorSort[t->name] : "Int";
-  case Term::Sel: return TY.selSort.count(t->name) ? TY.selSort[t->name] : "Int";
+  case Term::Ctor: return ctorSort.count(t->name) ? ctorSort.at(t->name) : "Int";
+  case Term::Sel: return selSort.count(t->name) ? selSort.at(t->name) : "Int";
   case Term::Is:
   case Term::Forall: return "Bool";
   case Term::Let: return sortOfTerm(t->args[1], lookup);

@@ -61,7 +61,7 @@ void SpecFns::build(ASTProgram *p) {
       std::string params, sig;
       std::vector<T> xs;
       for (auto *x : f->getFormals()) {
-        auto s = TY.sortOf(x);
+        auto s = low.enc.sortOf(x);
         sorts[x->getName()] = s;
         env[x->getName()] = var(x->getName());
         params += "(|" + x->getName() + "| " + s + ")";
@@ -70,7 +70,7 @@ void SpecFns::build(ASTProgram *p) {
       }
       for (auto *d : f->getDeclarations())
         for (auto *v : d->getVars()) {
-          auto s = TY.sortOf(v);
+          auto s = low.enc.sortOf(v);
           sorts[v->getName()] = s;
           env[v->getName()] = s == "Int" ? num(0) : var("unset!" + f->getName() + "." + v->getName());
         }
@@ -82,7 +82,7 @@ void SpecFns::build(ASTProgram *p) {
       T call = app(f->getName(), xs);
       lhs[f->getName()] = call;
       rhs[f->getName()] = body;
-      decls += "(declare-fun |" + f->getName() + "| (" + sig + ") " + TY.fnSort[f->getName()] + ")\n";
+      decls += "(declare-fun |" + f->getName() + "| (" + sig + ") " + low.enc.resultSort(f->getName()) + ")\n";
       // A local of a datatype sort that some path leaves unset.
       std::set<std::string> fv;
       freeVars(body, fv);
@@ -141,11 +141,11 @@ void SpecFns::stmt(ASTStmt *s) {
     std::vector<Sub> outs;
     for (auto *arm : c->getArms()) {
       std::vector<std::pair<ASTDeclNode *, T>> binds;
-      T m = matchCtor(arm->getTag(), arm->getPatterns(), t, binds);
+      T m = matchCtor(low.enc, arm->getTag(), arm->getPatterns(), t, binds);
       env = before;
       for (auto &[d, v] : binds) {
         env[d->getName()] = v;
-        sorts[d->getName()] = sortOfTerm(v, low.sortLookup);
+        sorts[d->getName()] = low.enc.sortOfTerm(v, low.sortLookup);
       }
       auto here = earlier;
       here.push_back(m);

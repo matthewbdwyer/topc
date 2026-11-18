@@ -77,10 +77,10 @@ void heading(std::ostream &out, const std::string &h) { out << "-- " << h << "\n
 
 bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string &smtFile,
                    std::ostream &out, const Options &opt) {
-  TY = Types{};
-  TY.build(program, types);
-  Writes writes(program);
-  Lower low(program, writes);
+  Encoding enc;
+  enc.build(program, types);
+  Writes writes(program, enc);
+  Lower low(program, enc, writes);
   SpecFns specs(program, low);
   for (auto &sk : specs.skipped) out << sk << " (spec function rejected)\n";
 
@@ -154,7 +154,7 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
   // A limit on Z3's work for one query.  It counts Z3's own steps, not
   // seconds, so a verdict does not depend on how busy the machine is.
   std::string base = std::string(PRELUDE) + "(set-option :rlimit " + std::to_string(opt.rlimit) +
-                     ")\n" + TY.decls + specs.decls;
+                     ")\n" + enc.decls + specs.decls;
   if (opt.overflow)
     base += "(define-fun INT_MIN () Int (- 9223372036854775808))\n"
             "(define-fun INT_MAX () Int 9223372036854775807)\n";
@@ -184,7 +184,7 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
 
   // Definitions a query may need: rank functions always, spec functions
   // only if they terminate (step 2).
-  std::map<std::string, std::string> usable = TY.rankAxioms;
+  std::map<std::string, std::string> usable = enc.rankAxioms;
   // A query gets only the definitions it mentions (and those they mention).
   // An unneeded quantified definition can keep Z3 from finding a
   // counterexample, so it answers unknown instead of sat.
@@ -452,12 +452,12 @@ bool VCGen::verify(ASTProgram *program, TypeInference *types, const std::string 
 
   // rank(x) >= 1, by induction: one step per sum type.
   std::map<std::string, bool> rankProved;
-  for (auto &[r, q] : TY.rankChecks) rankProved[r] = run(base + q + "(check-sat)\n").first == "unsat";
+  for (auto &[r, q] : enc.rankChecks) rankProved[r] = run(base + q + "(check-sat)\n").first == "unsat";
 
   // The same queries as one readable SMT-LIB file.
   std::ofstream smtOut(smtFile);
   smtOut << base;
-  for (auto &[r, ax] : TY.rankAxioms) smtOut << ax;
+  for (auto &[r, ax] : enc.rankAxioms) smtOut << ax;
   for (auto &q : queries)
     if (q.fn.rfind("spec ", 0) == 0)
       smtOut << "\n; " << q.fn << ", line " << q.ob.line << ": " << q.ob.what << "\n(push)\n"

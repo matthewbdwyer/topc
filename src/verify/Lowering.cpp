@@ -52,7 +52,7 @@ std::string rootOf(ASTExpr *e, int *derefs) {
   return v ? v->getName() : "";
 }
 
-Writes::Writes(ASTProgram *p) {
+Writes::Writes(ASTProgram *p, const Encoding &enc) {
   for (auto *f : p->getFunctions()) fns[f->getName()] = f;
   struct Scan : ASTVisitor {
     std::set<std::string> stores;                              // roots of *... = E
@@ -78,7 +78,7 @@ Writes::Writes(ASTProgram *p) {
       auto formals = f->getFormals();
       auto &sc = scans[f->getName()];
       for (size_t k = 0; k < formals.size(); ++k) {
-        if (!TY.isBorrow(formals[k]) || written.count({f->getName(), (int)k})) continue;
+        if (!enc.isBorrow(formals[k]) || written.count({f->getName(), (int)k})) continue;
         auto x = formals[k]->getName();
         bool w = sc.stores.count(x);
         for (auto &[g, j, r] : sc.passes)
@@ -113,16 +113,18 @@ std::set<std::string> Writes::assigned(ASTNode *s) const {
   return scan.out;
 }
 
-T matchCtor(const std::string &tag, const std::vector<ASTPattern *> &subs, const T &t,
-            std::vector<std::pair<ASTDeclNode *, T>> &binds) {
+T matchCtor(const Encoding &enc, const std::string &tag, const std::vector<ASTPattern *> &subs,
+            const T &t, std::vector<std::pair<ASTDeclNode *, T>> &binds) {
   std::vector<T> cs{is(tag, t)};
-  auto &fs = TY.fields[tag];
+  auto &fs = enc.fieldsOf(tag);
   for (size_t i = 0; i < subs.size() && i < fs.size(); ++i)
-    cs.push_back(matchPattern(subs[i], sel(fs[i].first, t), binds));
+    cs.push_back(matchPattern(enc, subs[i], sel(fs[i].first, t), binds));
   return And(cs);
 }
-T matchPattern(ASTPattern *p, const T &t, std::vector<std::pair<ASTDeclNode *, T>> &binds) {
-  if (auto *c = dynamic_cast<ASTCtorPattern *>(p)) return matchCtor(c->getTag(), c->getSubPatterns(), t, binds);
+T matchPattern(const Encoding &enc, ASTPattern *p, const T &t,
+               std::vector<std::pair<ASTDeclNode *, T>> &binds) {
+  if (auto *c = dynamic_cast<ASTCtorPattern *>(p))
+    return matchCtor(enc, c->getTag(), c->getSubPatterns(), t, binds);
   if (auto *v = dynamic_cast<ASTVarPattern *>(p)) binds.push_back({v->getDecl(), t});
   return TRUE;
 }
@@ -139,7 +141,7 @@ std::string showArm(ASTCaseArm *a) {
   return s + ")";
 }
 
-Lower::Lower(ASTProgram *p, const Writes &w) : writes(w) {
+Lower::Lower(ASTProgram *p, const Encoding &enc, const Writes &w) : enc(enc), writes(w) {
   for (auto *f : p->getFunctions()) fns[f->getName()] = f;
 }
 
@@ -159,10 +161,10 @@ Proc Lower::proc(ASTFunction *f) {
   proc_.fn = f;
   auto &sorts = proc_.sorts;
   sortLookup = [this](const std::string &x) { return proc_.sortOf(x); };
-  for (auto *p : f->getFormals()) sorts[p->getName()] = TY.sortOf(p);
+  for (auto *p : f->getFormals()) sorts[p->getName()] = enc.sortOf(p);
   for (auto *d : f->getDeclarations())
-    for (auto *v : d->getVars()) sorts[v->getName()] = TY.sortOf(v);
-  sorts["result"] = TY.fnSort[f->getName()];
+    for (auto *v : d->getVars()) sorts[v->getName()] = enc.sortOf(v);
+  sorts["result"] = enc.resultSort(f->getName());
 
   std::set<std::string> assigned;
   for (auto *s : f->getStmts()) {
@@ -176,7 +178,7 @@ Proc Lower::proc(ASTFunction *f) {
     sorts["old(" + x + ")"] = sorts[x];
     if (!assigned.count(x)) continue;
     oldAll[x] = var("old(" + x + ")");
-    if (!TY.isBorrow(p)) old[x] = oldAll[x];
+    if (!enc.isBorrow(p)) old[x] = oldAll[x];
   }
 
   std::vector<G> cs;
@@ -234,9 +236,9 @@ T Lower::I(ASTExpr *e, std::vector<G> *pre, const Sub *sub) {
   }
   if (auto *rk = dynamic_cast<ASTRankExpr *>(e)) {
     T t = I(rk->getExpr(), pre, sub);
-    auto s = sortOfTerm(t, sortLookup);
-    if (!Types::isDatatype(s)) throw Unsupported(where(e) + "rank applies only to a sum value");
-    return Types::rank(t, s);
+    auto s = enc.sortOfTerm(t, sortLookup);
+    if (!Encoding::isDatatype(s)) throw Unsupported(where(e) + "rank applies only to a sum value");
+    return Encoding::rank(t, s);
   }
   if (auto *o = dynamic_cast<ASTOldExpr *>(e)) {
     if (!oldSub) throw Unsupported(where(e) + "old(...) is allowed only in ensures");
@@ -462,12 +464,12 @@ G Lower::stmt(ASTStmt *s) {
     for (int k = (int)arms.size() - 1; k >= 0; --k) {
       auto *arm = arms[k];
       std::vector<std::pair<ASTDeclNode *, T>> binds;
-      T m = matchCtor(arm->getTag(), arm->getPatterns(), t, binds);
+      T m = matchCtor(enc, arm->getTag(), arm->getPatterns(), t, binds);
       auto saved = renames;
       std::vector<G> body{guard(m, m, arm->getLine(), "case " + showArm(arm))};
       for (auto &[d, v] : binds) {
         auto b = d->getName();
-        auto bs = sortOfTerm(v, sortLookup);
+        auto bs = enc.sortOfTerm(v, sortLookup);
         std::string target = b;
         if (proc_.sorts.count(b) && proc_.sorts[b] != bs) target = b + "#" + std::to_string(fresh++);
         proc_.sorts[target] = bs;
@@ -549,7 +551,7 @@ T Lower::callExpr(ASTFunAppExpr *call, std::vector<G> &cs, const std::string &ta
   std::vector<std::string> roots;
   for (size_t k = 0; k < actuals.size(); ++k) {
     args.push_back(I(actuals[k], &cs, nullptr));
-    roots.push_back(k < formals.size() && TY.isBorrow(formals[k]) ? name(rootOf(actuals[k])) : "");
+    roots.push_back(k < formals.size() && enc.isBorrow(formals[k]) ? name(rootOf(actuals[k])) : "");
   }
   Sub at, olds;
   for (size_t k = 0; k < formals.size() && k < args.size(); ++k)
@@ -608,7 +610,7 @@ T Lower::callExpr(ASTFunAppExpr *call, std::vector<G> &cs, const std::string &ta
   std::string r = target;
   if (r.empty() || fv2.count(r) || std::count(outs.begin(), outs.end(), r))
     r = g->getName() + "#" + std::to_string(fresh++);
-  proc_.sorts[r] = TY.fnSort[g->getName()];
+  proc_.sorts[r] = enc.resultSort(g->getName());
   std::vector<std::string> hv{r};
   hv.insert(hv.end(), outVars.begin(), outVars.end());
   cs.push_back(havoc(hv, line, "result of " + site));
