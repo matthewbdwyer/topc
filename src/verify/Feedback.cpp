@@ -1,5 +1,7 @@
 #include "Feedback.h"
 
+#include <algorithm>
+
 #include "Support.h"
 #include "TermPrint.h"
 
@@ -21,6 +23,25 @@ void guards(const G &c, std::vector<T> &out) {
       },
       [](const Assert &) {}, [](const Assign &) {}, [](const Havoc &) {});
 }
+
+namespace {
+
+// Follows the passive program along the path the model takes.
+class Trace {
+public:
+  Trace(const std::map<std::string, std::string> &val, int target);
+  std::vector<std::string> lines;
+  bool walk(const G &c);
+
+private:
+  std::map<std::string, std::string> val;
+  Sub vals;
+  int target;
+
+  static const Assume *guardOf(const G &c);
+  std::string get(const std::string &k);
+  void emit(int line, const std::string &what, const std::string &vs);
+};
 
 Trace::Trace(const std::map<std::string, std::string> &val, int target) : val(val), target(target) {
   for (auto &[k, v] : val) {
@@ -97,6 +118,29 @@ void Trace::emit(int line, const std::string &what, const std::string &vs) {
     s += vs;
   }
   lines.push_back("    " + s);
+}
+
+} // namespace
+
+std::string counterexample(const Answer &a, const std::vector<std::string> &entry) {
+  std::vector<std::string> shown;
+  for (size_t j = 0; j < a.values.size() && j < entry.size(); ++j)
+    shown.push_back(baseName(entry[j]) + " = " + a.values[j]);
+  if (!shown.empty()) return join(shown);
+  std::string s = a.rest;
+  s.erase(std::remove(s.begin(), s.end(), '\n'), s.end());
+  return s;
+}
+
+std::vector<std::string> trace(const Passive &pv, const Query &asked, const Answer &a, int target) {
+  std::map<std::string, std::string> val;
+  for (size_t j = 0; j < a.values.size() && j < asked.values.size(); ++j) val[smt(asked.values[j])] = a.values[j];
+  Trace tr(val, target);
+  std::vector<std::string> vs;
+  for (auto &e : pv.entry) vs.push_back(baseName(e) + " = " + val["|" + e + "|"]);
+  if (!vs.empty()) tr.lines.push_back("    entry     " + join(vs));
+  tr.walk(pv.prog);
+  return tr.lines;
 }
 
 } // namespace verutop

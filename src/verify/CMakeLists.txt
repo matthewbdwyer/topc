@@ -12,11 +12,13 @@ target_sources(
           ${CMAKE_CURRENT_SOURCE_DIR}/Outline.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/Passivize.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/Query.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/Report.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/SmtEncode.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/Solver.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/Specs.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/Term.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/TermPrint.cpp
+          ${CMAKE_CURRENT_SOURCE_DIR}/Trust.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/Termination.cpp
           ${CMAKE_CURRENT_SOURCE_DIR}/VcStrategy.cpp)
 target_include_directories(
