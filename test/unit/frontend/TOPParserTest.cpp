@@ -414,6 +414,18 @@ TEST_CASE("TOP Lexer: illegal comparison token", "[TOP Lexer]") {
   REQUIRE_FALSE(ParserHelper::is_parsable(stream));
 }
 
+// The whole file must parse: text after the last function is an error,
+// not something to ignore.
+TEST_CASE("TOP Parser: text after the last function is rejected", "[TOP Parser]") {
+  std::stringstream stream;
+  stream << R"(
+      main() { return 0; }
+      )))) junk
+    )";
+
+  REQUIRE_FALSE(ParserHelper::is_parsable(stream));
+}
+
 TEST_CASE("TOP Lexer: illegal operator token", "[TOP Lexer]") {
   std::stringstream stream;
   stream << R"(

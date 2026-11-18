@@ -119,7 +119,14 @@ std::shared_ptr<ASTProgram> ASTBuilder::build(TOPParser::ProgramContext *ctx) {
   }
 
   auto prog = std::make_shared<ASTProgram>(pTypedecls, pFunctions);
-  prog->setName(generateSHA256(ctx->getText()));
+  // The program's name is a hash of its text.  The end-of-input token is
+  // not text, so it is left out (and the name is what it was before the
+  // grammar required EOF).
+  std::string text = ctx->getText();
+  const std::string eof = "<EOF>";
+  if (text.size() >= eof.size() && text.compare(text.size() - eof.size(), eof.size(), eof) == 0)
+    text.erase(text.size() - eof.size());
+  prog->setName(generateSHA256(text));
   return prog;
 }
 

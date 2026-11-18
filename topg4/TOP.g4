@@ -4,7 +4,9 @@ grammar TOP;
 
 ////////////////////// TOP Programs ////////////////////////// 
 
-program : (typeDecl | function)+
+// EOF is required: without it the parser accepts the longest prefix that
+// parses and silently ignores the rest of the file.
+program : (typeDecl | function)+ EOF
 ;
 
 function : (KSPEC | KLEMMA)? nameDeclaration 
