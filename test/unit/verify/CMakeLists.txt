@@ -27,4 +27,4 @@ target_link_libraries(
           coverage_config
           Catch2::Catch2WithMain)
 include(Catch)
-catch_discover_tests(verify_unit_tests)
+catch_discover_tests(verify_unit_tests TEST_PREFIX "verify: ")
