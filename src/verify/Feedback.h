@@ -15,8 +15,6 @@ namespace verutop {
 // ===========================================================================
 
 std::string baseName(const std::string &version);
-// The branch conditions of a passive program.
-void guards(const G &c, std::vector<T> &out);
 
 // The arguments of a counterexample, as "x = -1, y = 0"; if the solver gave
 // no values, whatever it said instead, on one line.

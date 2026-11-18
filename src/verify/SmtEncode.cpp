@@ -1,6 +1,5 @@
 #include "SmtEncode.h"
 
-#include "Feedback.h"
 
 namespace verutop {
 

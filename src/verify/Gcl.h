@@ -87,4 +87,7 @@ G gChoice(G a, G b, int line);
 std::vector<std::string> showCmd(const G &c, bool passive, int ind = 0);
 void printG(const G &c, int ind, std::ostream &o, bool passive);
 
+// The conditions that pick the branches of a program's choices, in order.
+void guards(const G &c, std::vector<T> &out);
+
 } // namespace verutop

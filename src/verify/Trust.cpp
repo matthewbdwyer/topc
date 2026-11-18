@@ -95,7 +95,6 @@ struct Analysis {
     for (auto &f : res.functions) {
       if (!f.ran) continue;
       auto &assumptions = f.proc.assumptions;
-      auto &obs = f.proc.obs;
       for (auto *q : byLine(f)) {
         if (!q->proved()) continue;
         std::string head = "  line " + std::to_string(q->ob.line) + ": " + q->ob.what();
@@ -112,10 +111,7 @@ struct Analysis {
           auto kind = isAsm ? assumptions[i].kind : Assumption::Pre;
           // The precondition and the function's own proved obligations are
           // not news, unless they explain why nothing reaches a point.
-          bool ownProved = u.rfind("ob!", 0) == 0;
-          if (ownProved && i < obs.size())
-            for (auto &o : f.obligations)
-              if (o.ob.line == obs[i].line && o.ob.what() == obs[i].what() && !o.proved()) ownProved = false;
+          bool ownProved = u.rfind("ob!", 0) == 0 && !(i < f.obligations.size() && !f.obligations[i].proved());
           if (!q->vacuous && ((isAsm && kind == Assumption::Pre) || ownProved)) continue;
           shown.push_back(show(f, u));
           if (isAsm && kind == Assumption::Assume) rests[f.name].insert(assumptions[i].what);

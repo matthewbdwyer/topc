@@ -1,7 +1,10 @@
 # VERUTOP verifier tests
 
-Tests of `topc --verify`. They need `z3` on the `PATH` and are skipped with
-a notice without it. They are not part of the default system-test run:
+Tests of `topc --verify`, end to end. (The unit tests of the verifier's
+modules are in `test/unit/verify/`; they do not run Z3, and ctest runs them
+as `verify_unit_tests`.) These need `z3` on the `PATH` and are skipped with
+a notice without it. Each `topc` here runs with `--vjobs=1`, since the
+runner already runs several at once. They are not part of the default system-test run:
 
 ```bash
 python3 test/system/verify/runner.py            # or: run.py --verifier

@@ -81,4 +81,19 @@ void printG(const G &c, int ind, std::ostream &o, bool passive) {
   for (auto &l : showCmd(c, passive, ind - 2)) o << pad(ind) << l << "\n";
 }
 
+void guards(const G &c, std::vector<T> &out) {
+  match(
+      c,
+      [&](const Assume &a) {
+        if (a.guard) out.push_back(a.p);
+      },
+      [&](const Seq &s) {
+        for (auto &k : s.kids) guards(k, out);
+      },
+      [&](const Choice &ch) {
+        for (auto &k : ch.kids) guards(k, out);
+      },
+      [](const Assert &) {}, [](const Assign &) {}, [](const Havoc &) {});
+}
+
 } // namespace verutop

@@ -95,7 +95,7 @@ Size: about 350 changed lines in existing files, plus `src/verify/VCGen.cpp`
 modes, spec functions, termination, the proof outline, and counterexample
 traces), `ASTProofStmt.h`, and `ASTOldExpr.h`.
 
-## The pipeline (`src/verify/VCGen.cpp`), and a view of each stage
+## The pipeline (`src/verify/`), and a view of each stage
 
 ```
 AST --lower--> guarded commands --passivize--> passive commands --> VC --> SMT queries --> Z3
@@ -109,7 +109,7 @@ AST --lower--> guarded commands --passivize--> passive commands --> VC --> SMT q
 | `--ppassive` | the passive form: every variable versioned, merges at joins |
 | `--pwp` | a proof outline: the weakest precondition before every command, substituted and simplified (a formula over 4000 nodes is shown as a placeholder) |
 | `--pvc` | the function's VC in infix, every obligation checked, in the selected `--vcmode` |
-| `--psmt[=line]` | the SMT-LIB queries exactly as sent to Z3, or only those for one line |
+| `--psmt[=line]` | the SMT-LIB queries sent to Z3, or only those for one line |
 | `--pspec` | each spec function's definition, its axiom, and its termination obligations |
 | `--pcex` | a trace for each failure: entry values, each assignment with its value, each branch taken, and the failing assertion with the values substituted |
 | `--ptrust` | what each proof uses, why a vacuous proof is vacuous, a verdict for each function, and what is always trusted; with `--psmt`, also the queries that ask |
@@ -428,7 +428,72 @@ induction step. With `--overflow`, arithmetic in code is checked to stay in
 - Structural induction over sum types, and that a terminating recursive
   definition defines a function.
 
+## Architecture
+
+The verifier is a library, `src/verify/`, in namespace `verutop`, built
+like the rest of the compiler: each IR has one job and a printer, each
+pass is a function from one IR to the next, and the back end targets a
+solver instead of a machine.
+
+```
+AST, types, ownership                       the front end
+  │  Lowering  (with Encoding and Specs)
+guarded commands        Gcl                 --pgcl
+  │  Passivize
+passive commands        Gcl                 --ppassive
+  │  VcStrategy: WpVc | PassiveVc
+a formula               Term                --pvc, --pwp
+  │  SmtEncode
+queries                 Query               --psmt
+  │  Solver: Z3Process
+answers                 Answer
+  │  Feedback, Trust
+results                 VerifyResult        the report, --pcex, --ptrust
+```
+
+| Module | What it is |
+|---|---|
+| `Term`, `TermPrint` | The logic: one representation of formulas, printed as SMT-LIB for Z3 and in infix for people. Substitution, free variables, and a simplifier used only for display. |
+| `Encoding` | How a TOP value becomes a logical one: sorts, a reference as its referent, a written borrow as an in-out parameter, `case` as constructor tests, `rank`, the range of a machine integer. Its header is the statement of the heap-free encoding. |
+| `Gcl` | Guarded commands: a variant of `Assume`, `Assert`, `Assign`, `Havoc`, `Seq`, `Choice`. Every traversal is a `match` with one function per kind. |
+| `Obligations` | `Obligation` (a kind, a position, a subject; its message is derived) and `Assumption` (what a proof may use that the function does not establish). |
+| `Termination` | The call graph's cycles, and the obligation that a call on a cycle decreases the measure. |
+| `Lowering` | AST to guarded commands: `Lowering.cpp` (a function), `LowerExpr.cpp`, `LowerStmt.cpp`, `LowerCall.cpp`. |
+| `Specs` | Spec functions as definitions (`Axiom`) with termination checks; the rule that code may not use them. |
+| `Passivize` | Guarded commands to passive form (Flanagan and Saxe). |
+| `VcStrategy` | Two interchangeable ways to compute a VC: `WpVc` and `PassiveVc`. |
+| `Outline` | The `--pwp` proof outline. |
+| `Query`, `SmtEncode` | A query as data (`Query`, `Axiom`, `Background`) and its one renderer; the queries asked about an obligation: its verdict, a trace, what the proof uses, whether anything reaches it. |
+| `Solver` | `Solver::check(Background, Query) -> Answer`. `Z3Process` pipes SMT-LIB to `z3 -in`; `CannedSolver` answers by rule, for tests; `checkAll` runs a batch on several processes. |
+| `Feedback` | From an answer back to the program: the counterexample's arguments, and the trace. |
+| `Results` | What a run found, as data: `VerifyResult`. |
+| `Trust` | From the results alone: what is assumed and checked, and each function's verdict with what it rests on. |
+| `Report` | Presentation only: every view, the verdicts, the trust report, the `.vc.smt2` file. |
+| `Driver` | Wires the stages: `verify(program, types, solver, options) -> VerifyResult`. Prints nothing. |
+
+Three rules keep the boundaries honest:
+
+- **A query is never text until it is rendered.** The definitions a query
+  needs are found from the function symbols in its terms. What `--psmt`
+  shows is `render(background, query)`; `Z3Process` sends that, plus one
+  line after `check-sat` asking why an answer is `unknown`.
+- **The driver decides; it does not print or parse.** Everything it
+  learns is in the `VerifyResult`, so a test can run it on a program with
+  a `CannedSolver` and inspect what was asked and what was concluded.
+- **Messages are derived, not matched.** An obligation's kind determines
+  its wording, whether it is a missing clause, and whether it is exempt
+  from the vacuity check.
+
+To add a kind of obligation: a value of `ObKind`, its message in
+`Obligations.cpp`, and the `assertion(...)` call in lowering that creates
+it. To use another solver: implement `Solver`.
+
 ## Tests
+
+`test/unit/verify/` (built as `verify_unit_tests`, run by ctest): unit
+tests for each module, none of which runs Z3. Programs are built by hand
+as guarded commands, or parsed from source; VCs are checked by evaluating
+them over a small domain; the driver is run with a canned solver.
 
 `test/system/verify/` (run `python3 test/system/verify/runner.py`; needs
 `z3`): the verdicts of every demo, pinned; agreement between the two VC

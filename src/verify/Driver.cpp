@@ -1,35 +1,29 @@
-// VERUTOP prototype: verification conditions for a subset of TOP.
+// VERUTOP: deductive verification for a subset of TOP.
 //
-// The pipeline; each stage after the AST can be printed:
+// The pipeline, one module per stage; each IR has a printer (Report.h):
 //
-//   AST  --lower-->      guarded commands              --pgcl
-//        --passivize-->  passive commands (versions)   --ppassive
-//        --vc-->         one formula per function      --pvc, --pwp (outline)
-//        -->             one SMT-LIB query per obligation  --psmt
-//        --> Z3: proved, or a counterexample           --pcex (as a trace)
+//   AST, types, ownership            the front end (not here)
+//     | Lowering, with Encoding and Specs
+//   guarded commands (Gcl)           --pgcl
+//     | Passivize
+//   passive commands                 --ppassive
+//     | VcStrategy: WpVc or PassiveVc
+//   a verification condition (Term)  --pvc, --pwp (Outline)
+//     | SmtEncode
+//   queries (Query)                  --psmt
+//     | Solver: Z3Process
+//   answers
+//     | Feedback, Trust
+//   results (Results)                the report, --pcex, --ptrust
 //
-// Guarded commands have five forms: assume P, assert P, x := E, havoc x,
-// and a choice between two commands, plus sequencing.  Every TOP construct
-// the prototype supports lowers to these, so both VC generators (wp by
-// substitution, and passive) work on guarded commands, not on the AST.
-//
-// Heap data needs no heap model, because of ownership:
-// - An owned box has one owner, so a variable of type own&T is represented
-//   by the value it points to: alloc E, *E, and &E are all the identity, and
-//   *p = E assigns p.
-// - A sum value is an SMT datatype value; case is a chain of constructor
-//   tests, and its binders are selectors.
-// - A borrow exists only for the duration of a call, and only an int can be
-//   written through one.  So a borrowed parameter is an in-out parameter: the
-//   callee's ensures says what *p is at the end (and old(*p) what it was), and
-//   the caller's variable takes that value.  A borrowed parameter the callee
-//   never writes leaves the caller's variable alone, with no frame condition.
+// This file wires the stages.  It prints nothing and knows nothing about
+// Z3 beyond the Solver interface.
 //
 // Supported: ints and sum types; + - * / and comparisons; if, while (with
 // invariants and decreases), case, blocks, assignment, output, error, input;
 // alloc, *, & (as a call argument); calls to functions by name, anywhere in
 // an expression, verified modularly against the callee's contract; assert
-// and assume; spec functions.  Function values are not supported.
+// and assume; spec functions and lemmas.  Function values are not supported.
 #include "Driver.h"
 
 #include "Encoding.h"

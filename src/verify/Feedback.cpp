@@ -9,20 +9,6 @@ namespace verutop {
 
 std::string baseName(const std::string &version) { return version.substr(0, version.rfind('@')); }
 
-void guards(const G &c, std::vector<T> &out) {
-  match(
-      c,
-      [&](const Assume &a) {
-        if (a.guard) out.push_back(a.p);
-      },
-      [&](const Seq &s) {
-        for (auto &k : s.kids) guards(k, out);
-      },
-      [&](const Choice &ch) {
-        for (auto &k : ch.kids) guards(k, out);
-      },
-      [](const Assert &) {}, [](const Assign &) {}, [](const Havoc &) {});
-}
 
 namespace {
 
